@@ -1584,6 +1584,7 @@ function connectChat(avatarId) {
       addLookupResult(data);
       if (NVatarSDK.onLookupResult) NVatarSDK.onLookupResult(data);
     } else if (data.type === 'bubble') {
+      _waitingForResponse = false;
       addChatMsg('avatar', data.text);
       showBubble(0, data.text);
       speakTTS(data.text); // 버블 단위 TTS (큐 순차재생)
@@ -1855,6 +1856,7 @@ window.sendChat = function() {
 
   // Send via WebSocket if connected
   if (chatWs && chatWs.readyState === 1) {
+    _waitingForResponse = true;
     chatWs.send(JSON.stringify({ type: 'message', text }));
     returnToCenter();
     pauseRoaming();
@@ -1956,6 +1958,7 @@ const _isMobile = () => window.innerWidth <= 768;
 let _chatFadeTimer = null;
 let _chatFadeInterval = null;
 let _chatState = 'idle';
+let _waitingForResponse = false; // true while user sent msg and avatar hasn't responded yet
 
 function _chatCancelFade() {
   clearTimeout(_chatFadeTimer); _chatFadeTimer = null;
@@ -2012,6 +2015,7 @@ function _chatRevealAll() {
 
 function _onBubbleComplete() {
   if (!_isMobile() || _chatState !== 'active') return;
+  if (_waitingForResponse) return; // don't fade while waiting for avatar reply
   _chatStartFadeTimer();
 }
 
