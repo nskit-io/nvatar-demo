@@ -1976,7 +1976,9 @@ function _chatEnterIdle() {
 function _chatStartFadeTimer() {
   clearTimeout(_chatFadeTimer);
   if (!_isMobile()) return;
+  console.log('[fade] startFadeTimer (5s)');
   _chatFadeTimer = setTimeout(() => {
+    console.log('[fade] timer fired → entering idle');
     _chatConversing = false;
     _chatState = 'fading';
     _chatEnterIdle();
@@ -1984,6 +1986,7 @@ function _chatStartFadeTimer() {
 }
 
 function _onBubbleComplete() {
+  console.log('[fade] _onBubbleComplete', 'mobile:', _isMobile(), 'state:', _chatState, 'conversing:', _chatConversing);
   if (!_isMobile() || _chatState !== 'active') return;
   _chatConversing = false;
   _chatStartFadeTimer();
@@ -2001,6 +2004,7 @@ function _chatShowMsg(el) {
   if (!overlay.classList.contains('chat-idle')) overlay.classList.add('chat-idle');
   el.classList.add('chat-active-msg');
   _chatState = 'active';
+  console.log('[fade] showMsg, state:', _chatState, 'el:', el.textContent?.slice(0, 20));
 }
 
 function _chatRevealAll() {
