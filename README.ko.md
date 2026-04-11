@@ -10,11 +10,11 @@
 
 | 로비 | 룸 |
 |------|-----|
-| ![로비](screenshots/demo_lobby.png) | ![룸](screenshots/demo_room_welcome.png) |
+| <img src="screenshots/demo_lobby.png" width="400"> | <img src="screenshots/demo_room_welcome.png" width="400"> |
 
 | 검색 결과 | 대화 데모 |
 |-----------|-----------|
-| ![검색](screenshots/demo_room_search_result.png) | ![대화 데모](screenshots/demo_room_hello.gif) |
+| <img src="screenshots/demo_room_search_result.png" width="400"> | <img src="screenshots/demo_room_hello.gif" width="400"> |
 
 ---
 

@@ -10,11 +10,11 @@
 
 | ロビー | ルーム |
 |--------|--------|
-| ![ロビー](screenshots/demo_lobby.png) | ![ルーム](screenshots/demo_room_welcome.png) |
+| <img src="screenshots/demo_lobby.png" width="400"> | <img src="screenshots/demo_room_welcome.png" width="400"> |
 
 | 検索結果 | チャットデモ |
 |----------|-------------|
-| ![検索](screenshots/demo_room_search_result.png) | ![チャットデモ](screenshots/demo_room_hello.gif) |
+| <img src="screenshots/demo_room_search_result.png" width="400"> | <img src="screenshots/demo_room_hello.gif" width="400"> |
 
 ---
 

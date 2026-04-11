@@ -10,11 +10,11 @@
 
 | Lobby | Room |
 |-------|------|
-| ![Lobby](screenshots/demo_lobby.png) | ![Room](screenshots/demo_room_welcome.png) |
+| <img src="screenshots/demo_lobby.png" width="400"> | <img src="screenshots/demo_room_welcome.png" width="400"> |
 
 | Search Results | Chat Demo |
 |----------------|-----------|
-| ![Search](screenshots/demo_room_search_result.png) | ![Chat Demo](screenshots/demo_room_hello.gif) |
+| <img src="screenshots/demo_room_search_result.png" width="400"> | <img src="screenshots/demo_room_hello.gif" width="400"> |
 
 ---
 
