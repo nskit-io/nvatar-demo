@@ -1528,14 +1528,16 @@ async function buildSheetVrm(body) {
     item.className = 'bs-vrm-item';
     const alias = v.meta?.alias;
     const name = alias ? alias.ko : v.name.replace('.vrm','');
-    const thumbUrl = v.thumbnail || '';
+    const rawThumb = v.thumbnail || '';
+    const thumbUrl = rawThumb.startsWith('/') ? 'https://nvatar.nskit.io' + rawThumb : rawThumb;
     item.innerHTML = thumbUrl
       ? `<img class="bs-vrm-thumb" src="${thumbUrl}" alt="${name}"><div>${name}</div>`
       : `<div style="width:100%;aspect-ratio:1;border-radius:6px;background:#334155;margin-bottom:4px;display:flex;align-items:center;justify-content:center;">👤</div><div>${name}</div>`;
     item.onclick = () => {
       grid.querySelectorAll('.bs-vrm-item').forEach(i => i.classList.remove('active'));
       item.classList.add('active');
-      load(v.path);
+      const vrmUrl = v.path.startsWith('/') ? 'https://nvatar.nskit.io' + v.path : v.path;
+      load(vrmUrl);
       setTimeout(closeSheet, 300);
     };
     grid.appendChild(item);
