@@ -33,9 +33,28 @@ canvas { display: block; }
 .panel-section button:hover { border-color: #6366f1; color: #e2e8f0; }
 .panel-section button.active { border-color: #6366f1; color: #6366f1; }
 
+/* Mobile controls (top-right icons) */
+.mobile-controls { display: none; position: absolute; top: 10px; right: 10px; z-index: 20; pointer-events: auto; gap: 6px; }
+.mobile-controls button { width: 36px; height: 36px; border: 1px solid #334155; border-radius: 8px; background: rgba(15,23,42,0.85); color: #94a3b8; font-size: 16px; cursor: pointer; backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; }
+.mobile-controls select { padding: 6px; border: 1px solid #334155; border-radius: 8px; background: rgba(15,23,42,0.85); color: #94a3b8; font-size: 12px; backdrop-filter: blur(8px); }
+
+.mobile-lookup-dialog { display: none; position: fixed; top: 15%; left: 5%; right: 5%; max-height: 70vh; background: rgba(10,15,30,0.97); border: 1px solid #334155; border-radius: 16px; z-index: 50; pointer-events: auto; backdrop-filter: blur(16px); flex-direction: column; overflow: hidden; }
+.mobile-lookup-dialog .dlg-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid #1e293b; }
+.mobile-lookup-dialog .dlg-body { flex: 1; overflow-y: auto; padding: 10px; max-height: calc(70vh - 50px); }
+.mobile-lookup-dialog .dlg-close { padding: 4px 12px; border: 1px solid #334155; border-radius: 6px; background: transparent; color: #94a3b8; font-size: 12px; cursor: pointer; }
+
+.chat-fading #chatMessages { -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,1) 60%); mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,1) 60%); transition: -webkit-mask-image 1s, mask-image 1s, opacity 1s; }
+.chat-hidden #chatMessages { opacity: 0; transition: opacity 1.5s; }
+
 @media (max-width: 768px) {
-  .chat-bar input { width: 250px; }
-  .side-panel { display: none; }
+  .side-panel { display: none !important; }
+  .mobile-controls { display: flex; }
+  .top-bar .controls { display: none; }
+  .top-bar h1 { font-size: 12px; }
+  #chatOverlay { left: 8px; right: 8px; bottom: 8px; width: auto; }
+  #chatOverlay input { font-size: 14px; }
+  #lookupBadge { top: 10px; left: 10px; font-size: 14px; padding: 8px 12px; }
+  #lookupPanel { display: none !important; }
 }
 </style>
 </head>
@@ -80,6 +99,26 @@ canvas { display: block; }
       <button id="btnTTS" onclick="window._toggleTTS(this)" style="background:rgba(99,102,241,0.3);"></button>
     </div>
   </div>
+</div>
+
+<!-- Mobile controls (top-right) -->
+<div class="mobile-controls">
+  <select id="mobileLangSelect" onchange="window._changeLang(this.value)">
+    <option value="ko">🇰🇷</option>
+    <option value="ja">🇯🇵</option>
+    <option value="en">🇺🇸</option>
+    <option value="zh">🇨🇳</option>
+  </select>
+  <button id="mobileTTS" onclick="window._toggleTTS(document.getElementById('btnTTS'))">🔊</button>
+</div>
+
+<!-- Mobile lookup dialog -->
+<div id="mobileLookupDialog" class="mobile-lookup-dialog">
+  <div class="dlg-header">
+    <span style="font-size:13px;font-weight:700;color:#e2e8f0;">🔍</span>
+    <button class="dlg-close" onclick="closeMobileLookup()">✕</button>
+  </div>
+  <div id="mobileLookupBody" class="dlg-body"></div>
 </div>
 
 <!-- Lookup badge + panel (SDK demo) -->
@@ -1866,12 +1905,90 @@ function animate() {
   updateBubblePositions();
 }
 
+// --- Mobile: Chat Fade System ---
+const _isMobile = () => window.innerWidth <= 768;
+let _chatFadeTimer = null;
+let _chatFadeState = 'visible';
+
+function _chatActivity() {
+  if (!_isMobile()) return;
+  const overlay = document.getElementById('chatOverlay');
+  overlay.classList.remove('chat-fading', 'chat-hidden');
+  document.getElementById('chatMessages').style.opacity = '1';
+  _chatFadeState = 'visible';
+  clearTimeout(_chatFadeTimer);
+  _chatFadeTimer = setTimeout(_startChatFade, 3000);
+}
+
+function _startChatFade() {
+  if (!_isMobile()) return;
+  const overlay = document.getElementById('chatOverlay');
+  _chatFadeState = 'fading';
+  overlay.classList.add('chat-fading');
+  _chatFadeTimer = setTimeout(() => {
+    overlay.classList.remove('chat-fading');
+    overlay.classList.add('chat-hidden');
+    _chatFadeState = 'hidden';
+  }, 2000);
+}
+
+const _origAddChatMsg = addChatMsg;
+addChatMsg = function(role, text) {
+  _origAddChatMsg(role, text);
+  _chatActivity();
+};
+
+// --- Mobile: Lookup Dialog ---
+let _lookupDialogTimer = null;
+
+window.openMobileLookup = function() {
+  const dlg = document.getElementById('mobileLookupDialog');
+  const body = document.getElementById('mobileLookupBody');
+  body.innerHTML = document.getElementById('lookupList').innerHTML;
+  dlg.style.display = 'flex';
+  clearTimeout(_lookupDialogTimer);
+  _lookupDialogTimer = setTimeout(closeMobileLookup, 5000);
+  dlg.addEventListener('touchstart', () => {
+    clearTimeout(_lookupDialogTimer);
+    _lookupDialogTimer = setTimeout(closeMobileLookup, 5000);
+  }, { passive: true });
+};
+
+window.closeMobileLookup = function() {
+  document.getElementById('mobileLookupDialog').style.display = 'none';
+  clearTimeout(_lookupDialogTimer);
+};
+
+const _origToggleLookup = window.toggleLookupPanel;
+window.toggleLookupPanel = function(e) {
+  if (e) e.stopPropagation();
+  if (_isMobile()) { openMobileLookup(); } else { _origToggleLookup(e); }
+};
+
+const _origChangeLangFn = window._changeLang;
+window._changeLang = async function(lang) {
+  await _origChangeLangFn(lang);
+  const sel = document.getElementById('langSelect');
+  const msel = document.getElementById('mobileLangSelect');
+  if (sel) sel.value = lang;
+  if (msel) msel.value = lang;
+};
+
+const _origToggleTTS = window._toggleTTS;
+window._toggleTTS = function(btn) {
+  _origToggleTTS(btn);
+  const mBtn = document.getElementById('mobileTTS');
+  if (mBtn) mBtn.textContent = TTS_CONFIG.enabled ? '🔊' : '🔇';
+};
+
 init();
 
 // Apply i18n on load
 _applyI18nUI();
 const langSel = document.getElementById('langSelect');
 if (langSel) langSel.value = _uiLang;
+const mobileLangSel = document.getElementById('mobileLangSelect');
+if (mobileLangSel) mobileLangSel.value = _uiLang;
 
 // Load from URL params or default
 const urlParams2 = new URLSearchParams(window.location.search);
