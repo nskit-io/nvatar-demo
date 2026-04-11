@@ -107,9 +107,9 @@ a:hover { text-decoration: underline; }
   .mobile-float { display: flex; position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); gap: 10px; z-index: 50; }
   .mobile-float button { padding: 10px 18px; border: 1px solid rgba(99,102,241,0.4); border-radius: 20px; background: rgba(15,23,42,0.85); color: #e2e8f0; font-size: 13px; cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); white-space: nowrap; }
   .mobile-float button:active { background: rgba(99,102,241,0.3); }
-  .mobile-emo-bar { display: none; position: absolute; top: 8px; left: 8px; right: 8px; z-index: 50; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; padding: 4px 0; }
-  .mobile-emo-bar.active { display: block; }
-  .mobile-emo-bar button { padding: 6px 12px; border: 1px solid rgba(99,102,241,0.3); border-radius: 16px; background: rgba(15,23,42,0.85); color: #cbd5e1; font-size: 12px; cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); margin-right: 6px; }
+  .mobile-emo-bar { display: none; position: absolute; top: 8px; left: 8px; right: 8px; z-index: 50; flex-wrap: wrap; gap: 5px; max-height: calc(5 * 34px); overflow: hidden; }
+  .mobile-emo-bar.active { display: flex; }
+  .mobile-emo-bar button { padding: 5px 10px; border: 1px solid rgba(99,102,241,0.3); border-radius: 14px; background: rgba(15,23,42,0.85); color: #cbd5e1; font-size: 11px; cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); line-height: 1.2; }
   .mobile-emo-bar button:active, .mobile-emo-bar button.active { background: rgba(99,102,241,0.3); border-color: #6366f1; color: #e2e8f0; }
 }
 </style>
@@ -188,11 +188,11 @@ a:hover { text-decoration: underline; }
   <div class="viewer" id="viewer">
     <div class="viewer-overlay" id="overlay">모델을 선택하세요<br><br>마우스·터치: 회전 / 스크롤·핀치: 줌</div>
     <div class="status-bar" id="statusBar"></div>
+    <div class="mobile-emo-bar" id="mobileEmoBar"></div>
     <div class="mobile-float">
       <button onclick="openSheet('vrm')">👤 VRM</button>
       <button onclick="openSheet('fbx')">💃 Mixamo</button>
     </div>
-    <div class="mobile-emo-bar" id="mobileEmoBar"></div>
   </div>
 
   <!-- Right panel: Tabs -->
