@@ -47,24 +47,24 @@ canvas { display: block; }
   <div style="width:240px;height:4px;background:#1e293b;border-radius:4px;overflow:hidden;">
     <div id="loadingBar" style="width:0%;height:100%;background:#6366f1;border-radius:4px;transition:width 0.3s;"></div>
   </div>
-  <div id="loadingText" style="margin-top:8px;font-size:12px;color:#64748b;">Preparing room...</div>
+  <div id="loadingText" style="margin-top:8px;font-size:12px;color:#64748b;"></div>
 </div>
 
 <div class="ui-overlay">
   <div class="top-bar">
     <h1><span>NVatar</span> Virtual Room</h1>
     <div class="controls">
-      <button onclick="location.href='index.html'" style="padding:4px 10px;border:1px solid #334155;border-radius:6px;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px;">← 로비</button>
-      <span style="font-size:11px;color:#64748b;">더블클릭: 이동</span>
-      <button onclick="toggleLight()">💡 조명</button>
-      <button onclick="resetView()">📷 리셋</button>
+      <button data-i18n="lobby" onclick="location.href='index.html'" style="padding:4px 10px;border:1px solid #334155;border-radius:6px;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px;">← Lobby</button>
+      <span data-i18n="dblClickMove" style="font-size:11px;color:#64748b;">Double-click: Move</span>
+      <button data-i18n="light" onclick="toggleLight()">💡 Light</button>
+      <button data-i18n="camReset" onclick="resetView()">📷 Reset</button>
     </div>
   </div>
 </div>
 
 <div class="side-panel">
   <div class="panel-section">
-    <h3>언어</h3>
+    <h3 data-i18n="langLabel">Language</h3>
     <div class="btn-grid">
       <select id="langSelect" onchange="window._changeLang(this.value)" style="padding:6px;border:1px solid #334155;border-radius:4px;background:rgba(15,23,42,0.8);color:#94a3b8;font-size:10px;width:100%;">
         <option value="ko">🇰🇷 한국어</option>
@@ -75,22 +75,22 @@ canvas { display: block; }
     </div>
   </div>
   <div class="panel-section">
-    <h3>음성</h3>
+    <h3 data-i18n="voiceLabel">Voice</h3>
     <div class="btn-grid">
-      <button id="btnTTS" onclick="window._toggleTTS(this)" style="background:rgba(99,102,241,0.3);">🔊 TTS ON</button>
+      <button id="btnTTS" onclick="window._toggleTTS(this)" style="background:rgba(99,102,241,0.3);"></button>
     </div>
   </div>
 </div>
 
 <!-- Lookup badge + panel (SDK demo) -->
 <div id="lookupBadge" onclick="toggleLookupPanel(event)" style="position:absolute;top:48px;left:16px;display:none;padding:6px 14px;border-radius:20px;background:rgba(99,102,241,0.9);color:#fff;font-size:11px;font-weight:700;cursor:pointer;pointer-events:auto;z-index:30;backdrop-filter:blur(8px);transition:all 0.3s;">
-  🔍 검색 결과 <span id="lookupBadgeCount">0</span>건
+  <span data-i18n="lookupResult"></span> <span id="lookupBadgeCount">0</span><span data-i18n-count="lookupCount"></span>
 </div>
 
 <div id="lookupPanel" style="position:absolute;top:80px;left:16px;width:340px;max-height:60vh;display:none;flex-direction:column;background:rgba(10,15,30,0.95);border:1px solid #334155;border-radius:12px;pointer-events:auto;z-index:30;backdrop-filter:blur(12px);overflow:hidden;">
   <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #1e293b;">
-    <span style="font-size:12px;font-weight:700;color:#e2e8f0;">🔍 검색 결과</span>
-    <button onclick="toggleLookupPanel(event)" style="padding:2px 8px;border:1px solid #334155;border-radius:4px;background:transparent;color:#94a3b8;font-size:11px;cursor:pointer;">닫기</button>
+    <span data-i18n="lookupHeader" style="font-size:12px;font-weight:700;color:#e2e8f0;"></span>
+    <button data-i18n="close" onclick="toggleLookupPanel(event)" style="padding:2px 8px;border:1px solid #334155;border-radius:4px;background:transparent;color:#94a3b8;font-size:11px;cursor:pointer;"></button>
   </div>
   <div id="lookupList" style="flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px;max-height:50vh;"></div>
 </div>
@@ -100,10 +100,10 @@ canvas { display: block; }
   <div id="chatMessages" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:8px;max-height:45vh;">
   </div>
   <div style="display:flex;gap:6px;padding:4px;align-items:center;">
-    <input id="chatInput" placeholder="메시지..." style="flex:1;padding:10px 14px;border:1px solid #334155;border-radius:20px;background:rgba(15,23,42,0.9);color:#e2e8f0;font-size:13px;outline:none;backdrop-filter:blur(8px);">
+    <input id="chatInput" placeholder="" style="flex:1;padding:10px 14px;border:1px solid #334155;border-radius:20px;background:rgba(15,23,42,0.9);color:#e2e8f0;font-size:13px;outline:none;backdrop-filter:blur(8px);">
     <button id="micBtn" onclick="toggleMic()" style="padding:8px 12px;border:1px solid #334155;border-radius:20px;background:rgba(15,23,42,0.9);color:#94a3b8;font-size:16px;cursor:pointer;backdrop-filter:blur(8px);transition:all 0.2s;">🎤</button>
     <span id="micTimer" style="font-size:10px;color:#ef4444;font-variant-numeric:tabular-nums;min-width:28px;display:none;">0:00</span>
-    <button onclick="sendChat()" style="padding:10px 16px;border:none;border-radius:20px;background:#6366f1;color:#fff;font-size:13px;cursor:pointer;">전송</button>
+    <button data-i18n="send" onclick="sendChat()" style="padding:10px 16px;border:none;border-radius:20px;background:#6366f1;color:#fff;font-size:13px;cursor:pointer;"></button>
   </div>
 </div>
 
@@ -126,6 +126,93 @@ let avatars = [];
 let roomLights = [];
 let elapsed = 0;
 let lightOn = true;
+
+// --- i18n ---
+const _urlLang = new URLSearchParams(window.location.search).get('lang') || 'ko';
+let _uiLang = _urlLang;
+
+const I18N = {
+  ko: {
+    loading: 'NVatar 로딩 중...', preparingRoom: '방 준비 중...', loadingRoom: '방 로딩 중...',
+    loadingAvatar: '아바타 로딩 중...', loadingAnim: '애니메이션 로딩 중...', waitingRoom: '방 대기 중...', ready: '준비 완료!',
+    lobby: '← 로비', dblClickMove: '더블클릭: 이동', light: '💡 조명', camReset: '📷 리셋',
+    langLabel: '언어', voiceLabel: '음성', ttsOn: '🔊 TTS ON', ttsOff: '🔇 TTS OFF',
+    lookupResult: '🔍 검색 결과', lookupCount: '건', close: '닫기', placeholder: '메시지...', send: '전송',
+    connected: '연결됨', disconnected: '연결 끊김',
+    noAvatar: '아바타를 먼저 연결하세요', noAvatarSend: '아바타를 먼저 선택하세요',
+    langChanged: '언어가 변경되었습니다', langChangeFailed: '언어 변경 실패',
+    lookupPrefix: '[검색 결과] ', lookupDefaultTitle: '검색 결과',
+    micPermission: '마이크 권한이 필요합니다', micListening: '🎤 음성 인식 중...',
+    micNoResult: '음성이 인식되지 않았어요', micServerFail: '음성 서버 연결 실패',
+  },
+  ja: {
+    loading: 'NVatar ロード中...', preparingRoom: 'ルーム準備中...', loadingRoom: 'ルーム読み込み中...',
+    loadingAvatar: 'アバター読み込み中...', loadingAnim: 'アニメーション読み込み中...', waitingRoom: 'ルーム待機中...', ready: '準備完了！',
+    lobby: '← ロビー', dblClickMove: 'ダブルクリック: 移動', light: '💡 照明', camReset: '📷 リセット',
+    langLabel: '言語', voiceLabel: '音声', ttsOn: '🔊 TTS ON', ttsOff: '🔇 TTS OFF',
+    lookupResult: '🔍 検索結果', lookupCount: '件', close: '閉じる', placeholder: 'メッセージ...', send: '送信',
+    connected: '接続済み', disconnected: '切断されました',
+    noAvatar: 'アバターを先に接続してください', noAvatarSend: 'アバターを先に選択してください',
+    langChanged: '言語が変更されました', langChangeFailed: '言語変更に失敗しました',
+    lookupPrefix: '[検索結果] ', lookupDefaultTitle: '検索結果',
+    micPermission: 'マイク権限が必要です', micListening: '🎤 音声認識中...',
+    micNoResult: '音声が認識されませんでした', micServerFail: '音声サーバー接続失敗',
+  },
+  en: {
+    loading: 'NVatar Loading...', preparingRoom: 'Preparing room...', loadingRoom: 'Loading room...',
+    loadingAvatar: 'Loading avatar...', loadingAnim: 'Loading animations...', waitingRoom: 'Waiting for room...', ready: 'Ready!',
+    lobby: '← Lobby', dblClickMove: 'Double-click: Move', light: '💡 Light', camReset: '📷 Reset',
+    langLabel: 'Language', voiceLabel: 'Voice', ttsOn: '🔊 TTS ON', ttsOff: '🔇 TTS OFF',
+    lookupResult: '🔍 Search Results', lookupCount: '', close: 'Close', placeholder: 'Message...', send: 'Send',
+    connected: 'Connected', disconnected: 'Disconnected',
+    noAvatar: 'Connect an avatar first', noAvatarSend: 'Select an avatar first',
+    langChanged: 'Language changed', langChangeFailed: 'Language change failed',
+    lookupPrefix: '[Search] ', lookupDefaultTitle: 'Search Results',
+    micPermission: 'Microphone permission required', micListening: '🎤 Listening...',
+    micNoResult: 'No speech detected', micServerFail: 'Voice server connection failed',
+  },
+  zh: {
+    loading: 'NVatar 加载中...', preparingRoom: '准备房间...', loadingRoom: '加载房间...',
+    loadingAvatar: '加载虚拟形象...', loadingAnim: '加载动画...', waitingRoom: '等待房间...', ready: '准备就绪！',
+    lobby: '← 大厅', dblClickMove: '双击: 移动', light: '💡 灯光', camReset: '📷 重置',
+    langLabel: '语言', voiceLabel: '语音', ttsOn: '🔊 TTS ON', ttsOff: '🔇 TTS OFF',
+    lookupResult: '🔍 搜索结果', lookupCount: '条', close: '关闭', placeholder: '输入消息...', send: '发送',
+    connected: '已连接', disconnected: '已断开',
+    noAvatar: '请先连接虚拟形象', noAvatarSend: '请先选择虚拟形象',
+    langChanged: '语言已更改', langChangeFailed: '语言更改失败',
+    lookupPrefix: '[搜索结果] ', lookupDefaultTitle: '搜索结果',
+    micPermission: '需要麦克风权限', micListening: '🎤 语音识别中...',
+    micNoResult: '未检测到语音', micServerFail: '语音服务器连接失败',
+  },
+};
+
+function t(key) { return (I18N[_uiLang] || I18N.ko)[key] || (I18N.ko)[key] || key; }
+
+function _applyI18nUI() {
+  const $ = (sel) => document.querySelector(sel);
+  const setText = (sel, key) => { const el = $(sel); if (el) el.textContent = t(key); };
+  const setAttr = (sel, attr, key) => { const el = $(sel); if (el) el.setAttribute(attr, t(key)); };
+  const loadH2 = $('#loadingOverlay h2');
+  if (loadH2) loadH2.innerHTML = `<span style="color:#6366f1;">NVatar</span> ${t('loading').replace('NVatar ', '')}`;
+  setText('[data-i18n="lobby"]', 'lobby');
+  const hintEl = $('[data-i18n="dblClickMove"]');
+  if (hintEl) hintEl.textContent = t('dblClickMove');
+  setText('[data-i18n="light"]', 'light');
+  setText('[data-i18n="camReset"]', 'camReset');
+  setText('[data-i18n="langLabel"]', 'langLabel');
+  setText('[data-i18n="voiceLabel"]', 'voiceLabel');
+  const ttsBtn = $('#btnTTS');
+  if (ttsBtn) ttsBtn.textContent = (typeof TTS_CONFIG !== 'undefined' && TTS_CONFIG.enabled) ? t('ttsOn') : t('ttsOff');
+  const badge = $('#lookupBadge');
+  if (badge) {
+    const count = $('#lookupBadgeCount')?.textContent || '0';
+    badge.innerHTML = `${t('lookupResult')} <span id="lookupBadgeCount">${count}</span>${t('lookupCount')}`;
+  }
+  setText('[data-i18n="lookupHeader"]', 'lookupResult');
+  setText('[data-i18n="close"]', 'close');
+  setAttr('#chatInput', 'placeholder', 'placeholder');
+  setText('[data-i18n="send"]', 'send');
+}
 
 // --- Init ---
 function init() {
@@ -201,7 +288,7 @@ function buildRoom() {
   //   - Double-click raycasts onto Y=0 plane
   //   - Walk only modifies X/Z, never Y
   //
-  _updateLoading(20, 'Loading room...');
+  _updateLoading(20, t('loadingRoom'));
   const roomLoader = new GLTFLoader();
   roomLoader.load('https://nvatar.nskit.io/static/room/cozy_living_room/scene.gltf', (gltf) => {
     roomModel = gltf.scene;
@@ -305,7 +392,7 @@ function _waitForRoom(callback) {
 }
 
 async function _loadVRM(url, index) {
-  _updateLoading(10, 'Loading avatar...');
+  _updateLoading(10, t('loadingAvatar'));
   try {
     const vrmModule = await import('https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.3.3/lib/three-vrm.module.min.js');
     const { VRMLoaderPlugin } = vrmModule;
@@ -338,15 +425,15 @@ async function _loadVRM(url, index) {
 
       // Auto-load Mixamo animations, then wait for room, reveal + welcome
       if (index === 0) {
-        _updateLoading(40, 'Loading animations...');
+        _updateLoading(40, t('loadingAnim'));
         loadMixamoAnimations(vrm).then(() => {
-          _updateLoading(70, 'Waiting for room...');
+          _updateLoading(70, t('waitingRoom'));
           _waitForRoom(() => {
             // Place avatar on actual room floor
             // Avatar stays at Y=0 — room floor is at Y=0
             console.log(`[Avatar] Ready at Y=0`);
             model.visible = true;
-            _updateLoading(100, 'Ready!');
+            _updateLoading(100, t('ready'));
             setTimeout(_hideLoading, 300);
             startRoaming();
             // Connect chat + welcome after everything is visible
@@ -1229,7 +1316,7 @@ function stopTTS() {
 }
 
 window._changeLang = async function(lang) {
-  if (!currentAvatarId) { addChatMsg('system', '아바타를 먼저 연결하세요'); return; }
+  if (!currentAvatarId) { addChatMsg('system', t('noAvatar')); return; }
   try {
     const r = await fetch(`https://nvatar.nskit.io/api/v1/avatars/${currentAvatarId}/language`, {
       method: 'POST',
@@ -1238,21 +1325,25 @@ window._changeLang = async function(lang) {
     });
     const d = await r.json();
     if (d.code === 200) {
+      // Update UI language to match
+      _uiLang = lang;
+      _applyI18nUI();
+      document.getElementById('langSelect').value = lang;
       // 대화 히스토리 UI 초기화
       document.getElementById('chatMessages').innerHTML = '';
-      addChatMsg('system', `Language: ${lang.toUpperCase()}`);
+      addChatMsg('system', t('langChanged'));
       // WebSocket 재연결 → 새 언어로 첫 인사
       if (chatWs) chatWs.close();
       setTimeout(() => connectChat(currentAvatarId), 500);
     }
   } catch (e) {
-    addChatMsg('system', 'Language change failed');
+    addChatMsg('system', t('langChangeFailed'));
   }
 };
 
 window._toggleTTS = function(btn) {
   TTS_CONFIG.enabled = !TTS_CONFIG.enabled;
-  btn.textContent = TTS_CONFIG.enabled ? '🔊 TTS ON' : '🔇 TTS OFF';
+  btn.textContent = TTS_CONFIG.enabled ? t('ttsOn') : t('ttsOff');
   btn.style.background = TTS_CONFIG.enabled ? 'rgba(99,102,241,0.3)' : 'transparent';
   console.log('[TTS] enabled:', TTS_CONFIG.enabled);
 };
@@ -1294,7 +1385,7 @@ function connectChat(avatarId) {
   chatWs = new WebSocket(`${proto}//nvatar.nskit.io/ws/chat/${avatarId}`);
 
   chatWs.onopen = () => {
-    addChatMsg('system', '연결됨');
+    addChatMsg('system', t('connected'));
   };
 
   chatWs.onmessage = (e) => {
@@ -1326,7 +1417,7 @@ function connectChat(avatarId) {
   };
 
   chatWs.onclose = () => {
-    addChatMsg('system', '연결 끊김');
+    addChatMsg('system', t('disconnected'));
   };
 }
 
@@ -1339,7 +1430,7 @@ function addChatMsg(role, text) {
     el.style.cssText = 'align-self:flex-start;background:rgba(30,41,59,0.95);color:#e2e8f0;padding:6px 12px;border-radius:12px;border-bottom-left-radius:2px;font-size:12px;max-width:80%;border:1px solid #334155;word-break:break-word;';
   } else if (role === 'lookup') {
     el.style.cssText = 'align-self:flex-start;background:rgba(20,30,48,0.9);color:#94a3b8;padding:8px 12px;border-radius:8px;font-size:11px;max-width:85%;border-left:3px solid #475569;word-break:break-word;';
-    el.textContent = '[검색 결과] ' + text;
+    el.textContent = t('lookupPrefix') + text;
     container.appendChild(el);
     container.scrollTop = container.scrollHeight;
     return;
@@ -1424,7 +1515,7 @@ function _renderLookupItem(result, idx) {
   // Header (query + time)
   const header = document.createElement('div');
   header.style.cssText = 'padding:8px 10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;';
-  const queryText = result.query || (result.items?.[0]?.title) || '검색 결과';
+  const queryText = result.query || (result.items?.[0]?.title) || t('lookupDefaultTitle');
   header.innerHTML = `
     <span style="font-size:12px;color:${result.read ? '#94a3b8' : '#e2e8f0'};font-weight:${result.read ? '400' : '600'};">${queryText.slice(0, 45)}</span>
     <span style="font-size:9px;color:#475569;">${result.ts?.slice(11, 16) || ''}</span>
@@ -1508,7 +1599,7 @@ async function startMic() {
     }, 1000);
   } catch (e) {
     console.error('[STT] Mic error:', e);
-    addChatMsg('system', '마이크 권한이 필요합니다: ' + e.message);
+    addChatMsg('system', t('micPermission') + ': ' + e.message);
   }
 }
 
@@ -1529,7 +1620,7 @@ async function transcribeAudio() {
   const ext = micRecorder.mimeType.includes('webm') ? 'webm' : 'm4a';
   const file = new File(micChunks, 'voice.' + ext, { type: micRecorder.mimeType });
 
-  addChatMsg('system', '🎤 음성 인식 중...');
+  addChatMsg('system', t('micListening'));
 
   try {
     const formData = new FormData();
@@ -1541,10 +1632,10 @@ async function transcribeAudio() {
       document.getElementById('chatInput').value = data.text.trim();
       sendChat(); // 자동 전송
     } else {
-      addChatMsg('system', '음성이 인식되지 않았어요');
+      addChatMsg('system', t('micNoResult'));
     }
   } catch (e) {
-    addChatMsg('system', '음성 서버 연결 실패');
+    addChatMsg('system', t('micServerFail'));
   }
 }
 
@@ -1567,7 +1658,7 @@ window.sendChat = function() {
     pauseRoaming();
     showBubble(0, '...');  // thinking indicator on avatar
   } else {
-    addChatMsg('system', '아바타를 먼저 선택하세요');
+    addChatMsg('system', t('noAvatarSend'));
   }
 };
 
@@ -1659,10 +1750,15 @@ function animate() {
 
 init();
 
+// Apply i18n on load
+_applyI18nUI();
+const langSel = document.getElementById('langSelect');
+if (langSel) langSel.value = _uiLang;
+
 // Load from URL params or default
-const urlParams = new URLSearchParams(window.location.search);
-const paramAvatarId = urlParams.get('avatar');
-const paramVRM = urlParams.get('vrm') || 'https://raw.githubusercontent.com/josephrocca/ChatVRM-js/main/avatars/AvatarSample_B.vrm';
+const urlParams2 = new URLSearchParams(window.location.search);
+const paramAvatarId = urlParams2.get('avatar');
+const paramVRM = urlParams2.get('vrm') || 'https://nvatar.nskit.io/static/vrm/vroid-samples/Victoria_Rubin.vrm';
 
 _loadVRM(paramVRM, 0);
 
