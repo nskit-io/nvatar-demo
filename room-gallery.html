@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NVatar — Room Gallery</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #0a0a1a; color: #e2e8f0; min-height: 100vh; }
+.container { max-width: 960px; margin: 0 auto; padding: 40px 20px; }
+h1 { font-size: 28px; font-weight: 800; margin-bottom: 8px; text-align: center; }
+h1 span { background: linear-gradient(135deg, #6366f1, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.subtitle { text-align: center; font-size: 14px; color: #94a3b8; margin-bottom: 32px; }
+.back { display: inline-block; margin-bottom: 20px; padding: 6px 14px; border: 1px solid #334155; border-radius: 8px; color: #94a3b8; text-decoration: none; font-size: 13px; }
+.back:hover { border-color: #6366f1; color: #e2e8f0; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.card {
+  background: rgba(15,23,42,0.8); border: 1px solid #1e293b; border-radius: 12px;
+  overflow: hidden; transition: all 0.2s;
+}
+.card:hover { border-color: #6366f1; transform: translateY(-2px); }
+.card .preview { width: 100%; aspect-ratio: 16/10; background: #0f172a; position: relative; }
+.card .preview iframe { width: 100%; height: 100%; border: none; }
+.card .info { padding: 14px; }
+.card .title { font-size: 15px; font-weight: 600; color: #e2e8f0; margin-bottom: 4px; }
+.card .desc { font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 8px; }
+.card .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.tag { font-size: 10px; padding: 2px 8px; border-radius: 6px; background: rgba(99,102,241,0.15); color: #a78bfa; }
+.tag-free { background: rgba(34,197,94,0.15); color: #4ade80; }
+.tag-style { background: rgba(251,191,36,0.15); color: #fbbf24; }
+
+.note { text-align: center; margin-top: 32px; font-size: 12px; color: #475569; line-height: 1.8; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<a href="index.html" class="back">← Back to Lobby</a>
+
+<h1><span>NVatar</span> Room Gallery</h1>
+<p class="subtitle">Browse 3D room models that match VRM anime-style avatars. Click to preview on Sketchfab.</p>
+
+<div class="grid">
+
+  <div class="card">
+    <div class="preview">
+      <iframe src="https://sketchfab.com/models/b67dc0ba8ea94277a3af731710d778d3/embed?autostart=1&ui_theme=dark&ui_infos=0&ui_controls=0" allow="autoplay; fullscreen; xr-spatial-tracking"></iframe>
+    </div>
+    <div class="info">
+      <div class="title">Cartoon Bedroom</div>
+      <div class="desc">Cute cartoon-style bedroom with warm colors. Perfect match for anime VRM characters.</div>
+      <div class="tags">
+        <span class="tag tag-free">CC-BY Free</span>
+        <span class="tag tag-style">Cartoon</span>
+        <span class="tag">GLB</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="preview">
+      <iframe src="https://sketchfab.com/models/2575c7a819fe4bd5b02dfb1d03257b64/embed?autostart=1&ui_theme=dark&ui_infos=0&ui_controls=0" allow="autoplay; fullscreen; xr-spatial-tracking"></iframe>
+    </div>
+    <div class="info">
+      <div class="title">Cozy Low Poly Interior</div>
+      <div class="desc">Stylized warm low-poly living room. Isometric feel, great for casual avatar chat.</div>
+      <div class="tags">
+        <span class="tag tag-free">Free</span>
+        <span class="tag tag-style">Low Poly</span>
+        <span class="tag">Cozy</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="preview">
+      <iframe src="https://sketchfab.com/models/12a8ba081a3a4e07a1fff4b25c89588b/embed?autostart=1&ui_theme=dark&ui_infos=0&ui_controls=0" allow="autoplay; fullscreen; xr-spatial-tracking"></iframe>
+    </div>
+    <div class="info">
+      <div class="title">Pixar Style Drawing Room</div>
+      <div class="desc">Charming Pixar-inspired room with soft shapes, rounded edges, and warm vibrant colors.</div>
+      <div class="tags">
+        <span class="tag tag-free">Free</span>
+        <span class="tag tag-style">Pixar Style</span>
+        <span class="tag">Warm</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="preview">
+      <iframe src="https://sketchfab.com/models/581238dc5fda4dc990571cdc02827783/embed?autostart=1&ui_theme=dark&ui_infos=0&ui_controls=0" allow="autoplay; fullscreen; xr-spatial-tracking"></iframe>
+    </div>
+    <div class="info">
+      <div class="title">Cozy Living Room (Baked)</div>
+      <div class="desc">Warm cozy living room with baked lighting. Realistic but friendly atmosphere.</div>
+      <div class="tags">
+        <span class="tag tag-free">CC-BY Free</span>
+        <span class="tag tag-style">Realistic</span>
+        <span class="tag">Baked</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="preview">
+      <iframe src="https://sketchfab.com/models/dd3db2b3bd8640e6afca02ab9f92a36b/embed?autostart=1&ui_theme=dark&ui_infos=0&ui_controls=0" allow="autoplay; fullscreen; xr-spatial-tracking"></iframe>
+    </div>
+    <div class="info">
+      <div class="title">Low Poly Room (Game Ready)</div>
+      <div class="desc">Clean minimal low-poly room. Lightweight, game-ready, easy to integrate.</div>
+      <div class="tags">
+        <span class="tag tag-free">Free</span>
+        <span class="tag tag-style">Minimal</span>
+        <span class="tag">Game Ready</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="preview">
+      <iframe src="https://sketchfab.com/models/6d8937c8838f466a990c5e5251ab5b38/embed?autostart=1&ui_theme=dark&ui_infos=0&ui_controls=0" allow="autoplay; fullscreen; xr-spatial-tracking"></iframe>
+    </div>
+    <div class="info">
+      <div class="title">Cozy Cartoon Rooms Interior</div>
+      <div class="desc">Multiple cartoon-style rooms with furniture. Colorful and playful design.</div>
+      <div class="tags">
+        <span class="tag">Paid</span>
+        <span class="tag tag-style">Cartoon</span>
+        <span class="tag">Multi-room</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="note">
+  Models are hosted on Sketchfab. Check individual licenses before use.<br>
+  CC-BY models can be used with attribution. Contact model authors for commercial use of paid models.<br><br>
+  Want to suggest a room? <a href="https://github.com/nskit-io/nvatar-demo/issues" style="color:#6366f1;">Open an issue</a>
+</div>
+
+</div>
+</body>
+</html>
