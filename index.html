@@ -251,8 +251,9 @@ loadAvatars();
 // Enter room
 function enterRoom(avatar) {
   const avatarId = avatar.id || avatar.avatar_id;
-  const vrm = localStorage.getItem('nvatar_vrm_' + avatarId) || DEFAULT_VRMS[0];
-  window.location.href = `room.html?avatar=${avatarId}&vrm=${encodeURIComponent(vrm)}`;
+  const vrm = localStorage.getItem('nvatar_vrm_' + avatarId) || (vrmList.length > 0 ? API_BASE + vrmList[0].path : DEFAULT_VRMS[0]);
+  const lang = avatar.language || document.getElementById('createLang')?.value || 'en';
+  window.location.href = `room.html?avatar=${avatarId}&vrm=${encodeURIComponent(vrm)}&lang=${lang}`;
 }
 
 // Persona presets → API fields
