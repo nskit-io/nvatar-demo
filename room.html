@@ -1197,8 +1197,18 @@ function returnToCenter() {
   const dz = front.z - model.position.z;
   const dist = Math.sqrt(dx * dx + dz * dz);
 
+  console.log('[returnToCenter]',
+    'cam:', camera.position.x.toFixed(2), camera.position.y.toFixed(2), camera.position.z.toFixed(2),
+    '| target:', controls.target.x.toFixed(2), controls.target.y.toFixed(2), controls.target.z.toFixed(2),
+    '| avatar:', model.position.x.toFixed(2), model.position.z.toFixed(2),
+    '| walkTo:', front.x.toFixed(2), front.z.toFixed(2),
+    '| dist:', dist.toFixed(2),
+    '| rot:', model.rotation.y.toFixed(2)
+  );
+
   if (dist < 0.3) {
     _faceCamera(model);
+    console.log('[returnToCenter] Already close, faceCamera rot:', model.rotation.y.toFixed(2));
     return;
   }
 
@@ -1233,6 +1243,8 @@ document.addEventListener('dblclick', (event) => {
     // Clamp to room bounds
     const tx = Math.max(ROOM_BOUNDS.minX, Math.min(ROOM_BOUNDS.maxX, intersectPoint.x));
     const tz = Math.max(ROOM_BOUNDS.minZ, Math.min(ROOM_BOUNDS.maxZ, intersectPoint.z));
+    console.log('[dblclick] floor hit:', tx.toFixed(2), tz.toFixed(2),
+      '| cam:', camera.position.x.toFixed(2), camera.position.z.toFixed(2));
     walkTarget = { x: tx, z: tz };
     walkState = 'walking';
 
@@ -1287,6 +1299,9 @@ function updateWalk(delta) {
     // 카메라 앞 도착 → 카메라 바라보기
     if (avatar._returnToCenter) {
       _faceCamera(model);
+      console.log('[arrived] faceCamera rot:', model.rotation.y.toFixed(2),
+        '| cam:', camera.position.x.toFixed(2), camera.position.z.toFixed(2),
+        '| model:', model.position.x.toFixed(2), model.position.z.toFixed(2));
       avatar._returnToCenter = false;
     }
     switchToIdle();
