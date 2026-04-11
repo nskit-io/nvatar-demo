@@ -55,7 +55,8 @@ canvas { display: block; }
   .top-bar .controls { display: none; }
   .top-bar h1 { font-size: 12px; }
   #chatOverlay { left: 8px; right: 8px; bottom: 8px; width: auto; }
-  #chatOverlay input { font-size: 14px; }
+  #chatOverlay input { font-size: 14px; flex: 1; min-width: 0; }
+  #chatOverlay > div:last-child { width: 100%; }
   #lookupBadge { top: 10px; left: 10px; font-size: 14px; padding: 8px 12px; }
   #lookupPanel { display: none !important; }
 }
@@ -1133,21 +1134,27 @@ function playGesture(name) {
 
 // --- Viewport-aware roaming bounds ---
 function _getVisibleRoamBounds() {
-  const margin = 0.15;
+  // Check avatar's full height (head at Y=1.85) visibility, not just floor
+  const margin = 0.25; // 25% margin from edges — keep avatar well inside view
   const roomBnd = {
-    minX: ROOM_BOUNDS.minX * 0.6, maxX: ROOM_BOUNDS.maxX * 0.6,
-    minZ: ROOM_BOUNDS.minZ * 0.6, maxZ: ROOM_BOUNDS.maxZ * 0.6,
+    minX: ROOM_BOUNDS.minX * 0.5, maxX: ROOM_BOUNDS.maxX * 0.5,
+    minZ: ROOM_BOUNDS.minZ * 0.5, maxZ: ROOM_BOUNDS.maxZ * 0.5,
   };
   let visMinX = roomBnd.maxX, visMaxX = roomBnd.minX;
   let visMinZ = roomBnd.maxZ, visMaxZ = roomBnd.minZ;
-  for (let gx = 0; gx <= 4; gx++) {
-    for (let gz = 0; gz <= 4; gz++) {
-      const wx = roomBnd.minX + (roomBnd.maxX - roomBnd.minX) * (gx / 4);
-      const wz = roomBnd.minZ + (roomBnd.maxZ - roomBnd.minZ) * (gz / 4);
-      const vec = new THREE.Vector3(wx, 0, wz).project(camera);
-      const sx = vec.x * 0.5 + 0.5;
-      const sy = -vec.y * 0.5 + 0.5;
-      if (sx > margin && sx < 1 - margin && sy > margin && sy < 1 - margin && vec.z < 1) {
+  const steps = 8;
+  for (let gx = 0; gx <= steps; gx++) {
+    for (let gz = 0; gz <= steps; gz++) {
+      const wx = roomBnd.minX + (roomBnd.maxX - roomBnd.minX) * (gx / steps);
+      const wz = roomBnd.minZ + (roomBnd.maxZ - roomBnd.minZ) * (gz / steps);
+      // Check both feet (Y=0) and head (Y=1.85) are visible
+      const feet = new THREE.Vector3(wx, 0, wz).project(camera);
+      const head = new THREE.Vector3(wx, 1.85, wz).project(camera);
+      const fsx = feet.x * 0.5 + 0.5, fsy = -feet.y * 0.5 + 0.5;
+      const hsx = head.x * 0.5 + 0.5, hsy = -head.y * 0.5 + 0.5;
+      const feetOk = fsx > margin && fsx < 1 - margin && fsy > margin && fsy < 1 - margin && feet.z < 1;
+      const headOk = hsx > margin && hsx < 1 - margin && hsy > 0 && hsy < 1 - margin && head.z < 1;
+      if (feetOk && headOk) {
         if (wx < visMinX) visMinX = wx;
         if (wx > visMaxX) visMaxX = wx;
         if (wz < visMinZ) visMinZ = wz;
@@ -1156,7 +1163,7 @@ function _getVisibleRoamBounds() {
     }
   }
   if (visMinX >= visMaxX || visMinZ >= visMaxZ) {
-    return { minX: -0.5, maxX: 0.5, minZ: -0.3, maxZ: 0.3 };
+    return { minX: -0.3, maxX: 0.3, minZ: -0.2, maxZ: 0.2 };
   }
   return { minX: visMinX, maxX: visMaxX, minZ: visMinZ, maxZ: visMaxZ };
 }
@@ -2077,6 +2084,11 @@ window._toggleTTS = function(btn) {
 };
 
 init();
+
+// Mobile: start in idle state (all messages hidden)
+if (_isMobile()) {
+  document.getElementById('chatOverlay').classList.add('chat-idle');
+}
 
 // Apply i18n on load
 _applyI18nUI();
