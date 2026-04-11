@@ -55,6 +55,17 @@ canvas { display: block; }
 
 <div class="side-panel">
   <div class="panel-section">
+    <h3>언어</h3>
+    <div class="btn-grid">
+      <select id="langSelect" onchange="window._changeLang(this.value)" style="padding:6px;border:1px solid #334155;border-radius:4px;background:rgba(15,23,42,0.8);color:#94a3b8;font-size:10px;width:100%;">
+        <option value="ko">🇰🇷 한국어</option>
+        <option value="ja">🇯🇵 日本語</option>
+        <option value="en">🇺🇸 English</option>
+        <option value="zh">🇨🇳 中文</option>
+      </select>
+    </div>
+  </div>
+  <div class="panel-section">
     <h3>음성</h3>
     <div class="btn-grid">
       <button id="btnTTS" onclick="window._toggleTTS(this)" style="background:rgba(99,102,241,0.3);">🔊 TTS ON</button>
@@ -1119,6 +1130,28 @@ function stopTTS() {
     ttsCurrentAudio = null;
   }
 }
+
+window._changeLang = async function(lang) {
+  if (!currentAvatarId) { addChatMsg('system', '아바타를 먼저 연결하세요'); return; }
+  try {
+    const r = await fetch(`https://nvatar.nskit.io/api/v1/avatars/${currentAvatarId}/language`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: lang }),
+    });
+    const d = await r.json();
+    if (d.code === 200) {
+      // 대화 히스토리 UI 초기화
+      document.getElementById('chatMessages').innerHTML = '';
+      addChatMsg('system', `Language: ${lang.toUpperCase()}`);
+      // WebSocket 재연결 → 새 언어로 첫 인사
+      if (chatWs) chatWs.close();
+      setTimeout(() => connectChat(currentAvatarId), 500);
+    }
+  } catch (e) {
+    addChatMsg('system', 'Language change failed');
+  }
+};
 
 window._toggleTTS = function(btn) {
   TTS_CONFIG.enabled = !TTS_CONFIG.enabled;
