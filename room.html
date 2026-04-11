@@ -1984,15 +1984,15 @@ function _chatStartFadeTimer() {
 }
 
 function _onBubbleComplete() {
-  if (_isMobile() && _chatState === 'active' && !_chatConversing) {
-    _chatStartFadeTimer();
-  }
+  if (!_isMobile() || _chatState !== 'active') return;
+  _chatConversing = false;
+  _chatStartFadeTimer();
 }
 
 function _onTTSComplete() {
-  if (_isMobile() && _chatState === 'active' && !_chatConversing) {
-    _chatStartFadeTimer();
-  }
+  if (!_isMobile() || _chatState !== 'active') return;
+  _chatConversing = false;
+  _chatStartFadeTimer();
 }
 
 function _chatShowMsg(el) {
