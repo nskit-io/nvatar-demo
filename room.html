@@ -1377,7 +1377,8 @@ async function startMic() {
       if (micSec >= MAX_RECORD_SEC) stopMic();
     }, 1000);
   } catch (e) {
-    addChatMsg('system', '마이크 권한이 필요합니다');
+    console.error('[STT] Mic error:', e);
+    addChatMsg('system', '마이크 권한이 필요합니다: ' + e.message);
   }
 }
 
