@@ -436,6 +436,7 @@ async function _loadVRM(url, index) {
             _updateLoading(100, t('ready'));
             setTimeout(_hideLoading, 300);
             startRoaming();
+            startMonologue();
             // Connect chat + welcome after everything is visible
             if (paramAvatarId) {
               connectChat(paramAvatarId);
@@ -1111,6 +1112,45 @@ function doRoamAction() {
 
 function pauseRoaming() {
   ROAM.lastActivity = Date.now();
+  _pauseMonologue();
+}
+
+// --- Monologue (혼잣말) ---
+const MONO = {
+  minInterval: 30,
+  maxInterval: 60,
+  pauseAfterChat: 20,
+};
+let monoTimer = null;
+let monoActive = false;
+
+function startMonologue() {
+  if (monoActive) return;
+  monoActive = true;
+  _scheduleMonologue();
+  console.log('[Mono] Started monologue routine');
+}
+
+function _scheduleMonologue() {
+  if (!monoActive) return;
+  const delay = (MONO.minInterval + Math.random() * (MONO.maxInterval - MONO.minInterval)) * 1000;
+  monoTimer = setTimeout(_requestMonologue, delay);
+}
+
+function _requestMonologue() {
+  monoTimer = null;
+  if (!monoActive) return;
+  const sinceActivity = (Date.now() - ROAM.lastActivity) / 1000;
+  if (sinceActivity < MONO.pauseAfterChat) { _scheduleMonologue(); return; }
+  if (chatWs && chatWs.readyState === 1) {
+    chatWs.send(JSON.stringify({ type: 'monologue_request' }));
+  }
+  _scheduleMonologue();
+}
+
+function _pauseMonologue() {
+  if (monoTimer) { clearTimeout(monoTimer); monoTimer = null; }
+  if (monoActive) _scheduleMonologue();
 }
 
 // 대화 시 룸 중앙으로 돌아오기
@@ -1408,6 +1448,11 @@ function connectChat(avatarId) {
       showBubble(0, '...');
       returnToCenter();  // 대답 준비 — 중앙으로 이동
       pauseRoaming();
+    } else if (data.type === 'monologue') {
+      showBubble(0, data.text);
+      speakTTS(data.text);
+      const mood = detectMoodFromText(data.text);
+      if (mood) setMood(mood);
     } else if (data.type === 'emotion_update' && data.emotions) {
       const emo = data.emotions;
       if (emo.joy > 65) { setMood('happy'); playGesture('cheer'); }
