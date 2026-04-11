@@ -1518,16 +1518,10 @@ window._changeLang = async function(lang) {
     });
     const d = await r.json();
     if (d.code === 200) {
-      // Update UI language to match
-      _uiLang = lang;
-      _applyI18nUI();
-      document.getElementById('langSelect').value = lang;
-      // 대화 히스토리 UI 초기화
-      document.getElementById('chatMessages').innerHTML = '';
-      addChatMsg('system', t('langChanged'));
-      // WebSocket 재연결 → 새 언어로 첫 인사
-      if (chatWs) chatWs.close();
-      setTimeout(() => connectChat(currentAvatarId), 500);
+      // Reload page with new lang — all i18n + routing fresh from start
+      const url = new URL(window.location.href);
+      url.searchParams.set('lang', lang);
+      window.location.replace(url.toString());
     }
   } catch (e) {
     addChatMsg('system', t('langChangeFailed'));
