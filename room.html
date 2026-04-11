@@ -1479,7 +1479,7 @@ function _updateBadge() {
     return;
   }
   badge.style.display = '';
-  count.textContent = _lookupStore.length;
+  badge.innerHTML = `${t('lookupResult')} <span id="lookupBadgeCount">${_lookupStore.length}</span>${t('lookupCount')}`;
 
   // Blink if unread
   if (_lookupUnread > 0 && !_badgeBlink) {

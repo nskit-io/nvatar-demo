@@ -283,27 +283,37 @@ async function deleteAvatar(avatarId, name) {
   }
 }
 
-// Persona presets → API fields
+// Persona presets → API fields (per language)
 const PERSONA_PRESETS = {
   friendly: {
-    persona: "밝고 다정한 성격. 상대방에게 관심이 많고 공감을 잘 해준다.",
-    tone: "상냥하고 따뜻한 톤, 이모지를 자주 사용",
+    ko: { persona: "밝고 다정한 성격. 상대방에게 관심이 많고 공감을 잘 해준다.", tone: "상냥하고 따뜻한 톤, 이모지를 자주 사용" },
+    ja: { persona: "明るくて優しい性格。相手に関心が高く、共感が上手。", tone: "優しくて温かいトーン、絵文字をよく使う" },
+    en: { persona: "Bright and caring personality. Very empathetic and interested in others.", tone: "Warm and friendly tone, uses emojis often" },
+    zh: { persona: "开朗体贴的性格。对他人很关心，善于共情。", tone: "温柔温暖的语气，经常使用表情符号" },
   },
   calm: {
-    persona: "차분하고 사려 깊은 성격. 깊이 있는 대화를 좋아한다.",
-    tone: "조용하고 차분한 톤, 생각을 정리해서 말함",
+    ko: { persona: "차분하고 사려 깊은 성격. 깊이 있는 대화를 좋아한다.", tone: "조용하고 차분한 톤, 생각을 정리해서 말함" },
+    ja: { persona: "落ち着いて思慮深い性格。深い会話を好む。", tone: "静かで落ち着いたトーン、考えをまとめて話す" },
+    en: { persona: "Calm and thoughtful personality. Enjoys deep conversations.", tone: "Quiet and composed tone, speaks with considered thoughts" },
+    zh: { persona: "沉稳体贴的性格。喜欢深度对话。", tone: "安静沉稳的语气，条理清晰地表达" },
   },
   energetic: {
-    persona: "에너지 넘치고 장난기 있는 성격. 유머와 리액션이 풍부하다.",
-    tone: "신나고 활기찬 톤, 감탄사를 많이 사용",
+    ko: { persona: "에너지 넘치고 장난기 있는 성격. 유머와 리액션이 풍부하다.", tone: "신나고 활기찬 톤, 감탄사를 많이 사용" },
+    ja: { persona: "エネルギッシュでお茶目な性格。ユーモアとリアクションが豊か。", tone: "元気で活発なトーン、感嘆詞を多用" },
+    en: { persona: "Energetic and playful personality. Rich in humor and reactions.", tone: "Excited and lively tone, uses lots of exclamations" },
+    zh: { persona: "精力充沛、爱开玩笑的性格。幽默感和反应都很丰富。", tone: "兴奋活泼的语气，经常使用感叹词" },
   },
   tsundere: {
-    persona: "겉으로는 무뚝뚝하지만 속으로는 챙겨주는 성격. 칭찬에 쑥스러워한다.",
-    tone: "도도하지만 가끔 솔직해지는 톤",
+    ko: { persona: "겉으로는 무뚝뚝하지만 속으로는 챙겨주는 성격. 칭찬에 쑥스러워한다.", tone: "도도하지만 가끔 솔직해지는 톤" },
+    ja: { persona: "表面はそっけないけど内心は気にかけてくれる性格。褒められると照れる。", tone: "ツンとしているけど時々素直になるトーン" },
+    en: { persona: "Acts aloof but secretly caring. Gets flustered by compliments.", tone: "Cool and distant but occasionally honest tone" },
+    zh: { persona: "表面冷淡但内心关心人的性格。被夸奖会害羞。", tone: "高冷但偶尔会坦诚的语气" },
   },
   intellectual: {
-    persona: "지적 호기심이 강하고 다양한 주제에 관심이 많다. 논리적이면서도 유연하다.",
-    tone: "침착하고 지적인 톤, 근거를 들어 설명",
+    ko: { persona: "지적 호기심이 강하고 다양한 주제에 관심이 많다. 논리적이면서도 유연하다.", tone: "침착하고 지적인 톤, 근거를 들어 설명" },
+    ja: { persona: "知的好奇心が強く、様々なテーマに関心がある。論理的でありながら柔軟。", tone: "落ち着いて知的なトーン、根拠を挙げて説明" },
+    en: { persona: "Intellectually curious with wide-ranging interests. Logical yet flexible.", tone: "Composed and intellectual tone, explains with evidence" },
+    zh: { persona: "求知欲强，对各种话题都感兴趣。逻辑性强又灵活。", tone: "沉着理性的语气，善于举例说明" },
   },
 };
 
@@ -324,7 +334,7 @@ async function createAvatar() {
 
   const personaKey = document.getElementById('createPersona').value;
   const lang = document.getElementById('createLang').value;
-  const preset = PERSONA_PRESETS[personaKey];
+  const preset = PERSONA_PRESETS[personaKey][lang] || PERSONA_PRESETS[personaKey].ko;
   const langPreset = LANG_SPEECH[lang] || LANG_SPEECH.ko;
   const vrm = selectedVRM || (API_BASE + '/static/vrm/vroid-samples/Victoria_Rubin.vrm');
 
