@@ -486,10 +486,28 @@ function updateBubblePositions() {
     avatar.scene.localToWorld(headPos);
     const screen = toScreen(headPos);
 
+    // Face position (for fallback when bubble goes off-screen)
+    const facePos = new THREE.Vector3(0, 1.55, 0);
+    avatar.scene.localToWorld(facePos);
+    const faceScreen = toScreen(facePos);
+
     avatar._bubbleDivs.forEach(div => {
-      if (div.style.opacity !== '0') {
+      if (div.style.opacity === '0') return;
+      const bubbleH = div.offsetHeight || 40;
+      const bubbleW = div.offsetWidth || 160;
+
+      if (screen.y - bubbleH < 8) {
+        // Off-screen top → move to face side
+        const sideX = faceScreen.x + 110;
+        const clampedX = Math.min(sideX, window.innerWidth - bubbleW / 2 - 8);
+        div.style.left = clampedX + 'px';
+        div.style.top = Math.max(faceScreen.y, 8) + 'px';
+        div.style.transform = 'translate(-50%, -50%)';
+      } else {
+        // Normal: above head
         div.style.left = screen.x + 'px';
         div.style.top = screen.y + 'px';
+        div.style.transform = 'translate(-50%, -100%)';
       }
     });
   });
