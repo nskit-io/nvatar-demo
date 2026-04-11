@@ -1450,7 +1450,7 @@ function connectChat(avatarId) {
       pauseRoaming();
     } else if (data.type === 'monologue') {
       showBubble(0, data.text);
-      speakTTS(data.text);
+      addChatMsg('avatar', data.text);
       const mood = detectMoodFromText(data.text);
       if (mood) setMood(mood);
     } else if (data.type === 'emotion_update' && data.emotions) {
