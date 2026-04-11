@@ -1448,6 +1448,12 @@ function connectChat(avatarId) {
       showBubble(0, '...');
       returnToCenter();  // 대답 준비 — 중앙으로 이동
       pauseRoaming();
+    } else if (data.type === 'proactive') {
+      showBubble(0, data.message);
+      addChatMsg('avatar', data.message);
+      speakTTS(data.message);
+      const mood = detectMoodFromText(data.message);
+      if (mood) setMood(mood);
     } else if (data.type === 'monologue') {
       showBubble(0, data.text);
       addChatMsg('avatar', data.text);
