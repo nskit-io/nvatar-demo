@@ -6,6 +6,8 @@
 
 **[Try Live Demo](https://nskit-io.github.io/nvatar-demo/)**
 
+![NVatar Room Demo](screenshots/room-demo-victoria.png)
+
 ---
 
 ## What Makes NVatar Different?
