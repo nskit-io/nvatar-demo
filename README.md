@@ -6,7 +6,15 @@
 
 **[Try Live Demo](https://nskit-io.github.io/nvatar-demo/)**
 
-![NVatar Room Demo](screenshots/room-demo-victoria.png)
+### Screenshots
+
+| Lobby | Room |
+|-------|------|
+| ![Lobby](screenshots/demo_lobby.png) | ![Room](screenshots/demo_room_welcome.png) |
+
+| Search Results | Chat Demo |
+|----------------|-----------|
+| ![Search](screenshots/demo_room_search_result.png) | <video src="https://github.com/nskit-io/nvatar-demo/raw/main/screenshots/demo_room_hello.mp4" width="400" autoplay loop muted></video> |
 
 ---
 

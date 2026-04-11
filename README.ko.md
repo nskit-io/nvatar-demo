@@ -6,6 +6,16 @@
 
 **[라이브 데모 체험하기](https://nskit-io.github.io/nvatar-demo/)**
 
+### 스크린샷
+
+| 로비 | 룸 |
+|------|-----|
+| ![로비](screenshots/demo_lobby.png) | ![룸](screenshots/demo_room_welcome.png) |
+
+| 검색 결과 | 대화 데모 |
+|-----------|-----------|
+| ![검색](screenshots/demo_room_search_result.png) | <video src="https://github.com/nskit-io/nvatar-demo/raw/main/screenshots/demo_room_hello.mp4" width="400" autoplay loop muted></video> |
+
 ---
 
 ## NVatar가 다른 점
