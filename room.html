@@ -549,19 +549,24 @@ function updateBubblePositions() {
       const bubbleH = div.offsetHeight || 40;
       const bubbleW = div.offsetWidth || 160;
       const pad = 8;
+      const vw = window.innerWidth;
+      const halfW = bubbleW / 2;
 
-      // Default: above head, centered
       let bx = screen.x;
       let by = screen.y - bubbleH;
 
-      // Clamp: never go above viewport
-      if (by < pad) by = pad;
-      // Clamp: never go below face
-      if (by + bubbleH > faceScreen.y) by = faceScreen.y - bubbleH;
-      // Clamp: horizontal — stay within viewport
-      const halfW = bubbleW / 2;
-      if (bx - halfW < pad) bx = halfW + pad;
-      if (bx + halfW > window.innerWidth - pad) bx = window.innerWidth - halfW - pad;
+      const headOffScreen = screen.x < -50 || screen.x > vw + 50 || screen.y < -50 || screen.y > window.innerHeight + 50;
+      const tooNarrow = (bx - halfW < pad && bx + halfW > vw - pad);
+
+      if (headOffScreen || tooNarrow) {
+        bx = vw / 2;
+        by = pad + 10;
+      } else {
+        if (by < pad) by = pad;
+        if (by + bubbleH > faceScreen.y) by = faceScreen.y - bubbleH;
+        if (bx - halfW < pad) bx = halfW + pad;
+        if (bx + halfW > vw - pad) bx = vw - halfW - pad;
+      }
 
       div.style.left = bx + 'px';
       div.style.top = by + 'px';
@@ -1126,6 +1131,36 @@ function playGesture(name) {
   currentMixer.addEventListener('finished', onFinish);
 }
 
+// --- Viewport-aware roaming bounds ---
+function _getVisibleRoamBounds() {
+  const margin = 0.15;
+  const roomBnd = {
+    minX: ROOM_BOUNDS.minX * 0.6, maxX: ROOM_BOUNDS.maxX * 0.6,
+    minZ: ROOM_BOUNDS.minZ * 0.6, maxZ: ROOM_BOUNDS.maxZ * 0.6,
+  };
+  let visMinX = roomBnd.maxX, visMaxX = roomBnd.minX;
+  let visMinZ = roomBnd.maxZ, visMaxZ = roomBnd.minZ;
+  for (let gx = 0; gx <= 4; gx++) {
+    for (let gz = 0; gz <= 4; gz++) {
+      const wx = roomBnd.minX + (roomBnd.maxX - roomBnd.minX) * (gx / 4);
+      const wz = roomBnd.minZ + (roomBnd.maxZ - roomBnd.minZ) * (gz / 4);
+      const vec = new THREE.Vector3(wx, 0, wz).project(camera);
+      const sx = vec.x * 0.5 + 0.5;
+      const sy = -vec.y * 0.5 + 0.5;
+      if (sx > margin && sx < 1 - margin && sy > margin && sy < 1 - margin && vec.z < 1) {
+        if (wx < visMinX) visMinX = wx;
+        if (wx > visMaxX) visMaxX = wx;
+        if (wz < visMinZ) visMinZ = wz;
+        if (wz > visMaxZ) visMaxZ = wz;
+      }
+    }
+  }
+  if (visMinX >= visMaxX || visMinZ >= visMaxZ) {
+    return { minX: -0.5, maxX: 0.5, minZ: -0.3, maxZ: 0.3 };
+  }
+  return { minX: visMinX, maxX: visMaxX, minZ: visMinZ, maxZ: visMaxZ };
+}
+
 // --- Autonomous Roaming ---
 const ROAM = {
   enabled: true,
@@ -1165,7 +1200,7 @@ function doRoamAction() {
   // 50% 확률로 이동, 50% 확률로 idle 변형
   if (Math.random() < 0.5) {
     // 랜덤 포인트로 이동
-    const bnd = { minX: ROOM_BOUNDS.minX * 0.6, maxX: ROOM_BOUNDS.maxX * 0.6, minZ: ROOM_BOUNDS.minZ * 0.6, maxZ: ROOM_BOUNDS.maxZ * 0.6 };
+    const bnd = _getVisibleRoamBounds();
     const tx = bnd.minX + Math.random() * (bnd.maxX - bnd.minX);
     const tz = bnd.minZ + Math.random() * (bnd.maxZ - bnd.minZ);
     walkTarget = { x: tx, z: tz };
