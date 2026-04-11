@@ -14,7 +14,7 @@
 
 | 검색 결과 | 대화 데모 |
 |-----------|-----------|
-| ![검색](screenshots/demo_room_search_result.png) | <video src="https://nvatar.nskit.io/static/demo_res/demo_room_hello.mp4" width="400" autoplay loop muted></video> |
+| ![검색](screenshots/demo_room_search_result.png) | ![대화 데모](screenshots/demo_room_hello.gif) |
 
 ---
 

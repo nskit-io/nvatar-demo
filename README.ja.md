@@ -14,7 +14,7 @@
 
 | 検索結果 | チャットデモ |
 |----------|-------------|
-| ![検索](screenshots/demo_room_search_result.png) | <video src="https://nvatar.nskit.io/static/demo_res/demo_room_hello.mp4" width="400" autoplay loop muted></video> |
+| ![検索](screenshots/demo_room_search_result.png) | ![チャットデモ](screenshots/demo_room_hello.gif) |
 
 ---
 
