@@ -643,9 +643,8 @@ async function processNextBubble() {
     }, 50);
   });
 
-  // Hold 2s, then notify bubble complete
+  // Hold 2s
   await sleep(2000);
-  _onBubbleComplete();
 
   // Auto fade-out after 60s of silence
   if (avatar._autoFadeTimer) clearTimeout(avatar._autoFadeTimer);
@@ -663,7 +662,12 @@ async function processNextBubble() {
   }, 60000);
 
   _bubbleProcessing = false;
-  if (_bubbleQueue.length > 0) processNextBubble();
+  if (_bubbleQueue.length > 0) {
+    processNextBubble();
+  } else {
+    // All bubbles done — now safe to start chat fade
+    _onBubbleComplete();
+  }
 }
 
 // --- Moods / Motions ---
