@@ -258,7 +258,7 @@ function init() {
   scene = new THREE.Scene();
 
   camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
-  camera.position.set(0, 1.8, 2.0);
+  camera.position.set(0, 2.0, 3.0);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -598,7 +598,8 @@ async function processNextBubble() {
   const id = ++bubbleIdCounter;
   const div = document.createElement('div');
   div.id = 'bubble-' + id;
-  div.style.cssText = 'position:absolute;transform:translate(-50%,-100%);background:rgba(30,41,59,0.95);color:#e2e8f0;padding:8px 12px;border-radius:12px;font-size:12px;max-width:200px;line-height:1.5;border:1px solid #334155;backdrop-filter:blur(4px);font-family:-apple-system,sans-serif;transition:all 1s ease-out;opacity:1;pointer-events:none;';
+  const maxBubbleW = Math.min(200, window.innerWidth * 0.6);
+  div.style.cssText = `position:absolute;transform:translate(-50%,-100%);background:rgba(30,41,59,0.95);color:#e2e8f0;padding:8px 12px;border-radius:12px;font-size:12px;max-width:${maxBubbleW}px;line-height:1.5;border:1px solid #334155;backdrop-filter:blur(4px);font-family:-apple-system,sans-serif;transition:all 1s ease-out;opacity:1;pointer-events:none;`;
   document.getElementById('bubbleLayer').appendChild(div);
 
   avatar._bubbleDivs.push(div);
