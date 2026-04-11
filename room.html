@@ -1188,7 +1188,13 @@ function _pauseMonologue() {
 
 // 대화 시 카메라 앞으로 걸어오기
 function _getCameraFrontPos() {
-  return { x: controls.target.x, z: controls.target.z };
+  // orbit target에서 카메라 방향으로 1.2유닛 = 카메라 앞 위치
+  const tx = controls.target.x, tz = controls.target.z;
+  const cx = camera.position.x, cz = camera.position.z;
+  const dx = cx - tx, dz = cz - tz;
+  const dist = Math.sqrt(dx * dx + dz * dz);
+  if (dist < 0.1) return { x: tx, z: tz };
+  return { x: tx + (dx / dist) * 1.2, z: tz + (dz / dist) * 1.2 };
 }
 
 function _faceCamera(model) {
