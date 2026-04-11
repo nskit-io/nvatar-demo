@@ -201,9 +201,40 @@ loadAvatars();
 
 // Enter room
 function enterRoom(avatar) {
-  const vrm = avatar.vrm_url || DEFAULT_VRMS[0];
-  window.location.href = `room.html?avatar=${avatar.id}&vrm=${encodeURIComponent(vrm)}`;
+  const avatarId = avatar.id || avatar.avatar_id;
+  const vrm = localStorage.getItem('nvatar_vrm_' + avatarId) || DEFAULT_VRMS[0];
+  window.location.href = `room.html?avatar=${avatarId}&vrm=${encodeURIComponent(vrm)}`;
 }
+
+// Persona presets → API fields
+const PERSONA_PRESETS = {
+  friendly: {
+    persona: "밝고 다정한 성격. 상대방에게 관심이 많고 공감을 잘 해준다.",
+    tone: "상냥하고 따뜻한 톤, 이모지를 자주 사용",
+  },
+  calm: {
+    persona: "차분하고 사려 깊은 성격. 깊이 있는 대화를 좋아한다.",
+    tone: "조용하고 차분한 톤, 생각을 정리해서 말함",
+  },
+  energetic: {
+    persona: "에너지 넘치고 장난기 있는 성격. 유머와 리액션이 풍부하다.",
+    tone: "신나고 활기찬 톤, 감탄사를 많이 사용",
+  },
+  tsundere: {
+    persona: "겉으로는 무뚝뚝하지만 속으로는 챙겨주는 성격. 칭찬에 쑥스러워한다.",
+    tone: "도도하지만 가끔 솔직해지는 톤",
+  },
+  intellectual: {
+    persona: "지적 호기심이 강하고 다양한 주제에 관심이 많다. 논리적이면서도 유연하다.",
+    tone: "침착하고 지적인 톤, 근거를 들어 설명",
+  },
+};
+
+const LANG_SPEECH = {
+  ko: { speech_level: "polite", speech_style: "" },
+  ja: { speech_level: "polite", speech_style: "です/ます体で話して" },
+  en: { speech_level: "casual", speech_style: "" },
+};
 
 // Create avatar
 async function createAvatar() {
@@ -214,8 +245,10 @@ async function createAvatar() {
   btn.disabled = true;
   btn.textContent = 'Creating...';
 
-  const persona = document.getElementById('createPersona').value;
+  const personaKey = document.getElementById('createPersona').value;
   const lang = document.getElementById('createLang').value;
+  const preset = PERSONA_PRESETS[personaKey];
+  const langPreset = LANG_SPEECH[lang] || LANG_SPEECH.ko;
   const vrm = DEFAULT_VRMS[Math.floor(Math.random() * DEFAULT_VRMS.length)];
 
   try {
@@ -224,17 +257,21 @@ async function createAvatar() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         user_id: DEMO_USER,
-        avatar_name: name,
-        persona_type: persona,
-        language: lang,
-        vrm_url: vrm,
+        name: name,
+        persona: preset.persona,
+        tone: preset.tone,
+        speech_level: langPreset.speech_level,
+        speech_style: langPreset.speech_style,
       }),
     });
     const d = await r.json();
     if (d.code === 200 && d.response) {
+      // Store VRM mapping locally (server doesn't store VRM URL)
+      const avatarId = d.response.id || d.response.avatar_id;
+      localStorage.setItem('nvatar_vrm_' + avatarId, vrm);
       enterRoom(d.response);
     } else {
-      alert('Failed to create: ' + (d.message || 'Unknown error'));
+      alert('Failed to create: ' + (d.message || JSON.stringify(d)));
     }
   } catch (e) {
     alert('Server error: ' + e.message);
