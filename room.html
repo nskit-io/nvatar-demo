@@ -495,20 +495,24 @@ function updateBubblePositions() {
       if (div.style.opacity === '0') return;
       const bubbleH = div.offsetHeight || 40;
       const bubbleW = div.offsetWidth || 160;
+      const pad = 8;
 
-      if (screen.y - bubbleH < 8) {
-        // Off-screen top → move to face side
-        const sideX = faceScreen.x + 110;
-        const clampedX = Math.min(sideX, window.innerWidth - bubbleW / 2 - 8);
-        div.style.left = clampedX + 'px';
-        div.style.top = Math.max(faceScreen.y, 8) + 'px';
-        div.style.transform = 'translate(-50%, -50%)';
-      } else {
-        // Normal: above head
-        div.style.left = screen.x + 'px';
-        div.style.top = screen.y + 'px';
-        div.style.transform = 'translate(-50%, -100%)';
-      }
+      // Default: above head, centered
+      let bx = screen.x;
+      let by = screen.y - bubbleH;
+
+      // Clamp: never go above viewport
+      if (by < pad) by = pad;
+      // Clamp: never go below face
+      if (by + bubbleH > faceScreen.y) by = faceScreen.y - bubbleH;
+      // Clamp: horizontal — stay within viewport
+      const halfW = bubbleW / 2;
+      if (bx - halfW < pad) bx = halfW + pad;
+      if (bx + halfW > window.innerWidth - pad) bx = window.innerWidth - halfW - pad;
+
+      div.style.left = bx + 'px';
+      div.style.top = by + 'px';
+      div.style.transform = 'translate(-50%, 0)';
     });
   });
 }
