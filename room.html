@@ -244,6 +244,17 @@ function init() {
   controls.minDistance = 1.5;
   controls.maxDistance = 8;
 
+  // Debug: log camera state after orbit drag
+  controls.addEventListener('end', () => {
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    console.log('[orbit end]',
+      'cam:', camera.position.x.toFixed(2), camera.position.y.toFixed(2), camera.position.z.toFixed(2),
+      '| target:', controls.target.x.toFixed(2), controls.target.y.toFixed(2), controls.target.z.toFixed(2),
+      '| dir:', dir.x.toFixed(2), dir.y.toFixed(2), dir.z.toFixed(2)
+    );
+  });
+
   // Build room
   buildRoom();
 
