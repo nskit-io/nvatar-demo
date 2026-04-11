@@ -1177,16 +1177,15 @@ function _pauseMonologue() {
 
 // 대화 시 카메라 앞으로 걸어오기
 function _getCameraFrontPos() {
-  const dir = new THREE.Vector3();
-  camera.getWorldDirection(dir);
-  const target = controls.target.clone();
-  return { x: target.x + dir.x * 0.3, z: target.z + dir.z * 0.3 };
+  return { x: controls.target.x, z: controls.target.z };
 }
 
 function _faceCamera(model) {
   const camPos = camera.position;
-  const angle = Math.atan2(camPos.x - model.position.x, camPos.z - model.position.z);
-  model.rotation.y = angle;
+  model.rotation.y = Math.atan2(
+    camPos.x - model.position.x,
+    camPos.z - model.position.z
+  ) + Math.PI;
 }
 
 function returnToCenter() {
