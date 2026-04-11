@@ -860,7 +860,8 @@ async function initMixamoForVRM() {
     const assets = await res.json();
     for (const fbx of assets.fbx) {
       const name = fbx.name;
-      await loadMixamoFBX(fbx.path, name, window._vrm);
+      const fbxUrl = fbx.path.startsWith('/') ? 'https://nvatar.nskit.io' + fbx.path : fbx.path;
+      await loadMixamoFBX(fbxUrl, name, window._vrm);
     }
     console.log(`[Mixamo] ${assets.fbx.length}개 애니메이션 로드 완료`);
     buildFbxButtons();
@@ -1264,7 +1265,8 @@ async function buildVrmListPanel() {
           if (e.target.tagName === 'INPUT') return;
           document.querySelectorAll('.vrm-card').forEach(c => c.classList.remove('loaded'));
           card.classList.add('loaded');
-          load(v.path);
+          const vrmUrl = v.path.startsWith('/') ? 'https://nvatar.nskit.io' + v.path : v.path;
+          load(vrmUrl);
         });
 
         // Checkbox → toggle verified
@@ -1334,7 +1336,8 @@ window.scanAllVrmBones = async function() {
       status.textContent = `(${i+1}/${vrms.length}) ${v.name}...`;
 
       try {
-        const gltf = await vrmLoader.loadAsync(v.path);
+        const scanUrl = v.path.startsWith('/') ? 'https://nvatar.nskit.io' + v.path : v.path;
+        const gltf = await vrmLoader.loadAsync(scanUrl);
         const vrm = gltf.userData.vrm;
         if (!vrm || !vrm.humanoid) {
           updateCardScore(v.path, -1, '?');
