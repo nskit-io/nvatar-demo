@@ -1479,6 +1479,9 @@ function setStatus(type, text) {
 // --- Mobile Bottom Sheet ---
 let _sheetVrmData = null;
 
+window.openSheet = openSheet;
+window.closeSheet = closeSheet;
+
 function openSheet(type) {
   const backdrop = document.getElementById('bsBackdrop');
   const sheet = document.getElementById('bsSheet');
