@@ -1505,7 +1505,7 @@ async function speakTTS(text) {
 }
 
 async function processQueue() {
-  if (ttsQueue.length === 0) { ttsPlaying = false; return; }
+  if (ttsQueue.length === 0) { ttsPlaying = false; _onTTSComplete(); return; }
   ttsPlaying = true;
   const text = ttsQueue.shift();
   try {
@@ -1933,11 +1933,18 @@ function _chatEnterIdle() {
 function _chatStartFadeTimer() {
   clearTimeout(_chatFadeTimer);
   if (!_isMobile()) return;
+  if (ttsPlaying) return;
   _chatFadeTimer = setTimeout(() => {
     _chatConversing = false;
     _chatState = 'fading';
     _chatEnterIdle();
   }, 5000);
+}
+
+function _onTTSComplete() {
+  if (_isMobile() && _chatState === 'active') {
+    _chatStartFadeTimer();
+  }
 }
 
 function _chatShowMsg(el) {
