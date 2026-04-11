@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NVatar Demo — AI Avatar Chat</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #0a0a1a; color: #e2e8f0; min-height: 100vh; }
+
+.container { max-width: 960px; margin: 0 auto; padding: 40px 20px; }
+
+.hero { text-align: center; margin-bottom: 48px; }
+.hero h1 { font-size: 36px; font-weight: 800; margin-bottom: 8px; }
+.hero h1 span { background: linear-gradient(135deg, #6366f1, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.hero p { font-size: 16px; color: #94a3b8; line-height: 1.6; max-width: 600px; margin: 0 auto; }
+.hero .badge { display: inline-block; margin-top: 16px; padding: 6px 16px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); border-radius: 20px; font-size: 12px; color: #a78bfa; }
+
+.section-title { font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 16px; }
+
+/* Avatar creation */
+.create-section { margin-bottom: 48px; }
+.create-form {
+  background: rgba(15,23,42,0.8); border: 1px solid #1e293b; border-radius: 16px;
+  padding: 24px; max-width: 480px; margin: 0 auto;
+}
+.form-row { margin-bottom: 16px; }
+.form-row label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 6px; }
+.form-row input, .form-row select {
+  width: 100%; padding: 10px 14px; font-size: 14px;
+  border: 1px solid #334155; border-radius: 10px;
+  background: #0f172a; color: #e2e8f0; outline: none;
+}
+.form-row input:focus, .form-row select:focus { border-color: #6366f1; }
+.btn-create {
+  width: 100%; padding: 12px; border: none; border-radius: 10px;
+  background: #6366f1; color: #fff; font-size: 15px; font-weight: 600;
+  cursor: pointer; transition: background 0.2s;
+}
+.btn-create:hover { background: #4f46e5; }
+.btn-create:disabled { background: #334155; color: #64748b; cursor: default; }
+
+/* Avatar list */
+.avatar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 32px; }
+.avatar-card {
+  background: rgba(15,23,42,0.8); border: 1px solid #1e293b; border-radius: 12px;
+  padding: 16px; cursor: pointer; transition: all 0.2s;
+}
+.avatar-card:hover { border-color: #6366f1; transform: translateY(-2px); }
+.avatar-card .name { font-size: 15px; font-weight: 600; color: #e2e8f0; margin-bottom: 4px; }
+.avatar-card .persona { font-size: 12px; color: #64748b; line-height: 1.4; }
+.avatar-card .mbti { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 6px; background: rgba(99,102,241,0.2); color: #a78bfa; margin-top: 6px; }
+
+.empty-state { text-align: center; color: #475569; padding: 40px; font-size: 14px; }
+
+/* Links */
+.links { display: flex; gap: 12px; justify-content: center; margin-top: 32px; flex-wrap: wrap; }
+.link-btn {
+  padding: 10px 20px; border: 1px solid #334155; border-radius: 10px;
+  background: transparent; color: #94a3b8; font-size: 13px; cursor: pointer;
+  text-decoration: none; transition: all 0.2s;
+}
+.link-btn:hover { border-color: #6366f1; color: #e2e8f0; }
+
+.footer { text-align: center; margin-top: 60px; padding-top: 20px; border-top: 1px solid #1e293b; font-size: 12px; color: #475569; }
+.footer a { color: #6366f1; text-decoration: none; }
+
+.status-bar { text-align: center; margin-bottom: 24px; }
+.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.status-dot.online { background: #22c55e; }
+.status-dot.offline { background: #ef4444; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<div class="hero">
+  <h1><span>NVatar</span> Demo</h1>
+  <p>Meet your AI avatar companion. Chat in a 3D room with voice, emotions, personality, and memory.</p>
+  <div class="badge">Powered by Gemma 26B + ElevenLabs TTS + Three.js</div>
+</div>
+
+<div class="status-bar">
+  <span class="status-dot" id="statusDot"></span>
+  <span id="statusText" style="font-size:12px;color:#64748b;">Checking server...</span>
+</div>
+
+<!-- Existing Avatars -->
+<div class="section-title">Your Avatars</div>
+<div class="avatar-grid" id="avatarGrid">
+  <div class="empty-state">Loading...</div>
+</div>
+
+<!-- Create New -->
+<div class="create-section">
+  <div class="section-title">Create New Avatar</div>
+  <div class="create-form">
+    <div class="form-row">
+      <label>Name</label>
+      <input id="createName" placeholder="e.g. Haru, Sakura, Alex...">
+    </div>
+    <div class="form-row">
+      <label>Personality</label>
+      <select id="createPersona">
+        <option value="friendly">Friendly & Cheerful</option>
+        <option value="calm">Calm & Thoughtful</option>
+        <option value="energetic">Energetic & Playful</option>
+        <option value="tsundere">Tsundere</option>
+        <option value="intellectual">Intellectual & Curious</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Language</label>
+      <select id="createLang">
+        <option value="ko">Korean</option>
+        <option value="ja">Japanese</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+    <button class="btn-create" id="btnCreate" onclick="createAvatar()">Create Avatar</button>
+  </div>
+</div>
+
+<!-- Links -->
+<div class="links">
+  <a href="avatar-lab.html" class="link-btn">🧪 Avatar Lab</a>
+  <a href="https://github.com/nskit-io/nvatar-demo" class="link-btn" target="_blank">GitHub</a>
+</div>
+
+<div class="footer">
+  Built by <a href="https://github.com/nskit-io">NSKit</a> · AI Avatar Chat with Voice &amp; Memory
+</div>
+
+</div>
+
+<script>
+const API_BASE = 'https://nvatar.nskit.io';
+const DEMO_USER = 'demo-' + (localStorage.getItem('nvatar_demo_uid') || (() => { const uid = Math.random().toString(36).slice(2, 10); localStorage.setItem('nvatar_demo_uid', uid); return uid; })());
+const MAX_AVATARS = 3;
+
+// Default VRM for new avatars
+const DEFAULT_VRMS = [
+  'https://nvatar.nskit.io/static/vrm/vroid-samples/AvatarSample_A.vrm',
+  'https://nvatar.nskit.io/static/vrm/vroid-samples/AvatarSample_B.vrm',
+  'https://nvatar.nskit.io/static/vrm/vroid-samples/AvatarSample_C.vrm',
+];
+
+// Check server
+async function checkServer() {
+  const dot = document.getElementById('statusDot');
+  const text = document.getElementById('statusText');
+  try {
+    const r = await fetch(API_BASE + '/health');
+    const d = await r.json();
+    dot.className = 'status-dot online';
+    text.textContent = 'Server Online';
+  } catch (e) {
+    dot.className = 'status-dot offline';
+    text.textContent = 'Server Offline — please try later';
+  }
+}
+checkServer();
+
+// Load avatars
+async function loadAvatars() {
+  const grid = document.getElementById('avatarGrid');
+  try {
+    const r = await fetch(API_BASE + '/api/v1/avatars?user_id=' + DEMO_USER);
+    const d = await r.json();
+    const list = d.response || [];
+
+    if (list.length === 0) {
+      grid.innerHTML = '<div class="empty-state">No avatars yet. Create one below!</div>';
+      return;
+    }
+
+    grid.innerHTML = '';
+    list.forEach(a => {
+      const card = document.createElement('div');
+      card.className = 'avatar-card';
+      card.innerHTML = `
+        <div class="name">${a.avatar_name || a.name || 'Avatar'}</div>
+        <div class="persona">${(a.persona || '').slice(0, 60)}</div>
+        ${a.mbti ? `<span class="mbti">${a.mbti}</span>` : ''}
+      `;
+      card.onclick = () => enterRoom(a);
+      grid.appendChild(card);
+    });
+
+    // Disable create if max reached
+    if (list.length >= MAX_AVATARS) {
+      document.getElementById('btnCreate').disabled = true;
+      document.getElementById('btnCreate').textContent = `Max ${MAX_AVATARS} avatars reached`;
+    }
+  } catch (e) {
+    grid.innerHTML = '<div class="empty-state">Failed to load. Is the server running?</div>';
+  }
+}
+loadAvatars();
+
+// Enter room
+function enterRoom(avatar) {
+  const vrm = avatar.vrm_url || DEFAULT_VRMS[0];
+  window.location.href = `room.html?avatar=${avatar.id}&vrm=${encodeURIComponent(vrm)}`;
+}
+
+// Create avatar
+async function createAvatar() {
+  const name = document.getElementById('createName').value.trim();
+  if (!name) { alert('Enter a name'); return; }
+
+  const btn = document.getElementById('btnCreate');
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+
+  const persona = document.getElementById('createPersona').value;
+  const lang = document.getElementById('createLang').value;
+  const vrm = DEFAULT_VRMS[Math.floor(Math.random() * DEFAULT_VRMS.length)];
+
+  try {
+    const r = await fetch(API_BASE + '/api/v1/avatars', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: DEMO_USER,
+        avatar_name: name,
+        persona_type: persona,
+        language: lang,
+        vrm_url: vrm,
+      }),
+    });
+    const d = await r.json();
+    if (d.code === 200 && d.response) {
+      enterRoom(d.response);
+    } else {
+      alert('Failed to create: ' + (d.message || 'Unknown error'));
+    }
+  } catch (e) {
+    alert('Server error: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Create Avatar';
+}
+</script>
+</body>
+</html>

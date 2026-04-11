@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NVatar — Virtual Room</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, sans-serif; background: #0a0a0a; color: #e2e8f0; height: 100vh; overflow: hidden; }
+canvas { display: block; }
+
+/* UI overlay */
+.ui-overlay { position: absolute; top: 0; left: 0; right: 0; pointer-events: none; z-index: 10; }
+.top-bar { padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; pointer-events: auto; }
+.top-bar h1 { font-size: 14px; font-weight: 600; }
+.top-bar h1 span { color: #6366f1; }
+.top-bar .controls { display: flex; gap: 6px; }
+.top-bar button { padding: 6px 12px; border: 1px solid #334155; border-radius: 6px; background: rgba(15,23,42,0.8); color: #94a3b8; font-size: 11px; cursor: pointer; backdrop-filter: blur(8px); }
+.top-bar button:hover { border-color: #6366f1; color: #e2e8f0; }
+
+/* Chat input at bottom */
+.chat-bar { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; pointer-events: auto; z-index: 10; }
+.chat-bar input { width: 400px; padding: 12px 16px; border: 1px solid #334155; border-radius: 24px; background: rgba(15,23,42,0.9); color: #e2e8f0; font-size: 14px; outline: none; backdrop-filter: blur(8px); }
+.chat-bar input:focus { border-color: #6366f1; }
+.chat-bar button { padding: 12px 20px; border: none; border-radius: 24px; background: #6366f1; color: #fff; font-size: 14px; cursor: pointer; }
+
+/* Side panel */
+.side-panel { position: absolute; top: 50px; right: 16px; width: 220px; pointer-events: auto; z-index: 10; }
+.panel-section { background: rgba(15,23,42,0.9); border: 1px solid #334155; border-radius: 8px; padding: 10px; margin-bottom: 8px; backdrop-filter: blur(8px); }
+.panel-section h3 { font-size: 11px; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px; }
+.panel-section .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.panel-section button { padding: 6px; border: 1px solid #334155; border-radius: 4px; background: transparent; color: #94a3b8; font-size: 10px; cursor: pointer; }
+.panel-section button:hover { border-color: #6366f1; color: #e2e8f0; }
+.panel-section button.active { border-color: #6366f1; color: #6366f1; }
+
+@media (max-width: 768px) {
+  .chat-bar input { width: 250px; }
+  .side-panel { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="ui-overlay">
+  <div class="top-bar">
+    <h1><span>NVatar</span> Virtual Room</h1>
+    <div class="controls">
+      <button onclick="location.href='index.html'" style="padding:4px 10px;border:1px solid #334155;border-radius:6px;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px;">← 로비</button>
+      <span style="font-size:11px;color:#64748b;">더블클릭: 이동</span>
+      <button onclick="toggleLight()">💡 조명</button>
+      <button onclick="resetView()">📷 리셋</button>
+    </div>
+  </div>
+</div>
+
+<div class="side-panel">
+  <div class="panel-section">
+    <h3>음성</h3>
+    <div class="btn-grid">
+      <button id="btnTTS" onclick="window._toggleTTS(this)" style="background:rgba(99,102,241,0.3);">🔊 TTS ON</button>
+    </div>
+  </div>
+  <div class="panel-section">
+    <h3>가구</h3>
+    <div class="btn-grid">
+      <button onclick="addFurniture('desk')">🪑 책상</button>
+      <button onclick="addFurniture('shelf')">📚 선반</button>
+      <button onclick="addFurniture('lamp')">💡 조명</button>
+      <button onclick="addFurniture('plant')">🪴 화분</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lookup badge + panel (SDK demo) -->
+<div id="lookupBadge" onclick="toggleLookupPanel(event)" style="position:absolute;top:48px;left:16px;display:none;padding:6px 14px;border-radius:20px;background:rgba(99,102,241,0.9);color:#fff;font-size:11px;font-weight:700;cursor:pointer;pointer-events:auto;z-index:30;backdrop-filter:blur(8px);transition:all 0.3s;">
+  🔍 검색 결과 <span id="lookupBadgeCount">0</span>건
+</div>
+
+<div id="lookupPanel" style="position:absolute;top:80px;left:16px;width:340px;max-height:60vh;display:none;flex-direction:column;background:rgba(10,15,30,0.95);border:1px solid #334155;border-radius:12px;pointer-events:auto;z-index:30;backdrop-filter:blur(12px);overflow:hidden;">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #1e293b;">
+    <span style="font-size:12px;font-weight:700;color:#e2e8f0;">🔍 검색 결과</span>
+    <button onclick="toggleLookupPanel(event)" style="padding:2px 8px;border:1px solid #334155;border-radius:4px;background:transparent;color:#94a3b8;font-size:11px;cursor:pointer;">닫기</button>
+  </div>
+  <div id="lookupList" style="flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px;max-height:50vh;"></div>
+</div>
+
+<!-- Chat overlay (left side) -->
+<div id="chatOverlay" style="position:absolute;bottom:16px;left:16px;width:340px;max-height:60vh;display:flex;flex-direction:column;pointer-events:auto;z-index:10;">
+  <div id="chatMessages" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:8px;max-height:45vh;">
+  </div>
+  <div style="display:flex;gap:6px;padding:4px;">
+    <input id="chatInput" placeholder="메시지..." style="flex:1;padding:10px 14px;border:1px solid #334155;border-radius:20px;background:rgba(15,23,42,0.9);color:#e2e8f0;font-size:13px;outline:none;backdrop-filter:blur(8px);">
+    <button onclick="sendChat()" style="padding:10px 16px;border:none;border-radius:20px;background:#6366f1;color:#fff;font-size:13px;cursor:pointer;">전송</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+let scene, camera, renderer, controls;
+let avatars = [];
+let roomLights = [];
+let elapsed = 0;
+let lightOn = true;
+
+// --- Init ---
+function init() {
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 2.5, 4);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  document.body.appendChild(renderer.domElement);
+
+  // Bubble overlay container (pure DOM, separate from 3D)
+  const bubbleLayer = document.createElement('div');
+  bubbleLayer.id = 'bubbleLayer';
+  bubbleLayer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:5;';
+  document.body.appendChild(bubbleLayer);
+
+  // Controls
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 1, 0);
+  controls.enableDamping = true;
+  controls.maxPolarAngle = Math.PI * 0.55;
+  controls.minDistance = 1.5;
+  controls.maxDistance = 8;
+
+  // Build room
+  buildRoom();
+
+  // Resize
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  animate();
+}
+
+// --- Room ---
+function buildRoom() {
+  const roomW = 6, roomH = 3, roomD = 5;
+
+  // Floor
+  const floorGeo = new THREE.PlaneGeometry(roomW, roomD);
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x8B7355, roughness: 0.8 });
+  const floor = new THREE.Mesh(floorGeo, floorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // Walls
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0xF5F0EB, roughness: 0.9 });
+
+  // Back wall
+  const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat);
+  backWall.position.set(0, roomH / 2, -roomD / 2);
+  backWall.receiveShadow = true;
+  scene.add(backWall);
+
+  // Left wall
+  const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat);
+  leftWall.position.set(-roomW / 2, roomH / 2, 0);
+  leftWall.rotation.y = Math.PI / 2;
+  leftWall.receiveShadow = true;
+  scene.add(leftWall);
+
+  // Right wall
+  const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat);
+  rightWall.position.set(roomW / 2, roomH / 2, 0);
+  rightWall.rotation.y = -Math.PI / 2;
+  rightWall.receiveShadow = true;
+  scene.add(rightWall);
+
+  // Window (on back wall)
+  const windowFrame = new THREE.Mesh(
+    new THREE.BoxGeometry(1.5, 1.2, 0.05),
+    new THREE.MeshStandardMaterial({ color: 0x87CEEB, emissive: 0x87CEEB, emissiveIntensity: 0.3, transparent: true, opacity: 0.6 })
+  );
+  windowFrame.position.set(1.5, 1.8, -roomD / 2 + 0.03);
+  scene.add(windowFrame);
+
+  // Ceiling light
+  const ceilingLight = new THREE.PointLight(0xFFE4B5, 1.5, 10);
+  ceilingLight.position.set(0, 2.8, 0);
+  ceilingLight.castShadow = true;
+  scene.add(ceilingLight);
+  roomLights.push(ceilingLight);
+
+  // Light fixture
+  const fixture = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.15, 0.2, 0.05, 16),
+    new THREE.MeshStandardMaterial({ color: 0x333333 })
+  );
+  fixture.position.set(0, 2.95, 0);
+  scene.add(fixture);
+
+  // Ambient
+  const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+  scene.add(ambient);
+
+  // Window light
+  const windowLight = new THREE.DirectionalLight(0xBFD4E8, 0.5);
+  windowLight.position.set(2, 3, -2);
+  scene.add(windowLight);
+
+  // Rug
+  const rug = new THREE.Mesh(
+    new THREE.CircleGeometry(1.2, 32),
+    new THREE.MeshStandardMaterial({ color: 0x6366f1, roughness: 1 })
+  );
+  rug.rotation.x = -Math.PI / 2;
+  rug.position.set(0, 0.01, 0.5);
+  scene.add(rug);
+}
+
+// --- VRM Loading ---
+async function _loadVRM(url, index) {
+  try {
+    const vrmModule = await import('https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.3.3/lib/three-vrm.module.min.js');
+    const { VRMLoaderPlugin } = vrmModule;
+
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+
+    loader.load(url, (gltf) => {
+      const vrm = gltf.userData.vrm;
+      if (!vrm) return;
+
+      // Remove old avatar at this index
+      if (avatars[index]) {
+        scene.remove(avatars[index].scene);
+        if (avatars[index].bubble) scene.remove(avatars[index].bubble);
+      }
+
+      const model = gltf.scene;
+      model.rotation.y = Math.PI;
+      model.position.set(index === 0 ? -0.6 : 0.6, 0, 0);
+      model.castShadow = true;
+      model.traverse(n => { if (n.isMesh) n.castShadow = true; });
+      model.visible = false;  // Hide until idle is ready
+      scene.add(model);
+
+      avatars[index] = { vrm, scene: model, blinkTimer: 0, nextBlink: 2 + Math.random() * 4, _activeBubbles: [] };
+      console.log('[Room] Avatar loaded at index', index);
+
+      // Auto-load Mixamo animations, then reveal + start roaming
+      if (index === 0) {
+        loadMixamoAnimations(vrm).then(() => {
+          model.visible = true;
+          startRoaming();
+        }).catch(() => {
+          model.visible = true;
+        });
+      } else {
+        model.visible = true;
+      }
+    });
+  } catch(e) {
+    console.error('[Room] VRM load error:', e);
+  }
+}
+
+window.loadVRM = function(url, index = 0) { _loadVRM(url, index); };
+window.loadLocalVRM = function(event) {
+  const file = event.target.files[0];
+  if (file) _loadVRM(URL.createObjectURL(file), 0);
+};
+
+// --- Speech Bubble System (Pure DOM, separate from 3D) ---
+let bubbleIdCounter = 0;
+let _bubbleQueue = [];
+let _bubbleProcessing = false;
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Project 3D point to 2D screen coordinates
+function toScreen(position3D) {
+  const vec = position3D.clone().project(camera);
+  return {
+    x: (vec.x * 0.5 + 0.5) * window.innerWidth,
+    y: (-vec.y * 0.5 + 0.5) * window.innerHeight,
+  };
+}
+
+// Update all active bubble positions each frame
+function updateBubblePositions() {
+  avatars.forEach((avatar, i) => {
+    if (!avatar || !avatar.scene || !avatar._bubbleDivs) return;
+    // Get head position in world space
+    const headPos = new THREE.Vector3(0, 1.85, 0);
+    avatar.scene.localToWorld(headPos);
+    const screen = toScreen(headPos);
+
+    avatar._bubbleDivs.forEach(div => {
+      if (div.style.opacity !== '0') {
+        div.style.left = screen.x + 'px';
+        div.style.top = screen.y + 'px';
+      }
+    });
+  });
+}
+
+function showBubble(index, text) {
+  _bubbleQueue.push({ index, text });
+  if (!_bubbleProcessing) processNextBubble();
+}
+
+async function processNextBubble() {
+  if (_bubbleQueue.length === 0) { _bubbleProcessing = false; return; }
+  _bubbleProcessing = true;
+
+  const { index, text } = _bubbleQueue.shift();
+  const avatar = avatars[index];
+  if (!avatar || !avatar.scene) { _bubbleProcessing = false; processNextBubble(); return; }
+  if (!avatar._bubbleDivs) avatar._bubbleDivs = [];
+
+  // Fade out previous bubble
+  if (avatar._currentBubbleDiv) {
+    const old = avatar._currentBubbleDiv;
+    old.style.transition = 'all 1.2s ease-out';
+    old.style.transform = 'translate(-50%, -100%) translateY(-40px)';
+    old.style.opacity = '0';
+    setTimeout(() => { old.remove(); avatar._bubbleDivs = avatar._bubbleDivs.filter(d => d !== old); }, 1300);
+    await sleep(300);
+  }
+
+  // Cancel typing
+  if (avatar._bubbleTimer) { clearInterval(avatar._bubbleTimer); avatar._bubbleTimer = null; }
+
+  // Create new DOM bubble
+  const id = ++bubbleIdCounter;
+  const div = document.createElement('div');
+  div.id = 'bubble-' + id;
+  div.style.cssText = 'position:absolute;transform:translate(-50%,-100%);background:rgba(30,41,59,0.95);color:#e2e8f0;padding:8px 12px;border-radius:12px;font-size:12px;max-width:200px;line-height:1.5;border:1px solid #334155;backdrop-filter:blur(4px);font-family:-apple-system,sans-serif;transition:all 1s ease-out;opacity:1;pointer-events:none;';
+  document.getElementById('bubbleLayer').appendChild(div);
+
+  avatar._bubbleDivs.push(div);
+  avatar._currentBubbleDiv = div;
+
+  // Typing animation
+  await new Promise(resolve => {
+    let i = 0;
+    div.textContent = '';
+    avatar._bubbleTimer = setInterval(() => {
+      if (i < text.length) {
+        div.textContent += text[i];
+        i++;
+      } else {
+        clearInterval(avatar._bubbleTimer);
+        avatar._bubbleTimer = null;
+        resolve();
+      }
+    }, 50);
+  });
+
+  // Hold 2s
+  await sleep(2000);
+
+  // Auto fade-out after 60s of silence
+  if (avatar._autoFadeTimer) clearTimeout(avatar._autoFadeTimer);
+  avatar._autoFadeTimer = setTimeout(() => {
+    if (avatar._currentBubbleDiv && avatar._currentBubbleDiv === div) {
+      div.style.transition = 'all 1.5s ease-out';
+      div.style.transform = 'translate(-50%, -100%) translateY(-30px)';
+      div.style.opacity = '0';
+      setTimeout(() => {
+        div.remove();
+        avatar._bubbleDivs = avatar._bubbleDivs.filter(d => d !== div);
+        if (avatar._currentBubbleDiv === div) avatar._currentBubbleDiv = null;
+      }, 1600);
+    }
+  }, 60000);
+
+  _bubbleProcessing = false;
+  if (_bubbleQueue.length > 0) processNextBubble();
+}
+
+// --- Moods / Motions ---
+// --- Mood detection from text ---
+const MOOD_PATTERNS = {
+  happy: [
+    '😊','😆','😄','😁','🤩','💖','💕','✨','🎉','🥳','🌸','🚀','💪','👍',
+    'ㅋㅋ','헤헤','하하','ㅎㅎ','기쁘','기분 좋','좋아요','멋져','대박','완전'
+  ],
+  sad: [
+    '😢','😭','🥺','😞','💔',
+    'ㅠㅠ','ㅜㅜ','슬프','슬퍼','힘들','괜찮','미안','아쉬'
+  ],
+  think: [
+    '🤔','💭','음...','글쎄','어디보자','생각해'
+  ],
+};
+
+const GESTURE_PATTERNS = {
+  wave:     ['안녕','반가','👋','하이','헬로'],
+  laugh:    ['ㅋㅋㅋ','하하하','😂','🤣','웃겨','빵터'],
+  cheer:    ['🎉','🥳','축하','대박','최고','짱'],
+  surprised:['헐','😮','😲','놀라','진짜?','대박'],
+  nod:      ['그렇지','맞아','응응','ㅇㅇ','동의'],
+};
+
+function detectGestureFromText(text) {
+  for (const [gesture, patterns] of Object.entries(GESTURE_PATTERNS)) {
+    for (const p of patterns) {
+      if (text.includes(p)) return gesture;
+    }
+  }
+  return null;
+}
+
+function detectMoodFromText(text) {
+  // Count matches per mood, pick strongest
+  let best = null;
+  let bestCount = 0;
+  for (const [mood, patterns] of Object.entries(MOOD_PATTERNS)) {
+    let count = 0;
+    for (const p of patterns) {
+      if (text.includes(p)) count++;
+    }
+    if (count > bestCount) {
+      bestCount = count;
+      best = mood;
+    }
+  }
+  return bestCount > 0 ? best : null;
+}
+
+// Expression auto-revert timer
+let _moodRevertTimer = null;
+const MOOD_HOLD_SEC = 8;  // 표정 유지 시간
+const MOOD_FADE_SEC = 2;  // idle로 돌아가는 페이드 시간
+
+window.setMood = function(mood, holdSec) {
+  const hold = holdSec || MOOD_HOLD_SEC;
+
+  // 1) FBX body animation crossfade
+  if (walkState !== 'walking') {
+    _crossfadeToMood(mood === 'idle' ? 'idle' : mood);
+  }
+
+  // 2) VRM face expression
+  avatars.forEach((avatar, i) => {
+    if (!avatar || !avatar.vrm) return;
+    const vrm = avatar.vrm;
+    const em = vrm.expressionManager;
+    if (!em) return;
+
+    for (const name of Object.keys(em.expressionMap || {})) {
+      if (name === 'blink') continue;
+      em.setValue(name, 0);
+    }
+
+    switch(mood) {
+      case 'happy': em.setValue('happy', 1); break;
+      case 'sad': em.setValue('sad', 1); break;
+      case 'wave':
+        em.setValue('happy', 0.5);
+        if (vrm.humanoid) {
+          const arm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+          if (arm) { avatar._waveAnim = { bone: arm, start: elapsed, duration: 2 }; }
+        }
+        break;
+      case 'think': break;  // FBX handles body, face stays neutral
+      case 'nod':
+        if (vrm.humanoid) {
+          const head = vrm.humanoid.getNormalizedBoneNode('head');
+          if (head) { avatar._nodAnim = { bone: head, start: elapsed, duration: 1.5 }; }
+        }
+        break;
+    }
+    em.update();
+  });
+
+  // 3) Auto-revert to idle
+  if (_moodRevertTimer) clearTimeout(_moodRevertTimer);
+  if (mood !== 'idle') {
+    _moodRevertTimer = setTimeout(() => {
+      _fadeToIdle();
+      _moodRevertTimer = null;
+    }, hold * 1000);
+  }
+};
+
+const CROSSFADE_SEC = 0.5;
+
+function _crossfadeToMood(targetMood) {
+  if (!currentMixer) return;
+  const targetAction = moodActions[targetMood] || moodActions.idle;
+  if (!targetAction) return;
+  if (currentMoodName === targetMood) return;
+
+  targetAction.reset().play();
+  if (currentAction && currentAction !== targetAction) {
+    targetAction.crossFadeFrom(currentAction, CROSSFADE_SEC, true);
+  }
+  currentAction = targetAction;
+  currentMoodName = targetMood;
+}
+
+function _fadeToIdle() {
+  // Body: crossfade back to idle FBX
+  _crossfadeToMood('idle');
+
+  // Face: gradual expression fade
+  const steps = 10;
+  const intervalMs = (MOOD_FADE_SEC * 1000) / steps;
+  let step = 0;
+  const fade = setInterval(() => {
+    step++;
+    const t = step / steps;
+    avatars.forEach(avatar => {
+      if (!avatar || !avatar.vrm) return;
+      const em = avatar.vrm.expressionManager;
+      if (!em) return;
+      for (const name of Object.keys(em.expressionMap || {})) {
+        if (name === 'blink') continue;
+        const cur = em.getValue(name);
+        if (cur > 0) em.setValue(name, cur * (1 - t));
+      }
+      em.update();
+    });
+    if (step >= steps) clearInterval(fade);
+  }, intervalMs);
+}
+
+// --- Furniture ---
+window.addFurniture = function(type) {
+  let mesh;
+  const mat = new THREE.MeshStandardMaterial({ roughness: 0.7 });
+
+  switch(type) {
+    case 'desk':
+      mat.color = new THREE.Color(0x8B6914);
+      const group = new THREE.Group();
+      group.add(new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.6), mat)); // top
+      group.children[0].position.y = 0.7;
+      const legMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
+      [[-0.55, 0, -0.25], [0.55, 0, -0.25], [-0.55, 0, 0.25], [0.55, 0, 0.25]].forEach(p => {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.7), legMat);
+        leg.position.set(p[0], 0.35, p[2]);
+        group.add(leg);
+      });
+      group.position.set(-2, 0, -1.5);
+      group.castShadow = true;
+      scene.add(group);
+      break;
+    case 'shelf':
+      mat.color = new THREE.Color(0xA0522D);
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.3), mat);
+      mesh.position.set(2.5, 0.75, -2);
+      mesh.castShadow = true;
+      scene.add(mesh);
+      // Books
+      for (let i = 0; i < 5; i++) {
+        const book = new THREE.Mesh(
+          new THREE.BoxGeometry(0.06, 0.2, 0.15),
+          new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(Math.random(), 0.7, 0.5) })
+        );
+        book.position.set(2.2 + i * 0.12, 1.3, -2);
+        scene.add(book);
+      }
+      break;
+    case 'lamp':
+      const lampGroup = new THREE.Group();
+      lampGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1), new THREE.MeshStandardMaterial({ color: 0x333333 })));
+      lampGroup.children[0].position.y = 0.5;
+      const shade = new THREE.Mesh(
+        new THREE.ConeGeometry(0.2, 0.25, 16, 1, true),
+        new THREE.MeshStandardMaterial({ color: 0xFFE4B5, side: THREE.DoubleSide, emissive: 0xFFE4B5, emissiveIntensity: 0.3 })
+      );
+      shade.position.y = 1.05;
+      lampGroup.add(shade);
+      const lampLight = new THREE.PointLight(0xFFE4B5, 0.5, 3);
+      lampLight.position.y = 1;
+      lampGroup.add(lampLight);
+      lampGroup.position.set(-2, 0, -2);
+      scene.add(lampGroup);
+      break;
+    case 'plant':
+      const potMat = new THREE.MeshStandardMaterial({ color: 0xA0522D });
+      const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.2, 16), potMat);
+      pot.position.set(2.2, 0.1, 1);
+      scene.add(pot);
+      const leafMat = new THREE.MeshStandardMaterial({ color: 0x228B22 });
+      for (let i = 0; i < 5; i++) {
+        const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), leafMat);
+        leaf.position.set(2.2 + (Math.random() - 0.5) * 0.15, 0.3 + Math.random() * 0.2, 1 + (Math.random() - 0.5) * 0.15);
+        scene.add(leaf);
+      }
+      break;
+  }
+};
+
+// --- Controls ---
+window.toggleLight = function() {
+  lightOn = !lightOn;
+  roomLights.forEach(l => l.intensity = lightOn ? 1.5 : 0.1);
+};
+window.resetView = function() {
+  camera.position.set(0, 2.5, 4);
+  controls.target.set(0, 1, 0);
+};
+
+// --- Mixamo FBX Animation Loading ---
+const mixamoClips = {}; // { idle: AnimationClip, walking: AnimationClip }
+let currentMixer = null;
+let currentAction = null;
+let idleAction = null;
+let walkAction = null;
+
+// Official Mixamo→VRM rig map (from pixiv/three-vrm)
+const mixamoVRMRigMap = {
+  mixamorigHips:'hips',mixamorigSpine:'spine',mixamorigSpine1:'chest',mixamorigSpine2:'upperChest',
+  mixamorigNeck:'neck',mixamorigHead:'head',
+  mixamorigLeftShoulder:'leftShoulder',mixamorigLeftArm:'leftUpperArm',mixamorigLeftForeArm:'leftLowerArm',mixamorigLeftHand:'leftHand',
+  mixamorigLeftHandThumb1:'leftThumbMetacarpal',mixamorigLeftHandThumb2:'leftThumbProximal',mixamorigLeftHandThumb3:'leftThumbDistal',
+  mixamorigLeftHandIndex1:'leftIndexProximal',mixamorigLeftHandIndex2:'leftIndexIntermediate',mixamorigLeftHandIndex3:'leftIndexDistal',
+  mixamorigLeftHandMiddle1:'leftMiddleProximal',mixamorigLeftHandMiddle2:'leftMiddleIntermediate',mixamorigLeftHandMiddle3:'leftMiddleDistal',
+  mixamorigLeftHandRing1:'leftRingProximal',mixamorigLeftHandRing2:'leftRingIntermediate',mixamorigLeftHandRing3:'leftRingDistal',
+  mixamorigLeftHandPinky1:'leftLittleProximal',mixamorigLeftHandPinky2:'leftLittleIntermediate',mixamorigLeftHandPinky3:'leftLittleDistal',
+  mixamorigRightShoulder:'rightShoulder',mixamorigRightArm:'rightUpperArm',mixamorigRightForeArm:'rightLowerArm',mixamorigRightHand:'rightHand',
+  mixamorigRightHandThumb1:'rightThumbMetacarpal',mixamorigRightHandThumb2:'rightThumbProximal',mixamorigRightHandThumb3:'rightThumbDistal',
+  mixamorigRightHandIndex1:'rightIndexProximal',mixamorigRightHandIndex2:'rightIndexIntermediate',mixamorigRightHandIndex3:'rightIndexDistal',
+  mixamorigRightHandMiddle1:'rightMiddleProximal',mixamorigRightHandMiddle2:'rightMiddleIntermediate',mixamorigRightHandMiddle3:'rightMiddleDistal',
+  mixamorigRightHandRing1:'rightRingProximal',mixamorigRightHandRing2:'rightRingIntermediate',mixamorigRightHandRing3:'rightRingDistal',
+  mixamorigRightHandPinky1:'rightLittleProximal',mixamorigRightHandPinky2:'rightLittleIntermediate',mixamorigRightHandPinky3:'rightLittleDistal',
+  mixamorigLeftUpLeg:'leftUpperLeg',mixamorigLeftLeg:'leftLowerLeg',mixamorigLeftFoot:'leftFoot',mixamorigLeftToeBase:'leftToes',
+  mixamorigRightUpLeg:'rightUpperLeg',mixamorigRightLeg:'rightLowerLeg',mixamorigRightFoot:'rightFoot',mixamorigRightToeBase:'rightToes',
+};
+
+// Official loadMixamoAnimation (adapted from pixiv/three-vrm examples)
+function loadMixamoAnimation(url, vrm, name) {
+  const loader = new FBXLoader();
+  return loader.loadAsync(url).then((asset) => {
+    const clip = THREE.AnimationClip.findByName(asset.animations, 'mixamo.com') || asset.animations[0];
+    if (!clip) throw new Error('No animation clip found');
+
+    const tracks = [];
+    const restRotationInverse = new THREE.Quaternion();
+    const parentRestWorldRotation = new THREE.Quaternion();
+    const _quatA = new THREE.Quaternion();
+
+    // Hips height scaling
+    const motionHipsNode = asset.getObjectByName('mixamorigHips');
+    const motionHipsHeight = motionHipsNode ? motionHipsNode.position.y : 1;
+    const vrmHipsHeight = vrm.humanoid.normalizedRestPose?.hips?.position?.[1] || 1;
+    const hipsPositionScale = vrmHipsHeight / motionHipsHeight;
+
+    clip.tracks.forEach((track) => {
+      const trackSplitted = track.name.split('.');
+      const mixamoRigName = trackSplitted[0];
+      const vrmBoneName = mixamoVRMRigMap[mixamoRigName];
+      const vrmNodeName = vrm.humanoid?.getNormalizedBoneNode(vrmBoneName)?.name;
+      const mixamoRigNode = asset.getObjectByName(mixamoRigName);
+
+      if (vrmNodeName != null) {
+        const propertyName = trackSplitted[1];
+
+        // Rest-pose rotation compensation
+        mixamoRigNode.getWorldQuaternion(restRotationInverse).invert();
+        mixamoRigNode.parent.getWorldQuaternion(parentRestWorldRotation);
+
+        if (track instanceof THREE.QuaternionKeyframeTrack) {
+          for (let i = 0; i < track.values.length; i += 4) {
+            const flatQuaternion = track.values.slice(i, i + 4);
+            _quatA.fromArray(flatQuaternion);
+            _quatA.premultiply(parentRestWorldRotation).multiply(restRotationInverse);
+            _quatA.toArray(flatQuaternion);
+            flatQuaternion.forEach((v, index) => { track.values[index + i] = v; });
+          }
+          tracks.push(new THREE.QuaternionKeyframeTrack(
+            `${vrmNodeName}.${propertyName}`,
+            track.times,
+            track.values.map((v, i) => (vrm.meta?.metaVersion === '0' && i % 2 === 0 ? -v : v)),
+          ));
+        } else if (track instanceof THREE.VectorKeyframeTrack) {
+          const value = track.values.map((v, i) =>
+            (vrm.meta?.metaVersion === '0' && i % 3 !== 1 ? -v : v) * hipsPositionScale
+          );
+          tracks.push(new THREE.VectorKeyframeTrack(`${vrmNodeName}.${propertyName}`, track.times, value));
+        }
+      }
+    });
+
+    // Keep Hips Y position (grounding + breathing), remove XZ (movement controlled by code)
+    const hipsNodeName = vrm.humanoid?.getNormalizedBoneNode('hips')?.name;
+    const filteredTracks = tracks.filter(t => {
+      if (!t.name.endsWith('.position')) return true; // keep all rotation tracks
+      if (hipsNodeName && t.name.startsWith(hipsNodeName + '.')) {
+        // Hips position: zero out X/Z, keep only Y
+        for (let i = 0; i < t.values.length; i += 3) {
+          t.values[i] = 0;     // X = 0 (no horizontal drift)
+          // t.values[i+1] kept  // Y = original (grounding)
+          t.values[i+2] = 0;   // Z = 0 (no horizontal drift)
+        }
+        return true;
+      }
+      return false; // remove other bone position tracks
+    });
+    const retargetedClip = new THREE.AnimationClip(name, clip.duration, filteredTracks);
+    mixamoClips[name] = retargetedClip;
+    console.log(`[Mixamo] Loaded "${name}" (${tracks.length} tracks, ${clip.duration.toFixed(1)}s)`);
+    return retargetedClip;
+  });
+}
+
+// Post-animation arm spread adjustment (prevents arms clipping into body)
+function _adjustArmSpread(vrm) {
+  const h = vrm.humanoid;
+  if (!h) return;
+  const L = h.getNormalizedBoneNode('leftUpperArm');
+  const R = h.getNormalizedBoneNode('rightUpperArm');
+  if (L) { L.rotation.z -= 0.15; L.rotation.x += 0.05; }
+  if (R) { R.rotation.z += 0.15; R.rotation.x += 0.05; }
+}
+
+// Manual idle pose fallback (same as index.html)
+function _applyManualIdlePose(vrm) {
+  const h = vrm.humanoid;
+  if (!h) return;
+  const DEG = Math.PI / 180;
+  const poses = {
+    leftShoulder: { z: 10 * DEG }, rightShoulder: { z: -10 * DEG },
+    leftUpperArm: { z: 65 * DEG }, rightUpperArm: { z: -65 * DEG },
+    leftLowerArm: { z: 3 * DEG, y: 5 * DEG }, rightLowerArm: { z: -3 * DEG, y: -5 * DEG },
+    leftHand: { z: 5 * DEG }, rightHand: { z: -5 * DEG },
+    spine: { x: -1 * DEG }, head: { x: 3 * DEG },
+  };
+  for (const [boneName, rot] of Object.entries(poses)) {
+    const node = h.getNormalizedBoneNode(boneName);
+    if (!node) continue;
+    if (rot.x) node.rotation.x = rot.x;
+    if (rot.y) node.rotation.y = rot.y;
+    if (rot.z) node.rotation.z = rot.z;
+  }
+  console.log('[Fallback] Manual idle pose applied');
+}
+
+// Mood → FBX mapping (idle loops + one-shot actions)
+const MOOD_FBX = {
+  idle:      'https://nvatar.nskit.io/static/fbx/mixamo/Idle_Default.fbx',
+  happy:     'https://nvatar.nskit.io/static/fbx/mixamo/Idle_Happy.fbx',
+  sad:       'https://nvatar.nskit.io/static/fbx/mixamo/Idle_Sad.fbx',
+  think:     'https://nvatar.nskit.io/static/fbx/mixamo/Idle_Thinking.fbx',
+  lookAround:'https://nvatar.nskit.io/static/fbx/mixamo/Idle_LookAround.fbx',
+  weightShift:'https://nvatar.nskit.io/static/fbx/mixamo/Idle_WeightShift.fbx',
+};
+// One-shot gesture FBX (play once, return to idle)
+const GESTURE_FBX = {
+  wave:    'https://nvatar.nskit.io/static/fbx/mixamo/Gesture_Wave.fbx',
+  nod:     'https://nvatar.nskit.io/static/fbx/mixamo/Gesture_Nod.fbx',
+  laugh:   'https://nvatar.nskit.io/static/fbx/mixamo/Emotion_Laugh.fbx',
+  cheer:   'https://nvatar.nskit.io/static/fbx/mixamo/Emotion_Cheer.fbx',
+  surprised:'https://nvatar.nskit.io/static/fbx/mixamo/Emotion_Surprised.fbx',
+};
+let moodActions = {};     // { idle: Action, happy: Action, ... }
+let gestureActions = {};  // { wave: Action, nod: Action, ... }
+let currentMoodName = 'idle';
+
+async function loadMixamoAnimations(vrm) {
+  try {
+    // Load mood idles + gestures + walking
+    for (const [name, path] of Object.entries(MOOD_FBX)) {
+      await loadMixamoAnimation(path, vrm, name);
+    }
+    for (const [name, path] of Object.entries(GESTURE_FBX)) {
+      await loadMixamoAnimation(path, vrm, 'gesture_' + name);
+    }
+    await loadMixamoAnimation('https://nvatar.nskit.io/static/fbx/mixamo/Walk_Default.fbx', vrm, 'walking');
+    console.log(`[Mixamo] All animations loaded (${Object.keys(mixamoClips).length} clips)`);
+
+    // Setup mixer
+    const avatar = avatars[0];
+    if (!avatar) return;
+
+    currentMixer = new THREE.AnimationMixer(avatar.scene);
+
+    // Create actions for mood clips (loop) + gesture clips (once)
+    for (const name of Object.keys(MOOD_FBX)) {
+      if (mixamoClips[name]) {
+        moodActions[name] = currentMixer.clipAction(mixamoClips[name]);
+        moodActions[name].loop = THREE.LoopRepeat;
+      }
+    }
+    for (const name of Object.keys(GESTURE_FBX)) {
+      const clipName = 'gesture_' + name;
+      if (mixamoClips[clipName]) {
+        gestureActions[name] = currentMixer.clipAction(mixamoClips[clipName]);
+        gestureActions[name].loop = THREE.LoopOnce;
+        gestureActions[name].clampWhenFinished = true;
+      }
+    }
+
+    // Start with idle
+    if (moodActions.idle) {
+      idleAction = moodActions.idle;
+      idleAction.play();
+      currentAction = idleAction;
+      currentMoodName = 'idle';
+    }
+
+    if (mixamoClips.walking) {
+      walkAction = currentMixer.clipAction(mixamoClips.walking);
+    }
+
+    avatar._useMixamo = true;
+    console.log('[Mixamo] Mood actions:', Object.keys(moodActions).join(', '));
+  } catch(e) {
+    console.error('[Mixamo] Load failed, falling back to manual pose:', e);
+    // Fallback: manual bone rotation (works for all VRM)
+    const avatar = avatars[0];
+    if (avatar && avatar.vrm) _applyManualIdlePose(avatar.vrm);
+  }
+}
+
+function switchToWalk() {
+  if (!walkAction || !currentAction) return;
+  if (currentAction === walkAction) return;
+  walkAction.reset().play();
+  walkAction.crossFadeFrom(currentAction, 0.3, true);
+  currentAction = walkAction;
+}
+
+function switchToIdle() {
+  if (!currentAction) return;
+  const targetIdle = moodActions[currentMoodName] || idleAction;
+  if (!targetIdle || currentAction === targetIdle) return;
+  targetIdle.reset().play();
+  targetIdle.crossFadeFrom(currentAction, 0.3, true);
+  currentAction = targetIdle;
+}
+
+// --- One-shot Gesture (play once, auto-return to current mood idle) ---
+function playGesture(name) {
+  const action = gestureActions[name];
+  if (!action || !currentMixer || walkState === 'walking') return;
+
+  action.reset().play();
+  if (currentAction && currentAction !== action) {
+    action.crossFadeFrom(currentAction, 0.3, true);
+  }
+  currentAction = action;
+
+  // When gesture finishes, return to mood idle
+  const onFinish = () => {
+    currentMixer.removeEventListener('finished', onFinish);
+    const returnAction = moodActions[currentMoodName] || idleAction;
+    if (returnAction) {
+      returnAction.reset().play();
+      returnAction.crossFadeFrom(action, 0.3, true);
+      currentAction = returnAction;
+    }
+  };
+  currentMixer.addEventListener('finished', onFinish);
+}
+
+// --- Autonomous Roaming ---
+const ROAM = {
+  enabled: true,
+  minWait: 8,     // 최소 대기 (초)
+  maxWait: 20,    // 최대 대기 (초)
+  boundary: { minX: -1.8, maxX: 1.8, minZ: -1.2, maxZ: 1.5 },
+  idleVariants: ['idle', 'lookAround', 'weightShift'],  // 랜덤 idle 변형
+  lastActivity: 0,  // 마지막 활동 시간 (사용자 입력 or 대화)
+  pauseAfterChat: 10,  // 대화 후 대기 시간 (초)
+};
+let roamTimer = null;
+let roamActive = false;
+
+function startRoaming() {
+  if (roamTimer) return;
+  roamActive = true;
+  scheduleNextRoam();
+  console.log('[Roam] Started autonomous roaming');
+}
+
+function scheduleNextRoam() {
+  if (!roamActive) return;
+  const delay = (ROAM.minWait + Math.random() * (ROAM.maxWait - ROAM.minWait)) * 1000;
+  roamTimer = setTimeout(() => {
+    roamTimer = null;
+    doRoamAction();
+  }, delay);
+}
+
+function doRoamAction() {
+  if (!roamActive || walkState === 'walking') { scheduleNextRoam(); return; }
+
+  // 대화 직후에는 가만히 있기
+  const timeSinceActivity = (Date.now() - ROAM.lastActivity) / 1000;
+  if (timeSinceActivity < ROAM.pauseAfterChat) { scheduleNextRoam(); return; }
+
+  // 50% 확률로 이동, 50% 확률로 idle 변형
+  if (Math.random() < 0.5) {
+    // 랜덤 포인트로 이동
+    const tx = ROAM.boundary.minX + Math.random() * (ROAM.boundary.maxX - ROAM.boundary.minX);
+    const tz = ROAM.boundary.minZ + Math.random() * (ROAM.boundary.maxZ - ROAM.boundary.minZ);
+    walkTarget = { x: tx, z: tz };
+    walkState = 'walking';
+  } else {
+    // 랜덤 idle 변형 재생
+    const variant = ROAM.idleVariants[Math.floor(Math.random() * ROAM.idleVariants.length)];
+    if (variant !== currentMoodName) {
+      _crossfadeToMood(variant);
+      // 몇 초 후 기본 idle로 복귀
+      setTimeout(() => {
+        if (walkState !== 'walking' && currentMoodName === variant) {
+          _crossfadeToMood('idle');
+        }
+      }, 5000 + Math.random() * 5000);
+    }
+  }
+
+  scheduleNextRoam();
+}
+
+function pauseRoaming() {
+  ROAM.lastActivity = Date.now();
+}
+
+// 대화 시 룸 중앙으로 돌아오기
+const CENTER = { x: 0, z: 0.5 };  // 카메라 약간 앞
+
+function returnToCenter() {
+  const avatar = avatars[0];
+  if (!avatar || !avatar.scene) return;
+  const model = avatar.scene;
+  const dx = CENTER.x - model.position.x;
+  const dz = CENTER.z - model.position.z;
+  const dist = Math.sqrt(dx * dx + dz * dz);
+
+  if (dist < 0.3) {
+    // 이미 중앙 근처 — 카메라만 바라보기
+    model.rotation.y = Math.PI;
+    return;
+  }
+
+  // 중앙으로 걸어가기 (도착 후 카메라 방향은 updateWalk에서 자연스럽게)
+  walkTarget = { x: CENTER.x, z: CENTER.z };
+  walkState = 'walking';
+  // 도착 콜백: 카메라 향해 돌기
+  avatar._returnToCenter = true;
+}
+
+// --- Click-to-Walk ---
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let walkTarget = null; // {x, z}
+let walkState = 'idle'; // 'idle' | 'walking'
+const WALK_SPEED = 1.0; // units per second
+const ROOM_BOUNDS = { minX: -2.5, maxX: 2.5, minZ: -2, maxZ: 2 };
+
+document.addEventListener('dblclick', (event) => {
+  if (!renderer) return;
+  pauseRoaming();  // 사용자가 이동시키면 자율이동 잠시 멈춤
+  // Double-click to move
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(mouse, camera);
+
+  // Create invisible floor plane for raycasting
+  const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const intersectPoint = new THREE.Vector3();
+  raycaster.ray.intersectPlane(floorPlane, intersectPoint);
+
+  if (intersectPoint) {
+    // Clamp to room bounds
+    const tx = Math.max(ROOM_BOUNDS.minX, Math.min(ROOM_BOUNDS.maxX, intersectPoint.x));
+    const tz = Math.max(ROOM_BOUNDS.minZ, Math.min(ROOM_BOUNDS.maxZ, intersectPoint.z));
+    walkTarget = { x: tx, z: tz };
+    walkState = 'walking';
+
+    // Visual indicator — small circle on floor
+    showWalkIndicator(tx, tz);
+  }
+});
+
+let walkIndicator = null;
+function showWalkIndicator(x, z) {
+  if (walkIndicator) scene.remove(walkIndicator);
+  const geo = new THREE.RingGeometry(0.08, 0.12, 16);
+  const mat = new THREE.MeshBasicMaterial({ color: 0x6366f1, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
+  walkIndicator = new THREE.Mesh(geo, mat);
+  walkIndicator.rotation.x = -Math.PI / 2;
+  walkIndicator.position.set(x, 0.01, z);
+  scene.add(walkIndicator);
+  setTimeout(() => { if (walkIndicator) { scene.remove(walkIndicator); walkIndicator = null; } }, 2000);
+}
+
+function updateWalk(delta) {
+  const avatar = avatars[0];
+  if (!avatar || !avatar.vrm || !avatar.scene) return;
+  const model = avatar.scene;
+
+  if (walkState !== 'walking' || !walkTarget) return;
+
+  const dx = walkTarget.x - model.position.x;
+  const dz = walkTarget.z - model.position.z;
+  const dist = Math.sqrt(dx * dx + dz * dz);
+
+  const step = WALK_SPEED * delta;
+
+  if (dist <= step || dist < 0.05) {
+    model.position.x = walkTarget.x;
+    model.position.z = walkTarget.z;
+    model.position.y = 0; // Ground lock
+    walkTarget = null;
+    walkState = 'idle';
+    // 중앙 복귀 후 카메라 바라보기
+    if (avatar._returnToCenter) {
+      model.rotation.y = Math.PI;
+      avatar._returnToCenter = false;
+    }
+    switchToIdle();
+    return;
+  }
+  const nx = dx / dist;
+  const nz = dz / dist;
+  model.position.x += nx * step;
+  model.position.z += nz * step;
+  model.position.y = 0; // Ground lock — never float
+
+  const angle = Math.atan2(nx, nz);
+  model.rotation.y = angle + Math.PI;
+
+  switchToWalk();
+}
+
+function applyWalkCycle(avatar, time) {
+  const vrm = avatar.vrm;
+  if (!vrm.humanoid) return;
+  const speed = 8; // cycle speed
+  const t = time * speed;
+
+  // Legs
+  const leftUpper = vrm.humanoid.getNormalizedBoneNode('leftUpperLeg');
+  const rightUpper = vrm.humanoid.getNormalizedBoneNode('rightUpperLeg');
+  const leftLower = vrm.humanoid.getNormalizedBoneNode('leftLowerLeg');
+  const rightLower = vrm.humanoid.getNormalizedBoneNode('rightLowerLeg');
+
+  if (leftUpper) leftUpper.rotation.x = Math.sin(t) * 0.4;
+  if (rightUpper) rightUpper.rotation.x = Math.sin(t + Math.PI) * 0.4;
+  if (leftLower) leftLower.rotation.x = Math.max(0, Math.sin(t + 0.5)) * 0.5;
+  if (rightLower) rightLower.rotation.x = Math.max(0, Math.sin(t + Math.PI + 0.5)) * 0.5;
+
+  // Arms swing
+  const leftArm = vrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+  const rightArm = vrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+  if (leftArm) leftArm.rotation.x = Math.sin(t + Math.PI) * 0.2;
+  if (rightArm) rightArm.rotation.x = Math.sin(t) * 0.2;
+
+  // Body sway
+  const spine = vrm.humanoid.getNormalizedBoneNode('spine');
+  if (spine) {
+    spine.rotation.y = Math.sin(t) * 0.03;
+    spine.rotation.x = 0.02; // slight forward lean
+  }
+}
+
+function resetBonesToIdle(avatar) {
+  const vrm = avatar.vrm;
+  if (!vrm.humanoid) return;
+  const bones = ['leftUpperLeg', 'rightUpperLeg', 'leftLowerLeg', 'rightLowerLeg', 'leftUpperArm', 'rightUpperArm'];
+  bones.forEach(name => {
+    const bone = vrm.humanoid.getNormalizedBoneNode(name);
+    if (bone) { bone.rotation.x = 0; bone.rotation.y = 0; bone.rotation.z = 0; }
+  });
+}
+
+// --- IME handling ---
+let _imeComposing = false;
+document.addEventListener('DOMContentLoaded', () => {
+  const ci = document.getElementById('chatInput');
+  if (ci) {
+    ci.addEventListener('compositionstart', () => { _imeComposing = true; });
+    ci.addEventListener('compositionend', () => { _imeComposing = false; });
+    ci.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !_imeComposing) { e.preventDefault(); sendChat(); }
+    });
+  }
+});
+
+// --- TTS (Server Proxy) ---
+const TTS_CONFIG = { volume: 0.67, enabled: true };
+const ttsQueue = [];
+let ttsPlaying = false;
+let ttsCurrentAudio = null;
+
+function stopTTS() {
+  // 사용자가 새 메시지 보낼 때 — 큐 비우고 현재 재생 중단
+  ttsQueue.length = 0;
+  ttsPlaying = false;
+  if (ttsCurrentAudio) {
+    ttsCurrentAudio.pause();
+    ttsCurrentAudio = null;
+  }
+}
+
+window._toggleTTS = function(btn) {
+  TTS_CONFIG.enabled = !TTS_CONFIG.enabled;
+  btn.textContent = TTS_CONFIG.enabled ? '🔊 TTS ON' : '🔇 TTS OFF';
+  btn.style.background = TTS_CONFIG.enabled ? 'rgba(99,102,241,0.3)' : 'transparent';
+  console.log('[TTS] enabled:', TTS_CONFIG.enabled);
+};
+
+async function speakTTS(text) {
+  if (!TTS_CONFIG.enabled || !text || text === '...') return;
+  ttsQueue.push(text);
+  if (!ttsPlaying) processQueue();
+}
+
+async function processQueue() {
+  if (ttsQueue.length === 0) { ttsPlaying = false; return; }
+  ttsPlaying = true;
+  const text = ttsQueue.shift();
+  try {
+    const res = await fetch(`/api/v1/tts?text=${encodeURIComponent(text)}`, { method: 'POST' });
+    if (!res.ok) { processQueue(); return; }
+    const blob = await res.blob();
+    const audio = new Audio(URL.createObjectURL(blob));
+    audio.volume = TTS_CONFIG.volume;
+    audio.onended = () => { ttsCurrentAudio = null; processQueue(); };
+    audio.onerror = () => { ttsCurrentAudio = null; processQueue(); };
+    ttsCurrentAudio = audio;
+    audio.play();
+  } catch (e) {
+    console.warn('[TTS] Error:', e.message);
+    processQueue();
+  }
+}
+
+// --- NVatar WebSocket Chat ---
+let chatWs = null;
+let currentAvatarId = null;
+
+function connectChat(avatarId) {
+  if (chatWs) chatWs.close();
+  currentAvatarId = avatarId;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  chatWs = new WebSocket(`${proto}//nvatar.nskit.io/ws/chat/${avatarId}`);
+
+  chatWs.onopen = () => {
+    addChatMsg('system', '연결됨');
+  };
+
+  chatWs.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    if (data.type === 'bubble_lookup') {
+      addLookupResult(data);
+      if (NVatarSDK.onLookupResult) NVatarSDK.onLookupResult(data);
+    } else if (data.type === 'bubble') {
+      addChatMsg('avatar', data.text);
+      showBubble(0, data.text);
+      speakTTS(data.text); // 버블 단위 TTS (큐 순차재생)
+      const mood = detectMoodFromText(data.text);
+      if (mood) {
+        setMood(mood);
+        const gesture = detectGestureFromText(data.text);
+        if (gesture) setTimeout(() => playGesture(gesture), 500);
+      }
+      pauseRoaming();
+    } else if (data.type === 'typing') {
+      showBubble(0, '...');
+      returnToCenter();  // 대답 준비 — 중앙으로 이동
+      pauseRoaming();
+    } else if (data.type === 'emotion_update' && data.emotions) {
+      const emo = data.emotions;
+      if (emo.joy > 65) { setMood('happy'); playGesture('cheer'); }
+      else if (emo.sadness > 50) setMood('sad');
+      else if (emo.excitement > 60) { setMood('happy'); playGesture('wave'); }
+    }
+  };
+
+  chatWs.onclose = () => {
+    addChatMsg('system', '연결 끊김');
+  };
+}
+
+function addChatMsg(role, text) {
+  const container = document.getElementById('chatMessages');
+  const el = document.createElement('div');
+  if (role === 'user') {
+    el.style.cssText = 'align-self:flex-end;background:#6366f1;color:#fff;padding:6px 12px;border-radius:12px;border-bottom-right-radius:2px;font-size:12px;max-width:80%;word-break:break-word;';
+  } else if (role === 'avatar') {
+    el.style.cssText = 'align-self:flex-start;background:rgba(30,41,59,0.95);color:#e2e8f0;padding:6px 12px;border-radius:12px;border-bottom-left-radius:2px;font-size:12px;max-width:80%;border:1px solid #334155;word-break:break-word;';
+  } else if (role === 'lookup') {
+    el.style.cssText = 'align-self:flex-start;background:rgba(20,30,48,0.9);color:#94a3b8;padding:8px 12px;border-radius:8px;font-size:11px;max-width:85%;border-left:3px solid #475569;word-break:break-word;';
+    el.textContent = '[검색 결과] ' + text;
+    container.appendChild(el);
+    container.scrollTop = container.scrollHeight;
+    return;
+  } else {
+    el.style.cssText = 'align-self:center;color:#64748b;font-size:10px;padding:2px;';
+  }
+  el.textContent = text;
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
+}
+
+// --- NVatar SDK: Lookup Results ---
+// 검색 결과를 수집하고 SDK 사용측에 제공.
+// room-demo는 SDK를 직접 구현하여 배지+패널 UI를 제공하는 레퍼런스 구현.
+window.NVatarSDK = window.NVatarSDK || {};
+
+const _lookupStore = [];
+let _lookupUnread = 0;
+let _badgeBlink = null;
+
+// SDK Core API
+NVatarSDK.onLookupResult = null;
+NVatarSDK.getLookupResults = () => [..._lookupStore];
+NVatarSDK.getUnreadCount = () => _lookupUnread;
+NVatarSDK.clearLookupResults = () => { _lookupStore.length = 0; _lookupUnread = 0; _updateBadge(); };
+
+function addLookupResult(data) {
+  // data: { query, text, items } or plain string (legacy)
+  const result = typeof data === 'string'
+    ? { query: '', text: data, items: [{ title: data.slice(0, 60), summary: data }], ts: new Date().toISOString(), read: false }
+    : { ...data, ts: new Date().toISOString(), read: false };
+
+  _lookupStore.push(result);
+  _lookupUnread++;
+  _updateBadge();
+  _renderLookupItem(result, _lookupStore.length - 1);
+  console.log(`[Lookup] #${_lookupStore.length}: ${result.query || result.text?.slice(0, 40)}`);
+}
+
+function _updateBadge() {
+  const badge = document.getElementById('lookupBadge');
+  const count = document.getElementById('lookupBadgeCount');
+  if (_lookupStore.length === 0) {
+    badge.style.display = 'none';
+    if (_badgeBlink) { clearInterval(_badgeBlink); _badgeBlink = null; }
+    return;
+  }
+  badge.style.display = '';
+  count.textContent = _lookupStore.length;
+
+  // Blink if unread
+  if (_lookupUnread > 0 && !_badgeBlink) {
+    _badgeBlink = setInterval(() => {
+      badge.style.opacity = badge.style.opacity === '0.4' ? '1' : '0.4';
+    }, 600);
+  } else if (_lookupUnread === 0 && _badgeBlink) {
+    clearInterval(_badgeBlink);
+    _badgeBlink = null;
+    badge.style.opacity = '1';
+  }
+}
+
+window.toggleLookupPanel = function(e) {
+  if (e) e.stopPropagation();
+  const panel = document.getElementById('lookupPanel');
+  const show = panel.style.display !== 'flex';
+  panel.style.display = show ? 'flex' : 'none';
+  // 열릴 때 모든 아코디언 접기
+  if (show) {
+    panel.querySelectorAll('#lookupList > div > div:last-child').forEach(c => { c.style.display = 'none'; });
+  }
+};
+
+function _renderLookupItem(result, idx) {
+  const list = document.getElementById('lookupList');
+  const item = document.createElement('div');
+  item.id = 'lookup-' + idx;
+  item.style.cssText = 'background:rgba(15,23,42,0.9);border:1px solid #334155;border-radius:8px;overflow:hidden;';
+  if (!result.read) item.style.borderLeftColor = '#6366f1';
+  item.style.borderLeftWidth = '3px';
+
+  // Header (query + time)
+  const header = document.createElement('div');
+  header.style.cssText = 'padding:8px 10px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;';
+  const queryText = result.query || (result.items?.[0]?.title) || '검색 결과';
+  header.innerHTML = `
+    <span style="font-size:12px;color:${result.read ? '#94a3b8' : '#e2e8f0'};font-weight:${result.read ? '400' : '600'};">${queryText.slice(0, 45)}</span>
+    <span style="font-size:9px;color:#475569;">${result.ts?.slice(11, 16) || ''}</span>
+  `;
+
+  // Content (items)
+  const content = document.createElement('div');
+  content.style.cssText = 'padding:0 10px 10px;display:none;';
+
+  if (result.items && result.items.length > 0) {
+    result.items.forEach(it => {
+      const row = document.createElement('div');
+      row.style.cssText = 'margin-bottom:6px;padding:6px 8px;background:rgba(30,41,59,0.6);border-radius:6px;';
+      row.innerHTML = `
+        <div style="font-size:11px;color:#e2e8f0;font-weight:600;margin-bottom:2px;">${it.title}</div>
+        ${it.summary ? `<div style="font-size:10px;color:#94a3b8;line-height:1.5;">${it.summary}</div>` : ''}
+      `;
+      content.appendChild(row);
+    });
+  } else {
+    content.innerHTML = `<div style="font-size:11px;color:#94a3b8;line-height:1.5;white-space:pre-wrap;">${result.text || ''}</div>`;
+  }
+
+  header.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const show = content.style.display === 'none';
+    content.style.display = show ? 'block' : 'none';
+    if (show && !result.read) {
+      result.read = true;
+      _lookupUnread = Math.max(0, _lookupUnread - 1);
+      item.style.borderLeftColor = '#334155';
+      header.querySelector('span').style.color = '#94a3b8';
+      header.querySelector('span').style.fontWeight = '400';
+      _updateBadge();
+    }
+  });
+
+  item.appendChild(header);
+  item.appendChild(content);
+  list.insertBefore(item, list.firstChild);
+}
+
+window.sendChat = function() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  // 사용자가 말하면 아바타 TTS 중단
+  stopTTS();
+
+  // Show in chat overlay
+  addChatMsg('user', text);
+
+  // Send via WebSocket if connected
+  if (chatWs && chatWs.readyState === 1) {
+    chatWs.send(JSON.stringify({ type: 'message', text }));
+    returnToCenter();
+    pauseRoaming();
+    showBubble(0, '...');  // thinking indicator on avatar
+  } else {
+    addChatMsg('system', '아바타를 먼저 선택하세요');
+  }
+};
+
+// Avatar is loaded via URL params (?avatar=ID&vrm=URL)
+// No selector needed — avatar is chosen in the lobby (index.html)
+
+// --- Animate ---
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  elapsed += delta;
+  if (controls) controls.update();
+
+  // Mixamo mixer update
+  if (currentMixer) { currentMixer.update(delta); if (avatars[0] && avatars[0].vrm) _adjustArmSpread(avatars[0].vrm); }
+
+  // Walk system
+  updateWalk(delta);
+
+  // Avatar animations
+  avatars.forEach((avatar, i) => {
+    if (!avatar || !avatar.vrm) return;
+    const vrm = avatar.vrm;
+
+    // Auto blink
+    avatar.blinkTimer += delta;
+    if (avatar.blinkTimer > avatar.nextBlink) {
+      if (vrm.expressionManager) {
+        const blinkVal = Math.sin((avatar.blinkTimer - avatar.nextBlink) * 16) * 0.5 + 0.5;
+        vrm.expressionManager.setValue('blink', blinkVal > 0.8 ? 1 : 0);
+        if (avatar.blinkTimer > avatar.nextBlink + 0.2) {
+          avatar.blinkTimer = 0;
+          avatar.nextBlink = 2 + Math.random() * 5;
+          vrm.expressionManager.setValue('blink', 0);
+        }
+      }
+    }
+
+    // Idle breathing
+    if (vrm.humanoid) {
+      const spine = vrm.humanoid.getNormalizedBoneNode('spine');
+      if (spine) {
+        spine.rotation.x = Math.sin(elapsed * 1.2) * 0.008;
+        spine.rotation.z = Math.sin(elapsed * 0.5) * 0.003;
+      }
+    }
+
+    // Wave animation
+    if (avatar._waveAnim) {
+      const t = (elapsed - avatar._waveAnim.start) / avatar._waveAnim.duration;
+      if (t < 1) {
+        avatar._waveAnim.bone.rotation.z = -1.2 + Math.sin(t * Math.PI * 4) * 0.3;
+      } else {
+        avatar._waveAnim.bone.rotation.z = 0;
+        avatar._waveAnim = null;
+      }
+    }
+
+    // Think animation (head tilt)
+    if (avatar._thinkAnim) {
+      const t = (elapsed - avatar._thinkAnim.start) / avatar._thinkAnim.duration;
+      if (t < 1) {
+        avatar._thinkAnim.bone.rotation.z = Math.sin(t * Math.PI) * 0.15;
+        avatar._thinkAnim.bone.rotation.x = Math.sin(t * Math.PI * 0.5) * 0.1;
+      } else {
+        avatar._thinkAnim = null;
+      }
+    }
+
+    // Nod animation
+    if (avatar._nodAnim) {
+      const t = (elapsed - avatar._nodAnim.start) / avatar._nodAnim.duration;
+      if (t < 1) {
+        avatar._nodAnim.bone.rotation.x = Math.sin(t * Math.PI * 3) * 0.15;
+      } else {
+        avatar._nodAnim = null;
+      }
+    }
+
+    vrm.update(delta);
+  });
+
+  renderer.render(scene, camera);
+
+  // Update bubble positions (3D → 2D screen projection)
+  updateBubblePositions();
+}
+
+init();
+
+// Load from URL params or default
+const urlParams = new URLSearchParams(window.location.search);
+const paramAvatarId = urlParams.get('avatar');
+const paramVRM = urlParams.get('vrm') || 'https://raw.githubusercontent.com/josephrocca/ChatVRM-js/main/avatars/AvatarSample_B.vrm';
+
+_loadVRM(paramVRM, 0);
+
+// If avatar ID provided, connect chat directly
+if (paramAvatarId) {
+  setTimeout(() => connectChat(paramAvatarId), 2000);
+}
+</script>
+</body>
+</html>

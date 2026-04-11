@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NVatar — 3D Avatar Lab</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+.header { padding: 10px 16px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 12px; }
+.header h1 { font-size: 15px; font-weight: 600; flex: 1; }
+.header h1 span { color: #6366f1; }
+
+.content { flex: 1; display: flex; overflow: hidden; }
+
+/* Left panel */
+.panel { width: 320px; overflow-y: auto; border-right: 1px solid #334155; background: #1e293b; flex-shrink: 0; }
+.section { padding: 12px 14px; border-bottom: 1px solid #334155; }
+.section h3 { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.section p { font-size: 11px; color: #64748b; margin-bottom: 8px; line-height: 1.5; }
+
+.model-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.model-btn { padding: 8px; border: 1px solid #334155; border-radius: 6px; background: #0f172a; color: #e2e8f0; cursor: pointer; font-size: 11px; text-align: center; line-height: 1.4; transition: all 0.15s; }
+.model-btn:hover { border-color: #6366f1; background: rgba(99,102,241,0.1); }
+.model-btn.active { border-color: #6366f1; background: rgba(99,102,241,0.2); }
+
+.url-row { display: flex; gap: 6px; margin-top: 6px; }
+.url-row input { flex: 1; padding: 8px; border: 1px solid #334155; border-radius: 6px; background: #0f172a; color: #e2e8f0; font-size: 12px; }
+.url-row button { padding: 8px 12px; border: none; border-radius: 6px; background: #6366f1; color: #fff; font-size: 12px; cursor: pointer; }
+
+.drop-zone { border: 2px dashed #334155; border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.2s; font-size: 12px; color: #64748b; }
+.drop-zone:hover, .drop-zone.dragover { border-color: #6366f1; background: rgba(99,102,241,0.05); }
+.drop-zone input { display: none; }
+
+/* Emotion controls */
+.emotion-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.emo-btn { padding: 6px 4px; border: 1px solid #334155; border-radius: 6px; background: #0f172a; color: #94a3b8; cursor: pointer; font-size: 11px; text-align: center; transition: all 0.15s; }
+.emo-btn:hover { border-color: #6366f1; }
+.emo-btn.active { border-color: #6366f1; color: #e2e8f0; background: rgba(99,102,241,0.15); }
+
+/* Animation controls */
+.anim-list { display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; }
+.anim-btn { padding: 6px 8px; border: 1px solid #334155; border-radius: 6px; background: #0f172a; color: #94a3b8; cursor: pointer; font-size: 11px; text-align: left; }
+.anim-btn:hover { border-color: #6366f1; }
+.anim-btn.active { border-color: #22c55e; color: #22c55e; }
+
+/* Right: 3D Viewer */
+.viewer { flex: 1; position: relative; }
+
+/* Right sidebar: Mesh Panel */
+.mesh-panel { width: 300px; background: #1e293b; border-left: 1px solid #334155; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+.tab-btn { flex:1; padding:8px 4px; background:transparent; border:none; color:#64748b; font-size:12px; cursor:pointer; border-bottom:2px solid transparent; }
+.tab-btn.active { color:#e2e8f0; border-bottom-color:#3b82f6; }
+.tab-btn:hover { color:#94a3b8; }
+.vrm-card { padding:8px 10px; border-radius:6px; background:#0f172a; border:1px solid #334155; cursor:pointer; transition:border-color 0.2s; }
+.vrm-card:hover { border-color:#3b82f6; }
+.vrm-card.loaded { border-color:#22c55e; }
+.vrm-badge { display:inline-block; padding:1px 6px; border-radius:3px; font-size:9px; margin-left:4px; }
+.vrm-badge.ok { background:#14532d; color:#4ade80; }
+.vrm-badge.ng { background:#450a0a; color:#f87171; }
+.vrm-badge.untested { background:#1e293b; color:#64748b; }
+.viewer canvas { width: 100% !important; height: 100% !important; display: block; }
+.viewer-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #475569; font-size: 14px; text-align: center; pointer-events: none; }
+.viewer-overlay.hidden { display: none; }
+
+/* Status bar */
+.status-bar { position: absolute; bottom: 12px; left: 12px; right: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.status-tag { padding: 4px 8px; border-radius: 6px; background: rgba(30,41,59,0.9); border: 1px solid #334155; font-size: 11px; color: #94a3b8; backdrop-filter: blur(4px); }
+.status-tag.ok { color: #22c55e; border-color: rgba(34,197,94,0.3); }
+
+/* Links */
+a { color: #6366f1; text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+@media (max-width: 768px) {
+  .content { flex-direction: column; }
+  .panel { width: 100%; height: 40vh; border-right: none; border-bottom: 1px solid #334155; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>NVatar</span> 3D Avatar Lab</h1>
+  <button onclick="toggleRotate()" style="padding:4px 10px;border:1px solid #334155;border-radius:6px;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px;">🔄 회전</button>
+  <button onclick="resetCamera()" style="padding:4px 10px;border:1px solid #334155;border-radius:6px;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px;">📷 리셋</button>
+</div>
+
+<div class="content">
+  <div class="panel">
+
+    <!-- Three.js Official Samples -->
+    <div class="section">
+      <h3>Three.js 공식 샘플</h3>
+      <p>표정(blendshape) + 애니메이션 테스트용</p>
+      <div class="model-grid">
+        <button class="model-btn" onclick="load('https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb', this)">🤖 Robot<br><small>표정 O</small></button>
+        <button class="model-btn" onclick="load('https://threejs.org/examples/models/gltf/Michelle.glb', this)">👩 Michelle<br><small>애니 O</small></button>
+        <button class="model-btn" onclick="load('https://threejs.org/examples/models/gltf/Soldier.glb', this)">🧑‍✈️ Soldier<br><small>애니 O</small></button>
+        <button class="model-btn" onclick="load('https://threejs.org/examples/models/gltf/Xbot.glb', this)">🤖 Xbot<br><small>애니 O</small></button>
+      </div>
+    </div>
+
+    <!-- VRM: 오른쪽 패널 VRM 목록 탭에서 선택 -->
+
+    <!-- Other Sources -->
+    <div class="section">
+      <h3>기타 소스</h3>
+      <div class="model-grid">
+        <a href="https://www.mixamo.com/" target="_blank" class="model-btn" style="text-decoration:none;">💃 Mixamo<br><small>무료 캐릭터</small></a>
+        <a href="https://sketchfab.com/search?q=avatar&type=models&license=by" target="_blank" class="model-btn" style="text-decoration:none;">🎨 Sketchfab<br><small>CC 라이센스</small></a>
+      </div>
+    </div>
+
+    <!-- File Upload -->
+    <div class="section">
+      <h3>파일 업로드</h3>
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        GLB / VRM 파일을 드래그하거나 클릭
+        <input type="file" id="fileInput" accept=".glb,.vrm,.gltf">
+      </div>
+      <div class="url-row">
+        <input id="urlInput" placeholder="GLB/VRM URL...">
+        <button onclick="load(document.getElementById('urlInput').value)">로드</button>
+      </div>
+    </div>
+
+    <!-- Emotion Controls -->
+    <div class="section">
+      <h3>감정 표정 (Blendshapes)</h3>
+      <div class="emotion-grid" id="emotionGrid">
+        <small style="color:#888;">모델을 먼저 로드하세요</small>
+      </div>
+      <p style="margin-top:6px;" id="morphInfo"></p>
+    </div>
+
+    <!-- Animation Controls -->
+    <div class="section">
+      <h3>애니메이션</h3>
+      <div class="anim-list" id="animList">
+        <p style="font-size:11px;color:#64748b;">모델에 포함된 애니메이션</p>
+      </div>
+      <p style="font-size:10px;color:#64748b;margin-top:8px;margin-bottom:4px;">Mixamo FBX 애니메이션</p>
+      <div id="fbxButtonArea" style="display:flex;flex-wrap:wrap;gap:4px;">
+        <small style="color:#888;">VRM 로드 후 자동 표시</small>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 3D Viewer -->
+  <div class="viewer" id="viewer">
+    <div class="viewer-overlay" id="overlay">← 왼쪽에서 모델을 선택하세요<br><br>마우스: 회전 / 스크롤: 줌 / 우클릭: 이동</div>
+    <div class="status-bar" id="statusBar"></div>
+  </div>
+
+  <!-- Right panel: Tabs -->
+  <div class="mesh-panel" id="meshPanel">
+    <!-- Tab buttons -->
+    <div style="display:flex;border-bottom:1px solid #334155;">
+      <button id="tabMesh" class="tab-btn active" onclick="switchTab('mesh')">🔍 메시/파츠</button>
+      <button id="tabVrm" class="tab-btn" onclick="switchTab('vrm')">👤 VRM 목록</button>
+    </div>
+
+    <!-- Tab: Mesh -->
+    <div id="tabMeshContent" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+      <div style="padding:8px 12px;">
+        <p style="font-size:11px;color:#64748b;margin:0;">🔴 하이라이트 · 👁 토글 · 인풋: 그룹명</p>
+      </div>
+      <div id="meshList" style="flex:1;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;gap:3px;">
+        <p style="font-size:12px;color:#475569;padding:20px 0;text-align:center;">모델 로드 후 표시</p>
+      </div>
+      <div style="padding:8px 10px;border-top:1px solid #334155;display:flex;gap:4px;">
+        <button onclick="logMeshTree()" style="flex:1;padding:6px;border:1px solid #334155;border-radius:4px;background:transparent;color:#94a3b8;font-size:11px;cursor:pointer;">콘솔 트리</button>
+        <button onclick="showAllMesh()" style="flex:1;padding:6px;border:1px solid #334155;border-radius:4px;background:transparent;color:#94a3b8;font-size:11px;cursor:pointer;">전체 표시</button>
+      </div>
+    </div>
+
+    <!-- Tab: VRM List -->
+    <div id="tabVrmContent" style="flex:1;display:none;flex-direction:column;overflow:hidden;">
+      <div style="padding:8px 12px;">
+        <p style="font-size:11px;color:#64748b;margin:0;">클릭: 로드 · 🟢 검증완료 · 🔴 제스처 불가</p>
+      </div>
+      <div id="vrmListPanel" style="flex:1;overflow-y:auto;padding:8px 10px;display:flex;flex-direction:column;gap:4px;">
+        <small style="color:#888;">로딩중...</small>
+      </div>
+      <div style="padding:8px 10px;border-top:1px solid #334155;">
+        <button id="btnScanAll" onclick="scanAllVrmBones()" style="display:none;width:100%;padding:6px;border:1px solid #334155;border-radius:4px;background:transparent;color:#94a3b8;font-size:11px;cursor:pointer;">🔍 전체 FBX 호환성 스캔</button>
+        <div id="scanStatus" style="font-size:10px;color:#64748b;margin-top:4px;text-align:center;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+
+let scene, camera, renderer, controls;
+let currentModel = null;
+let mixer = null;
+let animations = [];
+let currentAction = null;
+let isRotating = false;
+let morphMeshes = [];
+
+// --- Init Scene ---
+function initScene() {
+  if (renderer) return;
+  const container = document.getElementById('viewer');
+
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0f172a);
+
+  camera = new THREE.PerspectiveCamera(30, container.clientWidth / container.clientHeight, 0.1, 100);
+  camera.position.set(0, 1.2, 3);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  container.appendChild(renderer.domElement);
+
+  // Lighting
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+  dir.position.set(2, 3, 2);
+  scene.add(dir);
+  const fill = new THREE.DirectionalLight(0x6366f1, 0.2);
+  fill.position.set(-2, 1, -1);
+  scene.add(fill);
+
+  // Ground grid
+  const grid = new THREE.GridHelper(10, 20, 0x334155, 0x1e293b);
+  scene.add(grid);
+
+  // Controls
+  controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 1, 0);
+  controls.enableDamping = true;
+  controls.minDistance = 0.5;
+  controls.maxDistance = 10;
+
+  // Resize
+  const ro = new ResizeObserver(() => {
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+  });
+  ro.observe(container);
+
+  animate();
+}
+
+const clock = new THREE.Clock();
+let elapsed = 0;
+let nextBlink = 2 + Math.random() * 4;
+let blinkPhase = -1; // -1 = not blinking
+let mouseX = 0, mouseY = 0;
+let currentEmotionPose = null;
+
+// Track mouse for lookAt
+document.addEventListener('mousemove', (e) => {
+  mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+  mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  elapsed += delta;
+  if (mixer) mixer.update(delta);
+  if (fbxMixer) { fbxMixer.update(delta); if (window._vrm) _adjustArmSpread(window._vrm); }
+  if (controls) controls.update();
+  if (isRotating && currentModel) currentModel.rotation.y += 0.005;
+
+  // --- VRM-specific updates ---
+  if (window._vrm) {
+    const vrm = window._vrm;
+
+    // Auto blink
+    if (blinkPhase < 0) {
+      if (elapsed > nextBlink) {
+        blinkPhase = 0;
+      }
+    } else {
+      blinkPhase += delta * 8; // blink speed
+      const blinkVal = blinkPhase < 0.5 ? blinkPhase * 2 : Math.max(0, 2 - blinkPhase * 2);
+      if (vrm.expressionManager) {
+        vrm.expressionManager.setValue('blink', blinkVal);
+      }
+      if (blinkPhase > 1.0) {
+        blinkPhase = -1;
+        nextBlink = elapsed + 2 + Math.random() * 5;
+        if (vrm.expressionManager) vrm.expressionManager.setValue('blink', 0);
+      }
+    }
+
+    // LookAt — eyes follow mouse
+    if (vrm.lookAt) {
+      vrm.lookAt.target = undefined; // use euler
+      const yaw = mouseX * 20;   // degrees
+      const pitch = mouseY * 15;
+      // Smooth interpolation
+      if (!vrm._lookYaw) vrm._lookYaw = 0;
+      if (!vrm._lookPitch) vrm._lookPitch = 0;
+      vrm._lookYaw += (yaw - vrm._lookYaw) * 0.08;
+      vrm._lookPitch += (pitch - vrm._lookPitch) * 0.08;
+    }
+
+    // Idle breathing — only when NO FBX is playing (FBX controls bones)
+    if (vrm.humanoid && !fbxMixer) {
+      const spine = vrm.humanoid.getNormalizedBoneNode('spine');
+      const chest = vrm.humanoid.getNormalizedBoneNode('chest');
+      const head = vrm.humanoid.getNormalizedBoneNode('head');
+      const breathe = Math.sin(elapsed * 1.2) * 0.008;
+      const sway = Math.sin(elapsed * 0.5) * 0.003;
+
+      if (spine) {
+        spine.rotation.x = breathe;
+        spine.rotation.z = sway;
+      }
+      if (chest) {
+        chest.rotation.x = breathe * 0.5;
+      }
+
+      if (head) {
+        const headSway = Math.sin(elapsed * 0.3) * 0.01;
+        const headNod = Math.sin(elapsed * 0.7) * 0.005;
+        head.rotation.y = headSway + (vrm._lookYaw || 0) * Math.PI / 180 * 0.3;
+        head.rotation.x = headNod + (vrm._lookPitch || 0) * Math.PI / 180 * 0.2;
+      }
+
+      // Emotion pose animation
+      if (currentEmotionPose && !fbxMixer) {
+        applyEmotionPose(vrm, delta);
+      }
+    }
+
+    vrm.update(delta);
+  }
+
+  // --- GLB morph blink ---
+  if (!window._vrm && morphMeshes.length > 0) {
+    if (blinkPhase < 0) {
+      if (elapsed > nextBlink) blinkPhase = 0;
+    } else {
+      blinkPhase += delta * 8;
+      const blinkVal = blinkPhase < 0.5 ? blinkPhase * 2 : Math.max(0, 2 - blinkPhase * 2);
+      morphMeshes.forEach(mesh => {
+        const lIdx = mesh.morphTargetDictionary['eyeBlinkLeft'];
+        const rIdx = mesh.morphTargetDictionary['eyeBlinkRight'];
+        if (lIdx !== undefined) mesh.morphTargetInfluences[lIdx] = blinkVal;
+        if (rIdx !== undefined) mesh.morphTargetInfluences[rIdx] = blinkVal;
+      });
+      if (blinkPhase > 1.0) {
+        blinkPhase = -1;
+        nextBlink = elapsed + 2 + Math.random() * 5;
+      }
+    }
+  }
+
+  if (renderer) renderer.render(scene, camera);
+}
+
+// --- Emotion Poses (VRM bone animation) ---
+const EMOTION_POSES = {
+  happy: { expression: 'happy' },
+  sad: { expression: 'sad' },
+  angry: { expression: 'angry' },
+  surprised: { expression: 'surprised' },
+  relaxed: { expression: 'relaxed' },
+  wink: { expression: 'blink' },
+  neutral: { expression: 'neutral' },
+};
+
+let poseTarget = {};
+let poseCurrent = {};
+
+function applyEmotionPose(vrm, delta) {
+  if (!vrm.humanoid) return;
+  const speed = 3.0; // lerp speed
+
+  const boneMap = {
+    upperArmL: 'leftUpperArm', upperArmR: 'rightUpperArm',
+    lowerArmL: 'leftLowerArm', lowerArmR: 'rightLowerArm',
+  };
+
+  // Arms
+  for (const [key, boneName] of Object.entries(boneMap)) {
+    const bone = vrm.humanoid.getNormalizedBoneNode(boneName);
+    if (!bone) continue;
+    const target = poseTarget[key] || 0;
+    if (!poseCurrent[key]) poseCurrent[key] = 0;
+    poseCurrent[key] += (target - poseCurrent[key]) * speed * delta;
+    bone.rotation.z = poseCurrent[key];
+  }
+
+  // Body (spine forward/back)
+  const spineBone = vrm.humanoid.getNormalizedBoneNode('spine');
+  if (spineBone) {
+    const target = poseTarget.spine || 0;
+    if (!poseCurrent.spine) poseCurrent.spine = 0;
+    poseCurrent.spine += (target - poseCurrent.spine) * speed * delta;
+    spineBone.rotation.x += poseCurrent.spine;
+  }
+}
+
+// --- Load Model ---
+window.load = function(url, btn) {
+  if (!url || !url.trim()) return;
+  initScene();
+
+  // Highlight button
+  document.querySelectorAll('.model-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  document.getElementById('overlay').classList.add('hidden');
+  setStatus('loading', '로딩 중...');
+
+  if (url.endsWith('.vrm')) {
+    loadVRM(url);
+  } else {
+    loadGLB(url);
+  }
+};
+
+function loadGLB(url) {
+  const loader = new GLTFLoader();
+  if (currentModel) { scene.remove(currentModel); currentModel = null; }
+  mixer = null; animations = []; morphMeshes = [];
+
+  loader.load(url, (gltf) => {
+    currentModel = gltf.scene;
+    currentModel._vrmUrl = url;
+    scene.add(currentModel);
+
+    // Auto-center
+    const box = new THREE.Box3().setFromObject(currentModel);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    currentModel.position.sub(center);
+    currentModel.position.y += size.y / 2;
+    camera.position.set(0, size.y * 0.6, size.y * 2.5);
+    controls.target.set(0, size.y * 0.5, 0);
+
+    // Animations
+    animations = gltf.animations || [];
+    if (animations.length > 0) {
+      mixer = new THREE.AnimationMixer(currentModel);
+      updateAnimList();
+      playAnim(0);
+    } else {
+      document.getElementById('animList').innerHTML = '<p style="font-size:11px;color:#64748b;">애니메이션 없음</p>';
+    }
+
+    // Morph targets
+    findMorphMeshes();
+    buildMeshList();
+
+    buildEmotionButtons();
+    setStatus('ok', `GLB 로드 완료 (${animations.length} 애니, ${morphMeshes.length} morph mesh)`);
+  }, undefined, (err) => {
+    setStatus('error', '로드 실패: ' + (err.message || err));
+  });
+}
+
+async function loadVRM(url) {
+  // Dynamic import three-vrm
+  try {
+    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+    // three-vrm CDN
+    const vrmModule = await import('https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.3.3/lib/three-vrm.module.min.js');
+    const { VRMLoaderPlugin } = vrmModule;
+
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+
+    if (currentModel) { scene.remove(currentModel); currentModel = null; }
+    mixer = null; animations = []; morphMeshes = [];
+
+    loader.load(url, (gltf) => {
+      const vrm = gltf.userData.vrm;
+      if (!vrm) { setStatus('error', 'VRM 파싱 실패'); return; }
+
+      currentModel = gltf.scene;
+      currentModel._vrmUrl = url;
+      currentModel.visible = false;  // Hide until idle is ready
+      scene.add(currentModel);
+
+      currentModel.rotation.y = Math.PI;
+
+      // VRM uses fbxMixer only — kill GLB mixer to prevent interference
+      mixer = null;
+      animations = [];
+
+      window._vrm = vrm;
+
+      findMorphMeshes();
+    buildMeshList();
+      setStatus('ok', `VRM 로드 완료 (expressions: ${Object.keys(vrm.expressionManager?.expressionMap || {}).join(', ') || 'none'})`);
+      buildEmotionButtons();
+
+      document.getElementById('animList').innerHTML = '<p style="font-size:11px;color:#64748b;">VRM: 표정은 감정 버튼으로 테스트</p>';
+
+      // Auto-load Mixamo FBX animations, then reveal
+      initMixamoForVRM().then(() => {
+        currentModel.visible = true;
+      }).catch(() => {
+        currentModel.visible = true;
+      });
+    }, undefined, (err) => {
+      setStatus('error', 'VRM 로드 실패: ' + (err.message || err));
+    });
+  } catch(e) {
+    setStatus('error', 'VRM 라이브러리 로드 실패: ' + e.message);
+  }
+}
+
+// --- Morph / Blendshapes ---
+function findMorphMeshes() {
+  morphMeshes = [];
+  if (!currentModel) return;
+  currentModel.traverse((node) => {
+    if (node.isMesh && node.morphTargetDictionary && Object.keys(node.morphTargetDictionary).length > 0) {
+      morphMeshes.push(node);
+    }
+  });
+  const allNames = new Set();
+  morphMeshes.forEach(m => Object.keys(m.morphTargetDictionary).forEach(k => allNames.add(k)));
+  document.getElementById('morphInfo').textContent = morphMeshes.length > 0
+    ? `${morphMeshes.length}개 mesh, ${allNames.size}개 blendshape`
+    : 'Blendshape 없음';
+  if (allNames.size > 0) {
+    console.log('[Avatar] Blendshapes:', [...allNames].sort().join(', '));
+  }
+}
+
+// Emoji map for known expressions
+const EXPR_EMOJI = {
+  neutral:'😐', happy:'😊', sad:'😢', angry:'😡', surprised:'😮', relaxed:'😌',
+  blink:'😉', blinkLeft:'😉', blinkRight:'😉', aa:'👄', ih:'👄', ou:'👄', ee:'👄', oh:'👄',
+  lookUp:'👆', lookDown:'👇', lookLeft:'👈', lookRight:'👉',
+  joy:'😄', fun:'😆', sorrow:'😿', fear:'😨', love:'🥰', shy:'😳',
+};
+const EXPR_LABEL = {
+  neutral:'중립', happy:'기쁨', sad:'슬픔', angry:'화남', surprised:'놀람', relaxed:'편안',
+  blink:'눈감기', blinkLeft:'왼눈', blinkRight:'오른눈', aa:'아', ih:'이', ou:'우', ee:'에', oh:'오',
+  lookUp:'위보기', lookDown:'아래보기', lookLeft:'왼쪽보기', lookRight:'오른쪽보기',
+  joy:'기쁨', fun:'즐거움', sorrow:'슬픔', fear:'공포', love:'사랑', shy:'수줍',
+};
+
+function buildEmotionButtons() {
+  const grid = document.getElementById('emotionGrid');
+  const info = document.getElementById('morphInfo');
+
+  // VRM: use expressionManager
+  if (window._vrm && window._vrm.expressionManager) {
+    const exprNames = Object.keys(window._vrm.expressionManager.expressionMap || {});
+    if (exprNames.length === 0) {
+      grid.innerHTML = '<small style="color:#888;">이 모델은 표정 없음</small>';
+      info.textContent = '';
+      return;
+    }
+    // neutral first, then emotions, then mouth, then eyes
+    const order = ['neutral','happy','sad','angry','surprised','relaxed','joy','fun','sorrow','fear','love','shy'];
+    const sorted = [...exprNames].sort((a,b) => {
+      const ai = order.indexOf(a), bi = order.indexOf(b);
+      if (ai >= 0 && bi >= 0) return ai - bi;
+      if (ai >= 0) return -1;
+      if (bi >= 0) return 1;
+      return a.localeCompare(b);
+    });
+    grid.innerHTML = '';
+    // Always add neutral reset button
+    if (!sorted.includes('neutral')) sorted.unshift('neutral');
+    sorted.forEach(name => {
+      const btn = document.createElement('button');
+      btn.className = 'emo-btn';
+      const emoji = EXPR_EMOJI[name] || '🎭';
+      const label = EXPR_LABEL[name] || name;
+      btn.innerHTML = emoji + ' ' + label;
+      btn.onclick = () => setEmotion(name, btn);
+      grid.appendChild(btn);
+    });
+    info.textContent = `${exprNames.length}개 표정 지원`;
+    return;
+  }
+
+  // GLB: use morphTargets
+  if (morphMeshes.length > 0) {
+    const allNames = new Set();
+    morphMeshes.forEach(m => Object.keys(m.morphTargetDictionary).forEach(k => allNames.add(k)));
+    grid.innerHTML = '';
+    // Show preset emotions that have matching morphs
+    const presets = ['neutral','happy','sad','angry','surprised','wink'];
+    presets.forEach(name => {
+      const btn = document.createElement('button');
+      btn.className = 'emo-btn';
+      btn.innerHTML = (EXPR_EMOJI[name] || '🎭') + ' ' + (EXPR_LABEL[name] || name);
+      btn.onclick = () => setEmotion(name, btn);
+      grid.appendChild(btn);
+    });
+    info.textContent = `${morphMeshes.length}개 mesh, ${allNames.size}개 blendshape`;
+    return;
+  }
+
+  grid.innerHTML = '<small style="color:#888;">이 모델은 표정 없음</small>';
+  info.textContent = '';
+}
+
+const EMOTIONS = {
+  happy: { mouthSmileLeft: 0.7, mouthSmileRight: 0.7, eyeSquintLeft: 0.3, eyeSquintRight: 0.3, cheekSquintLeft: 0.4, cheekSquintRight: 0.4 },
+  sad: { mouthFrownLeft: 0.6, mouthFrownRight: 0.6, browInnerUp: 0.5 },
+  angry: { browDownLeft: 0.7, browDownRight: 0.7, mouthFrownLeft: 0.3, mouthFrownRight: 0.3, jawForward: 0.2 },
+  surprised: { browInnerUp: 0.8, browOuterUpLeft: 0.6, browOuterUpRight: 0.6, eyeWideLeft: 0.7, eyeWideRight: 0.7, jawOpen: 0.3 },
+  wink: { eyeBlinkLeft: 0.9, mouthSmileLeft: 0.5, mouthSmileRight: 0.3 },
+  neutral: {},
+};
+
+// VRM expression names
+const VRM_EMOTIONS = {
+  happy: 'happy', sad: 'sad', angry: 'angry', surprised: 'surprised', neutral: 'neutral', wink: 'blink',
+};
+
+window.setEmotion = function(emotion, btn) {
+  document.querySelectorAll('.emo-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  // VRM expressions + pose
+  if (window._vrm && window._vrm.expressionManager) {
+    const em = window._vrm.expressionManager;
+    // Reset all expressions
+    for (const name of Object.keys(em.expressionMap || {})) {
+      em.setValue(name, 0);
+    }
+    // Set emotion expression
+    const pose = EMOTION_POSES[emotion];
+    if (pose) {
+      if (pose.expression && em.expressionMap[pose.expression]) {
+        em.setValue(pose.expression, 1.0);
+      }
+      poseTarget = { ...(pose.arms || {}), ...(pose.body || {}) };
+      currentEmotionPose = emotion;
+    } else if (emotion !== 'neutral' && em.expressionMap[emotion]) {
+      // Direct expression (aa, ih, lookUp, etc.)
+      em.setValue(emotion, 1.0);
+    }
+    if (emotion === 'neutral') {
+      poseTarget = {};
+      currentEmotionPose = 'neutral';
+    }
+    em.update();
+    return;
+  }
+
+  // GLB blendshapes
+  const morphs = EMOTIONS[emotion] || {};
+  morphMeshes.forEach(mesh => {
+    for (let i = 0; i < mesh.morphTargetInfluences.length; i++) {
+      mesh.morphTargetInfluences[i] = 0;
+    }
+    for (const [name, value] of Object.entries(morphs)) {
+      const idx = mesh.morphTargetDictionary[name];
+      if (idx !== undefined) mesh.morphTargetInfluences[idx] = value;
+    }
+  });
+};
+
+// --- Animations ---
+function updateAnimList() {
+  const list = document.getElementById('animList');
+  list.innerHTML = '';
+  animations.forEach((clip, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'anim-btn';
+    btn.textContent = clip.name || `Animation ${i}`;
+    btn.onclick = () => playAnim(i);
+    list.appendChild(btn);
+  });
+}
+
+function playAnim(index) {
+  if (!mixer || !animations[index]) return;
+  if (currentAction) currentAction.fadeOut(0.3);
+  currentAction = mixer.clipAction(animations[index]);
+  currentAction.reset().fadeIn(0.3).play();
+  document.querySelectorAll('.anim-btn').forEach((b, i) => b.classList.toggle('active', i === index));
+}
+
+// --- Controls ---
+window.toggleRotate = function() { isRotating = !isRotating; };
+
+// Post-animation arm spread adjustment (prevents arms clipping into body)
+function _adjustArmSpread(vrm) {
+  const h = vrm.humanoid;
+  if (!h) return;
+  const L = h.getNormalizedBoneNode('leftUpperArm');
+  const R = h.getNormalizedBoneNode('rightUpperArm');
+  if (L) { L.rotation.z -= 0.15; L.rotation.x += 0.05; }
+  if (R) { R.rotation.z += 0.15; R.rotation.x += 0.05; }
+}
+
+// --- Mixamo FBX Animation ---
+// Official Mixamo→VRM rig map (full, from pixiv/three-vrm — includes fingers)
+const mixamoVRMRigMap = {
+  mixamorigHips:'hips',mixamorigSpine:'spine',mixamorigSpine1:'chest',mixamorigSpine2:'upperChest',
+  mixamorigNeck:'neck',mixamorigHead:'head',
+  mixamorigLeftShoulder:'leftShoulder',mixamorigLeftArm:'leftUpperArm',mixamorigLeftForeArm:'leftLowerArm',mixamorigLeftHand:'leftHand',
+  mixamorigLeftHandThumb1:'leftThumbMetacarpal',mixamorigLeftHandThumb2:'leftThumbProximal',mixamorigLeftHandThumb3:'leftThumbDistal',
+  mixamorigLeftHandIndex1:'leftIndexProximal',mixamorigLeftHandIndex2:'leftIndexIntermediate',mixamorigLeftHandIndex3:'leftIndexDistal',
+  mixamorigLeftHandMiddle1:'leftMiddleProximal',mixamorigLeftHandMiddle2:'leftMiddleIntermediate',mixamorigLeftHandMiddle3:'leftMiddleDistal',
+  mixamorigLeftHandRing1:'leftRingProximal',mixamorigLeftHandRing2:'leftRingIntermediate',mixamorigLeftHandRing3:'leftRingDistal',
+  mixamorigLeftHandPinky1:'leftLittleProximal',mixamorigLeftHandPinky2:'leftLittleIntermediate',mixamorigLeftHandPinky3:'leftLittleDistal',
+  mixamorigRightShoulder:'rightShoulder',mixamorigRightArm:'rightUpperArm',mixamorigRightForeArm:'rightLowerArm',mixamorigRightHand:'rightHand',
+  mixamorigRightHandThumb1:'rightThumbMetacarpal',mixamorigRightHandThumb2:'rightThumbProximal',mixamorigRightHandThumb3:'rightThumbDistal',
+  mixamorigRightHandIndex1:'rightIndexProximal',mixamorigRightHandIndex2:'rightIndexIntermediate',mixamorigRightHandIndex3:'rightIndexDistal',
+  mixamorigRightHandMiddle1:'rightMiddleProximal',mixamorigRightHandMiddle2:'rightMiddleIntermediate',mixamorigRightHandMiddle3:'rightMiddleDistal',
+  mixamorigRightHandRing1:'rightRingProximal',mixamorigRightHandRing2:'rightRingIntermediate',mixamorigRightHandRing3:'rightRingDistal',
+  mixamorigRightHandPinky1:'rightLittleProximal',mixamorigRightHandPinky2:'rightLittleIntermediate',mixamorigRightHandPinky3:'rightLittleDistal',
+  mixamorigLeftUpLeg:'leftUpperLeg',mixamorigLeftLeg:'leftLowerLeg',mixamorigLeftFoot:'leftFoot',mixamorigLeftToeBase:'leftToes',
+  mixamorigRightUpLeg:'rightUpperLeg',mixamorigRightLeg:'rightLowerLeg',mixamorigRightFoot:'rightFoot',mixamorigRightToeBase:'rightToes',
+};
+
+let fbxMixer = null;
+let fbxClips = {};
+let fbxCurrentAction = null;
+let fbxCurrentName = null;
+
+function loadMixamoFBX(url, name, vrm) {
+  const loader = new FBXLoader();
+  return loader.loadAsync(url).then((asset) => {
+    const clip = THREE.AnimationClip.findByName(asset.animations, 'mixamo.com') || asset.animations[0];
+    if (!clip) throw new Error('No animation clip found');
+
+    const tracks = [];
+    const restRotationInverse = new THREE.Quaternion();
+    const parentRestWorldRotation = new THREE.Quaternion();
+    const _quatA = new THREE.Quaternion();
+
+    const motionHipsNode = asset.getObjectByName('mixamorigHips');
+    const motionHipsHeight = motionHipsNode ? motionHipsNode.position.y : 1;
+    const vrmHipsHeight = vrm.humanoid?.normalizedRestPose?.hips?.position?.[1] || 1;
+    const hipsPositionScale = vrmHipsHeight / motionHipsHeight;
+
+    clip.tracks.forEach((track) => {
+      const trackSplitted = track.name.split('.');
+      const mixamoRigName = trackSplitted[0];
+      const vrmBoneName = mixamoVRMRigMap[mixamoRigName];
+      const vrmNodeName = vrm.humanoid?.getNormalizedBoneNode(vrmBoneName)?.name;
+      const mixamoRigNode = asset.getObjectByName(mixamoRigName);
+
+      if (vrmNodeName != null) {
+        const propertyName = trackSplitted[1];
+
+        mixamoRigNode.getWorldQuaternion(restRotationInverse).invert();
+        mixamoRigNode.parent.getWorldQuaternion(parentRestWorldRotation);
+
+        if (track instanceof THREE.QuaternionKeyframeTrack) {
+          for (let i = 0; i < track.values.length; i += 4) {
+            const flatQuaternion = track.values.slice(i, i + 4);
+            _quatA.fromArray(flatQuaternion);
+            _quatA.premultiply(parentRestWorldRotation).multiply(restRotationInverse);
+            _quatA.toArray(flatQuaternion);
+            flatQuaternion.forEach((v, index) => { track.values[index + i] = v; });
+          }
+          tracks.push(new THREE.QuaternionKeyframeTrack(
+            `${vrmNodeName}.${propertyName}`, track.times,
+            track.values.map((v, i) => (vrm.meta?.metaVersion === '0' && i % 2 === 0 ? -v : v)),
+          ));
+        } else if (track instanceof THREE.VectorKeyframeTrack) {
+          const value = track.values.map((v, i) =>
+            (vrm.meta?.metaVersion === '0' && i % 3 !== 1 ? -v : v) * hipsPositionScale
+          );
+          tracks.push(new THREE.VectorKeyframeTrack(`${vrmNodeName}.${propertyName}`, track.times, value));
+        }
+      }
+    });
+
+    // Keep Hips Y position (grounding), remove XZ (no root drift)
+    const hipsNodeName = vrm.humanoid?.getNormalizedBoneNode('hips')?.name;
+    const filtered = tracks.filter(t => {
+      if (!t.name.endsWith('.position')) return true;
+      if (hipsNodeName && t.name.startsWith(hipsNodeName + '.')) {
+        for (let i = 0; i < t.values.length; i += 3) {
+          t.values[i] = 0;     // X = 0
+          t.values[i+2] = 0;   // Z = 0
+        }
+        return true;
+      }
+      return false;
+    });
+    fbxClips[name] = new THREE.AnimationClip(name, clip.duration, filtered);
+    // Debug: check track-to-node binding
+    const foundNodes = [];
+    const missingNodes = [];
+    filtered.forEach(t => {
+      const nodeName = t.name.split('.')[0];
+      const node = currentModel.getObjectByName(nodeName);
+      if (node) foundNodes.push(nodeName);
+      else missingNodes.push(nodeName);
+    });
+    console.log(`[Mixamo] "${name}" loaded — ${filtered.length} tracks, found=${foundNodes.length}, missing=${missingNodes.length}`);
+    if (missingNodes.length > 0) console.warn(`[Mixamo] Missing nodes:`, missingNodes.slice(0, 5));
+  });
+}
+
+async function initMixamoForVRM() {
+  if (!currentModel || !window._vrm) return;
+  fbxClips = {};
+  fbxMixer = new THREE.AnimationMixer(currentModel);
+  try {
+    // Load all FBX from assets API
+    const res = await fetch('https://nvatar.nskit.io/api/v1/assets');
+    const assets = await res.json();
+    for (const fbx of assets.fbx) {
+      const name = fbx.name;
+      await loadMixamoFBX(fbx.path, name, window._vrm);
+    }
+    console.log(`[Mixamo] ${assets.fbx.length}개 애니메이션 로드 완료`);
+    buildFbxButtons();
+    // Auto-play Idle_Default on load
+    if (fbxClips['Idle_Default']) {
+      fbxCurrentAction = fbxMixer.clipAction(fbxClips['Idle_Default']);
+      fbxCurrentAction.play();
+      fbxCurrentName = 'Idle_Default';
+      console.log('[Mixamo] Auto-playing Idle_Default');
+    } else if (fbxClips['Idle_Breathing']) {
+      fbxCurrentAction = fbxMixer.clipAction(fbxClips['Idle_Breathing']);
+      fbxCurrentAction.play();
+      fbxCurrentName = 'Idle_Breathing';
+      console.log('[Mixamo] Auto-playing Idle_Breathing');
+    }
+  } catch(e) { console.error('[Mixamo]', e); }
+}
+
+window.playMixamo = function(name, btn) {
+  document.querySelectorAll('.fbx-btn').forEach(b => b.classList.remove('active'));
+
+  console.log(`[playMixamo] name="${name}" fbxMixer=${!!fbxMixer} mixer=${!!mixer} prevAction=${fbxCurrentName}`);
+
+  if (!fbxMixer) { console.warn('[playMixamo] No fbxMixer!'); return; }
+
+  const CROSSFADE = 0.4;
+
+  if (!name) {
+    const idleClip = fbxClips['Idle_Default'] || fbxClips['Idle_Breathing'];
+    console.log(`[playMixamo] → Stop, return to idle: ${idleClip?.name || 'none'}`);
+    if (idleClip && fbxCurrentAction) {
+      const idleAction = fbxMixer.clipAction(idleClip);
+      fbxCurrentAction.fadeOut(CROSSFADE);
+      idleAction.reset().fadeIn(CROSSFADE).play();
+      fbxCurrentAction = idleAction;
+      fbxCurrentName = idleClip.name;
+    } else if (fbxCurrentAction) {
+      fbxCurrentAction.fadeOut(CROSSFADE);
+      fbxCurrentAction = null;
+      fbxCurrentName = null;
+    }
+    setEmotion('neutral');
+    if (btn) btn.classList.add('active');
+    return;
+  }
+
+  const clip = fbxClips[name];
+  if (!clip) { console.warn(`[playMixamo] Clip "${name}" not found!`); return; }
+
+  const prevAction = fbxCurrentAction;
+  const newAction = fbxMixer.clipAction(clip);
+
+  console.log(`[playMixamo] → Play "${name}" (${clip.tracks.length} tracks, dur=${clip.duration.toFixed(1)}s) prevEnabled=${prevAction?.enabled} newEnabled=${newAction.enabled}`);
+
+  if (prevAction && prevAction !== newAction) {
+    prevAction.fadeOut(CROSSFADE);
+    newAction.reset().fadeIn(CROSSFADE).play();
+  } else {
+    newAction.reset().play();
+  }
+
+  fbxCurrentAction = newAction;
+
+  fbxCurrentName = name;
+  if (btn) btn.classList.add('active');
+
+  // Auto-pair facial expression
+  const face = FBX_FACE[name];
+  if (face) setEmotion(face);
+};
+
+// FBX → Face expression auto-pairing
+const FBX_FACE = {
+  // Idle
+  Idle_Default: 'neutral', Idle_Breathing: 'neutral', Idle_WeightShift: 'neutral',
+  Idle_Happy: 'happy', Idle_Sad: 'sad', Idle_Thinking: 'neutral',
+  Idle_LookAround: 'neutral', Idle_Sitting: 'relaxed',
+  // Gesture
+  Gesture_Wave: 'happy', Gesture_Nod: 'happy', Gesture_HeadShake: 'sad',
+  Gesture_Shrug: 'neutral', Gesture_Clap: 'happy', Gesture_Point: 'neutral',
+  Gesture_ThumbsUp: 'happy', Gesture_Talk: 'neutral', Gesture_Greeting: 'happy',
+  // Emotion
+  Emotion_Angry: 'angry', Emotion_Cheer: 'happy', Emotion_Cry: 'sad',
+  Emotion_Laugh: 'happy', Emotion_Surprised: 'surprised', Emotion_Victory: 'happy',
+  // Walk / Run
+  Walk_Default: 'neutral', Walk_Casual: 'neutral', Walk_Brisk: 'neutral',
+  Walk_Female: 'neutral', Walk_Catwalk: 'relaxed', Walk_Swagger: 'happy',
+  // Dance
+  Dance_HipHop: 'happy', Dance_RunningMan: 'happy', Dance_Salsa: 'happy',
+  // Action
+  Action_StandToSit: 'neutral',
+};
+
+const FBX_EMOJI = {
+  Idle:'😐', Walk:'🚶', Gesture:'🤝', Emotion:'😊', Dance:'💃', Action:'🎬'
+};
+
+function buildFbxButtons() {
+  const area = document.getElementById('fbxButtonArea');
+  const names = Object.keys(fbxClips).sort();
+  if (names.length === 0) {
+    area.innerHTML = '<small style="color:#888;">FBX 없음</small>';
+    return;
+  }
+  area.innerHTML = '';
+  // Group by prefix
+  const groups = {};
+  names.forEach(n => {
+    const prefix = n.split('_')[0] || 'Other';
+    if (!groups[prefix]) groups[prefix] = [];
+    groups[prefix].push(n);
+  });
+  // Off button first
+  const offBtn = document.createElement('button');
+  offBtn.className = 'anim-btn fbx-btn';
+  offBtn.textContent = '⏹ Off';
+  offBtn.style.cssText = 'flex:0 0 auto;';
+  offBtn.onclick = () => playMixamo(null, offBtn);
+  area.appendChild(offBtn);
+
+  Object.keys(groups).sort().forEach(prefix => {
+    const label = document.createElement('div');
+    label.style.cssText = 'width:100%;font-size:9px;color:#64748b;margin-top:4px;';
+    label.textContent = prefix;
+    area.appendChild(label);
+    groups[prefix].forEach(name => {
+      const btn = document.createElement('button');
+      btn.className = 'anim-btn fbx-btn';
+      const shortName = name.includes('_') ? name.split('_').slice(1).join('_') : name;
+      const emoji = FBX_EMOJI[prefix] || '🎬';
+      btn.textContent = emoji + ' ' + shortName;
+      btn.style.cssText = 'flex:0 0 auto;font-size:11px;';
+      btn.onclick = () => playMixamo(name, btn);
+      area.appendChild(btn);
+    });
+  });
+}
+
+// --- Mesh Analysis & Part Toggle ---
+// --- Mesh mapping system ---
+// meshMap: { meshName: groupName } — persisted in localStorage per VRM
+let meshMap = {};
+let allMeshes = [];
+
+function getMeshMapKey() {
+  // Key based on current model URL or name
+  return 'nvatar_meshmap_' + (currentModel?._vrmUrl || 'default');
+}
+
+function saveMeshMap() {
+  localStorage.setItem(getMeshMapKey(), JSON.stringify(meshMap));
+}
+
+function loadMeshMap() {
+  try {
+    meshMap = JSON.parse(localStorage.getItem(getMeshMapKey()) || '{}');
+  } catch(e) { meshMap = {}; }
+}
+
+function buildMeshList() {
+  if (!currentModel) return;
+  const container = document.getElementById('meshList');
+  container.innerHTML = '';
+
+  allMeshes = [];
+  currentModel.traverse(node => {
+    if (node.isMesh) allMeshes.push(node);
+  });
+
+  if (allMeshes.length === 0) {
+    container.innerHTML = '<p style="font-size:11px;color:#475569;">메시 없음</p>';
+    return;
+  }
+
+  loadMeshMap();
+
+  // Build groups from meshMap
+  const groups = {};
+  const ungrouped = [];
+  allMeshes.forEach(mesh => {
+    const name = mesh.name || '';
+    const group = meshMap[name];
+    if (group) {
+      if (!groups[group]) groups[group] = [];
+      groups[group].push(mesh);
+    } else {
+      ungrouped.push(mesh);
+    }
+  });
+
+  // Render grouped
+  for (const [groupName, groupMeshes] of Object.entries(groups)) {
+    renderGroup(container, groupName, groupMeshes);
+  }
+
+  // Render ungrouped
+  if (ungrouped.length > 0) {
+    renderGroup(container, '미분류', ungrouped, true);
+  }
+
+  console.log(`[MeshMap] ${allMeshes.length} meshes, ${Object.keys(groups).length} groups, ${ungrouped.length} ungrouped`);
+}
+
+function renderGroup(container, groupName, meshes, isUngrouped = false) {
+  // Group header
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:#1e293b;border-radius:4px;margin-top:4px;cursor:pointer;';
+  header.innerHTML = `
+    <span style="font-size:13px;font-weight:600;${isUngrouped ? 'color:#64748b;' : ''}">${groupName} <span style="color:#64748b;font-weight:400;">(${meshes.length})</span></span>
+    <span class="gtog" style="font-size:12px;">👁</span>
+  `;
+  let visible = true;
+  header.querySelector('.gtog').onclick = (e) => {
+    e.stopPropagation();
+    visible = !visible;
+    meshes.forEach(m => m.visible = visible);
+    e.target.textContent = visible ? '👁' : '🚫';
+    header.style.opacity = visible ? '1' : '0.5';
+  };
+  container.appendChild(header);
+
+  // Individual meshes
+  const detail = document.createElement('div');
+  detail.style.cssText = 'padding-left:6px;';
+  meshes.forEach(mesh => {
+    const name = mesh.name || 'unnamed';
+    const verts = mesh.geometry?.attributes?.position?.count || 0;
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:4px;padding:3px 0;font-size:11px;color:#94a3b8;';
+
+    // Highlight button
+    const hiBtn = document.createElement('span');
+    hiBtn.textContent = '🔴';
+    hiBtn.style.cssText = 'cursor:pointer;font-size:11px;';
+    let origMat = null;
+    hiBtn.onclick = () => {
+      if (origMat) {
+        mesh.material = origMat; origMat = null; hiBtn.textContent = '🔴';
+      } else {
+        origMat = mesh.material;
+        mesh.material = new THREE.MeshBasicMaterial({ color: 0xff3333, transparent: true, opacity: 0.8 });
+        hiBtn.textContent = '⬜'; mesh.visible = true;
+      }
+    };
+
+    // Visibility toggle
+    const visBtn = document.createElement('span');
+    visBtn.textContent = '👁';
+    visBtn.style.cssText = 'cursor:pointer;font-size:12px;';
+    visBtn.onclick = () => {
+      mesh.visible = !mesh.visible;
+      visBtn.textContent = mesh.visible ? '👁' : '🚫';
+    };
+
+    // Mesh name label
+    const label = document.createElement('span');
+    label.textContent = `${name} (${verts}v)`;
+    label.title = name;
+    label.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;font-size:11px;';
+
+    // Group name input
+    const groupInput = document.createElement('input');
+    groupInput.value = meshMap[name] || '';
+    groupInput.placeholder = 'grp';
+    groupInput.style.cssText = 'width:60px;padding:3px 6px;border:1px solid #334155;border-radius:4px;background:#0f172a;color:#a5b4fc;font-size:11px;outline:none;';
+    groupInput.onchange = () => {
+      const val = groupInput.value.trim();
+      if (val) {
+        meshMap[name] = val;
+      } else {
+        delete meshMap[name];
+      }
+      saveMeshMap();
+      buildMeshList(); // Rebuild to re-group
+    };
+
+    row.appendChild(hiBtn);
+    row.appendChild(visBtn);
+    row.appendChild(label);
+    row.appendChild(groupInput);
+    detail.appendChild(row);
+  });
+  container.appendChild(detail);
+}
+
+window.logMeshTree = function() {
+  if (!currentModel) { alert('모델을 먼저 로드하세요'); return; }
+  console.log('[Avatar] Full scene tree:');
+  currentModel.traverse(node => {
+    const depth = [];
+    let p = node;
+    while (p.parent && p.parent !== currentModel) { depth.push('  '); p = p.parent; }
+    const info = [];
+    if (node.isMesh) info.push(`MESH (${node.geometry?.attributes?.position?.count || 0} verts)`);
+    if (node.isBone) info.push('BONE');
+    if (node.isSkinnedMesh) info.push('SKINNED');
+    console.log(`${depth.join('')}${node.name || '(unnamed)'} ${info.join(' ')}`);
+  });
+};
+
+window.showAllMesh = function() {
+  if (!currentModel) { alert('모델을 먼저 로드하세요'); return; }
+  currentModel.traverse(node => {
+    if (node.isMesh) node.visible = true;
+  });
+  buildMeshList();
+};
+window.resetCamera = function() {
+  if (!controls) return;
+  camera.position.set(0, 1.2, 3);
+  controls.target.set(0, 1, 0);
+};
+
+// --- File Upload ---
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files.length) handleFile(fileInput.files[0]); });
+
+function handleFile(file) {
+  const url = URL.createObjectURL(file);
+  const ext = file.name.split('.').pop().toLowerCase();
+  dropZone.textContent = file.name;
+  if (ext === 'vrm') {
+    load(url);
+    // Override: loadVRM needs to know it's VRM
+    loadVRM(url);
+  } else {
+    load(url);
+  }
+}
+
+// --- Tab switching ---
+window.switchTab = function(tab) {
+  document.getElementById('tabMesh').classList.toggle('active', tab === 'mesh');
+  document.getElementById('tabVrm').classList.toggle('active', tab === 'vrm');
+  document.getElementById('tabMeshContent').style.display = tab === 'mesh' ? 'flex' : 'none';
+  document.getElementById('tabVrmContent').style.display = tab === 'vrm' ? 'flex' : 'none';
+};
+
+// --- VRM List Panel ---
+let vrmVerified = JSON.parse(localStorage.getItem('nvatar_vrm_verified') || '{}');
+
+function saveVerified() {
+  localStorage.setItem('nvatar_vrm_verified', JSON.stringify(vrmVerified));
+}
+
+async function buildVrmListPanel() {
+  const panel = document.getElementById('vrmListPanel');
+  try {
+    const res = await fetch('https://nvatar.nskit.io/api/v1/assets');
+    const data = await res.json();
+    if (!data.vrm || data.vrm.length === 0) {
+      panel.innerHTML = '<small style="color:#888;">VRM 없음</small>';
+      return;
+    }
+    panel.innerHTML = '';
+    // Group by source
+    const grouped = {};
+    data.vrm.forEach(v => {
+      if (!grouped[v.source]) grouped[v.source] = [];
+      grouped[v.source].push(v);
+    });
+    Object.keys(grouped).sort().forEach(source => {
+      const label = document.createElement('div');
+      label.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:6px;font-weight:600;';
+      label.textContent = source.toUpperCase();
+      panel.appendChild(label);
+
+      grouped[source].forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'vrm-card';
+        const alias = v.meta?.alias;
+        const displayName = alias ? (alias.ko + ' / ' + alias.en) : v.name;
+        const creator = v.meta?.creator || '';
+        const key = v.path;
+        const checked = vrmVerified[key] !== false; // default true
+
+        card.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${displayName}</div>
+              <div style="font-size:10px;color:#64748b;">${creator} <span class="bone-rate" style="color:#475569;">—</span></div>
+            </div>
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;flex-shrink:0;" title="체크: 제스처 OK / 해제: 팔 본 없음">
+              <input type="checkbox" ${checked ? 'checked' : ''} style="cursor:pointer;">
+              <span class="vrm-badge ${checked ? 'ok' : 'ng'}">${checked ? 'OK' : 'NG'}</span>
+            </label>
+          </div>
+        `;
+        card.dataset.vrmPath = v.path;
+
+        // Click card → load VRM
+        card.addEventListener('click', (e) => {
+          if (e.target.tagName === 'INPUT') return;
+          document.querySelectorAll('.vrm-card').forEach(c => c.classList.remove('loaded'));
+          card.classList.add('loaded');
+          load(v.path);
+        });
+
+        // Checkbox → toggle verified
+        const cb = card.querySelector('input');
+        const badge = card.querySelector('.vrm-badge');
+        cb.addEventListener('change', (e) => {
+          e.stopPropagation();
+          vrmVerified[key] = cb.checked;
+          saveVerified();
+          badge.className = 'vrm-badge ' + (cb.checked ? 'ok' : 'ng');
+          badge.textContent = cb.checked ? 'OK' : 'NG';
+          // Update meta.json on server
+          fetch('https://nvatar.nskit.io/api/v1/assets/verify', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({path: v.path, verified: cb.checked})
+          }).catch(() => {});
+        });
+
+        panel.appendChild(card);
+      });
+    });
+  } catch(e) {
+    panel.innerHTML = '<small style="color:#f87171;">로드 실패</small>';
+  }
+}
+
+// --- Bone mapping scanner ---
+const CRITICAL_BONES = [
+  'hips','spine','chest','upperChest','neck','head',
+  'leftShoulder','leftUpperArm','leftLowerArm','leftHand',
+  'rightShoulder','rightUpperArm','rightLowerArm','rightHand',
+  'leftUpperLeg','leftLowerLeg','leftFoot',
+  'rightUpperLeg','rightLowerLeg','rightFoot',
+];
+const ARM_BONES = [
+  'leftShoulder','leftUpperArm','leftLowerArm','leftHand',
+  'rightShoulder','rightUpperArm','rightLowerArm','rightHand',
+];
+
+window.scanAllVrmBones = async function() {
+  const btn = document.getElementById('btnScanAll');
+  const status = document.getElementById('scanStatus');
+  btn.disabled = true;
+  btn.textContent = '스캔 중...';
+
+  try {
+    const res = await fetch('https://nvatar.nskit.io/api/v1/assets');
+    const data = await res.json();
+    const vrms = data.vrm.filter(v => v.path.endsWith('.vrm'));
+    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+    const { FBXLoader } = await import('three/addons/loaders/FBXLoader.js');
+    const { VRMLoaderPlugin } = await import('https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.3.2/lib/three-vrm.module.min.js');
+
+    const vrmLoader = new GLTFLoader();
+    vrmLoader.register((parser) => new VRMLoaderPlugin(parser));
+
+    // Load reference FBX animation
+    status.textContent = 'Idle FBX 로드중...';
+    const fbxLoader = new FBXLoader();
+    const fbxAsset = await fbxLoader.loadAsync('https://nvatar.nskit.io/static/fbx/mixamo/Idle_Default.fbx');
+    const refClip = THREE.AnimationClip.findByName(fbxAsset.animations, 'mixamo.com') || fbxAsset.animations[0];
+    if (!refClip) { status.textContent = 'FBX 클립 없음'; return; }
+
+    for (let i = 0; i < vrms.length; i++) {
+      const v = vrms[i];
+      status.textContent = `(${i+1}/${vrms.length}) ${v.name}...`;
+
+      try {
+        const gltf = await vrmLoader.loadAsync(v.path);
+        const vrm = gltf.userData.vrm;
+        if (!vrm || !vrm.humanoid) {
+          updateCardScore(v.path, -1, '?');
+          continue;
+        }
+
+        // Record T-pose arm positions
+        const getArmAngle = (side) => {
+          const upper = vrm.humanoid.getNormalizedBoneNode(side + 'UpperArm');
+          const lower = vrm.humanoid.getNormalizedBoneNode(side + 'LowerArm');
+          if (!upper || !lower) return null;
+          const uPos = new THREE.Vector3(), lPos = new THREE.Vector3();
+          upper.getWorldPosition(uPos);
+          lower.getWorldPosition(lPos);
+          // Angle from horizontal: 0° = T-pose (arms out), 90° = arms down
+          const dir = new THREE.Vector3().subVectors(lPos, uPos).normalize();
+          return Math.acos(Math.abs(dir.y)) * (180 / Math.PI);
+        };
+
+        const tPoseL = getArmAngle('left');
+        const tPoseR = getArmAngle('right');
+
+        // Apply Idle animation — retarget using same logic as loadMixamoAnimation
+        const restRotInv = new THREE.Quaternion();
+        const parentRestWorld = new THREE.Quaternion();
+        const _q = new THREE.Quaternion();
+
+        refClip.tracks.forEach(track => {
+          const parts = track.name.split('.');
+          const mixName = parts[0];
+          const vrmBoneName = mixamoVRMRigMap[mixName];
+          const vrmNode = vrm.humanoid?.getNormalizedBoneNode(vrmBoneName);
+          const mixNode = fbxAsset.getObjectByName(mixName);
+          if (!vrmNode || !mixNode) return;
+
+          if (track instanceof THREE.QuaternionKeyframeTrack) {
+            // Apply first frame only
+            mixNode.getWorldQuaternion(restRotInv).invert();
+            mixNode.parent.getWorldQuaternion(parentRestWorld);
+            const vals = track.values.slice(0, 4);
+            _q.fromArray(vals).premultiply(parentRestWorld).multiply(restRotInv);
+            vrmNode.quaternion.copy(_q);
+          }
+        });
+
+        // Update world matrices
+        vrm.scene.updateMatrixWorld(true);
+
+        // Measure arm angle after animation
+        const animL = getArmAngle('left');
+        const animR = getArmAngle('right');
+
+        // Score: how much arms moved from T-pose
+        // T-pose = ~90° from vertical (arms horizontal), good idle = ~10-30° from vertical (arms down)
+        // If arms barely moved → animation not working
+        let armScore = '?';
+        let detail = '';
+        if (tPoseL !== null && animL !== null && tPoseR !== null && animR !== null) {
+          const deltaL = Math.abs(animL - tPoseL);
+          const deltaR = Math.abs(animR - tPoseR);
+          const avgDelta = (deltaL + deltaR) / 2;
+          // Good animation moves arms 20°+, bad = <5°
+          const score = Math.min(100, Math.round((avgDelta / 30) * 100));
+          armScore = score;
+          detail = `L:${Math.round(tPoseL)}→${Math.round(animL)}° R:${Math.round(tPoseR)}→${Math.round(animR)}°`;
+        }
+
+        updateCardScore(v.path, armScore, detail);
+
+        const ok = typeof armScore === 'number' && armScore >= 50;
+        vrmVerified[v.path] = ok;
+        saveVerified();
+        updateCardVerified(v.path, ok);
+
+        fetch('https://nvatar.nskit.io/api/v1/assets/verify', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({path: v.path, verified: ok, boneRate: typeof armScore === 'number' ? armScore : 0, armRate: typeof armScore === 'number' ? armScore : 0})
+        }).catch(() => {});
+
+        // Cleanup
+        vrm.scene.traverse(n => {
+          if (n.geometry) n.geometry.dispose();
+          if (n.material) {
+            if (Array.isArray(n.material)) n.material.forEach(m => m.dispose());
+            else n.material.dispose();
+          }
+        });
+      } catch(e) {
+        console.error(`[Scan] ${v.name}:`, e);
+        updateCardScore(v.path, -1, 'ERR');
+      }
+    }
+    status.textContent = `완료! ${vrms.length}개 스캔`;
+  } catch(e) {
+    status.textContent = '스캔 실패: ' + e.message;
+  }
+  btn.disabled = false;
+  btn.textContent = '🔍 전체 FBX 호환성 스캔';
+};
+
+function updateCardScore(path, score, detail) {
+  const card = document.querySelector(`.vrm-card[data-vrm-path="${CSS.escape(path)}"]`);
+  if (!card) return;
+  const rateEl = card.querySelector('.bone-rate');
+  if (!rateEl) return;
+  if (score < 0) {
+    rateEl.textContent = '로드실패';
+    rateEl.style.color = '#f87171';
+    return;
+  }
+  if (score === '?') {
+    rateEl.textContent = '측정불가';
+    rateEl.style.color = '#64748b';
+    return;
+  }
+  const color = score >= 50 ? '#4ade80' : score >= 20 ? '#fbbf24' : '#f87171';
+  rateEl.innerHTML = `<span style="color:${color}" title="${detail}">호환 ${score}%</span>`;
+}
+
+function updateCardVerified(path, ok) {
+  const card = document.querySelector(`.vrm-card[data-vrm-path="${CSS.escape(path)}"]`);
+  if (!card) return;
+  const cb = card.querySelector('input[type=checkbox]');
+  const badge = card.querySelector('.vrm-badge');
+  if (cb) cb.checked = ok;
+  if (badge) {
+    badge.className = 'vrm-badge ' + (ok ? 'ok' : 'ng');
+    badge.textContent = ok ? 'OK' : 'NG';
+  }
+}
+
+// Init VRM list
+buildVrmListPanel();
+
+// --- Status ---
+function setStatus(type, text) {
+  const bar = document.getElementById('statusBar');
+  bar.innerHTML = `<span class="status-tag ${type === 'ok' ? 'ok' : ''}">${text}</span>`;
+}
+</script>
+</body>
+</html>
