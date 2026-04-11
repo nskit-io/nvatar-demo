@@ -228,10 +228,15 @@ async function loadAvatars() {
     list.forEach(a => {
       const card = document.createElement('div');
       card.className = 'avatar-card';
+      const aid = a.id || a.avatar_id;
       card.innerHTML = `
-        <div class="name">${a.avatar_name || a.name || 'Avatar'}</div>
+        <div style="display:flex;justify-content:space-between;align-items:start;">
+          <div class="name">${a.avatar_name || a.name || 'Avatar'}</div>
+          <button onclick="event.stopPropagation();deleteAvatar(${aid},'${(a.avatar_name||a.name||'').replace(/'/g,'')}')" style="padding:2px 6px;border:1px solid #334155;border-radius:4px;background:transparent;color:#64748b;font-size:10px;cursor:pointer;">✕</button>
+        </div>
         <div class="persona">${(a.persona || '').slice(0, 60)}</div>
         ${a.mbti ? `<span class="mbti">${a.mbti}</span>` : ''}
+        ${a.language ? `<span class="mbti" style="background:rgba(34,197,94,0.2);color:#4ade80;">${a.language.toUpperCase()}</span>` : ''}
       `;
       card.onclick = () => enterRoom(a);
       grid.appendChild(card);
@@ -254,6 +259,23 @@ function enterRoom(avatar) {
   const vrm = localStorage.getItem('nvatar_vrm_' + avatarId) || (vrmList.length > 0 ? API_BASE + vrmList[0].path : DEFAULT_VRMS[0]);
   const lang = avatar.language || document.getElementById('createLang')?.value || 'en';
   window.location.href = `room.html?avatar=${avatarId}&vrm=${encodeURIComponent(vrm)}&lang=${lang}`;
+}
+
+// Delete avatar
+async function deleteAvatar(avatarId, name) {
+  if (!confirm(`Delete "${name}"? This will remove all conversation history.`)) return;
+  try {
+    const r = await fetch(API_BASE + '/api/v1/avatars/' + avatarId, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.code === 200) {
+      localStorage.removeItem('nvatar_vrm_' + avatarId);
+      loadAvatars();
+    } else {
+      alert('Delete failed: ' + (d.message || ''));
+    }
+  } catch (e) {
+    alert('Server error: ' + e.message);
+  }
 }
 
 // Persona presets → API fields
