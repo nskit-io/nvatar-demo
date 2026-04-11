@@ -65,9 +65,11 @@ body { font-family: -apple-system, sans-serif; background: #0f172a; color: #e2e8
 .viewer-overlay.hidden { display: none; }
 
 /* Status bar */
-.status-bar { position: absolute; bottom: 12px; left: 12px; right: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
-.status-tag { padding: 4px 8px; border-radius: 6px; background: rgba(30,41,59,0.9); border: 1px solid #334155; font-size: 11px; color: #94a3b8; backdrop-filter: blur(4px); }
+.status-bar { position: absolute; bottom: 12px; left: 12px; right: 12px; }
+.status-tag { display: inline-block; padding: 4px 8px; border-radius: 6px; background: rgba(30,41,59,0.9); border: 1px solid #334155; font-size: 11px; color: #94a3b8; backdrop-filter: blur(4px); cursor: pointer; max-width: 100%; }
 .status-tag.ok { color: #22c55e; border-color: rgba(34,197,94,0.3); }
+.status-detail { display: none; margin-top: 4px; padding: 6px 8px; border-radius: 6px; background: rgba(30,41,59,0.95); border: 1px solid #334155; font-size: 10px; color: #94a3b8; backdrop-filter: blur(4px); line-height: 1.6; word-break: break-all; max-height: 30vh; overflow-y: auto; }
+.status-detail.open { display: block; }
 
 /* Links */
 a { color: #6366f1; text-decoration: none; }
@@ -550,7 +552,9 @@ async function loadVRM(url) {
 
       findMorphMeshes();
     buildMeshList();
-      setStatus('ok', `VRM 로드 완료 (expressions: ${Object.keys(vrm.expressionManager?.expressionMap || {}).join(', ') || 'none'})`);
+      const exprKeys = Object.keys(vrm.expressionManager?.expressionMap || {});
+      const exprDetail = exprKeys.length > 0 ? exprKeys.join(', ') : '';
+      setStatus('ok', `VRM 로드 완료 (${exprKeys.length}개 표정)`, exprDetail);
       buildEmotionButtons();
 
       document.getElementById('animList').innerHTML = '<p style="font-size:11px;color:#64748b;">VRM: 표정은 감정 버튼으로 테스트</p>';
@@ -643,7 +647,7 @@ function buildEmotionButtons() {
       grid.appendChild(btn);
     });
     info.textContent = `${exprNames.length}개 표정 지원`;
-    buildMobileEmoBar(sorted);
+    buildMobileEmoBar();
     return;
   }
 
@@ -679,18 +683,50 @@ const EMOTIONS = {
 };
 
 // VRM expression names
-function buildMobileEmoBar(sorted) {
+function buildMobileEmoBar() {
   const bar = document.getElementById('mobileEmoBar');
   if (!bar) return;
   bar.innerHTML = '';
-  const emotionOnly = ['neutral','happy','sad','angry','surprised','relaxed','joy','fun','sorrow','fear','love','shy'];
-  const filtered = sorted.filter(n => emotionOnly.includes(n));
-  if (filtered.length === 0) { bar.classList.remove('active'); return; }
+  if (!window._vrm?.expressionManager) { bar.classList.remove('active'); return; }
+  const allExprs = Object.keys(window._vrm.expressionManager.expressionMap || {});
+  if (allExprs.length === 0) { bar.classList.remove('active'); return; }
+
+  // 감정/표정 키워드로 동적 추출 (case-insensitive)
+  const emotionKeywords = [
+    'neutral','happy','sad','angry','surprised','relaxed',
+    'joy','fun','sorrow','fear','love','shy',
+    'cheekpuff','jawopen','tongueout','eyewide'
+  ];
+  const filtered = allExprs.filter(name => {
+    const lower = name.toLowerCase();
+    return emotionKeywords.some(k => lower === k || lower.startsWith(k));
+  });
+  // 쌍으로 된 것 (EyeWideLeft/Right) → 하나로 합침
+  const pairMap = {};
+  const singles = [];
   filtered.forEach(name => {
+    const base = name.replace(/(Left|Right)$/i, '');
+    if (base !== name) {
+      if (!pairMap[base]) pairMap[base] = [];
+      pairMap[base].push(name);
+    } else {
+      singles.push(name);
+    }
+  });
+
+  const order = ['neutral','happy','sad','angry','surprised','relaxed','joy','fun','sorrow','fear','love','shy'];
+  singles.sort((a,b) => {
+    const ai = order.indexOf(a.toLowerCase()), bi = order.indexOf(b.toLowerCase());
+    if (ai >= 0 && bi >= 0) return ai - bi;
+    if (ai >= 0) return -1;
+    if (bi >= 0) return 1;
+    return a.localeCompare(b);
+  });
+
+  // 단일 표정 버튼
+  singles.forEach(name => {
     const btn = document.createElement('button');
-    const emoji = EXPR_EMOJI[name] || '🎭';
-    const label = EXPR_LABEL[name] || name;
-    btn.textContent = emoji + ' ' + label;
+    btn.textContent = (EXPR_EMOJI[name.toLowerCase()] || EXPR_EMOJI[name] || '🎭') + ' ' + (EXPR_LABEL[name.toLowerCase()] || EXPR_LABEL[name] || name);
     btn.onclick = () => {
       bar.querySelectorAll('button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -698,7 +734,25 @@ function buildMobileEmoBar(sorted) {
     };
     bar.appendChild(btn);
   });
-  bar.classList.add('active');
+  // 쌍 표정 (양쪽 동시 적용)
+  Object.keys(pairMap).forEach(base => {
+    const names = pairMap[base];
+    const btn = document.createElement('button');
+    const lower = base.toLowerCase();
+    btn.textContent = (EXPR_EMOJI[lower] || '🎭') + ' ' + (EXPR_LABEL[lower] || base);
+    btn.onclick = () => {
+      bar.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      names.forEach(n => {
+        window._vrm.expressionManager.setValue(n, 1.0);
+      });
+      window._vrm.expressionManager.update();
+    };
+    bar.appendChild(btn);
+  });
+
+  if (bar.children.length > 0) bar.classList.add('active');
+  else bar.classList.remove('active');
 }
 
 const VRM_EMOTIONS = {
@@ -1511,10 +1565,16 @@ function updateCardVerified(path, ok) {
 buildVrmListPanel();
 
 // --- Status ---
-function setStatus(type, text) {
+function setStatus(type, text, detail) {
   const bar = document.getElementById('statusBar');
-  bar.innerHTML = `<span class="status-tag ${type === 'ok' ? 'ok' : ''}">${text}</span>`;
+  const arrow = detail ? ' ▸' : '';
+  bar.innerHTML = `<span class="status-tag ${type === 'ok' ? 'ok' : ''}" ${detail ? 'onclick="toggleStatusDetail()"' : ''}>${text}${arrow}</span>` +
+    (detail ? `<div class="status-detail" id="statusDetail">${detail}</div>` : '');
 }
+window.toggleStatusDetail = function() {
+  const d = document.getElementById('statusDetail');
+  if (d) d.classList.toggle('open');
+};
 
 // --- Mobile Bottom Sheet ---
 let _sheetVrmData = null;
