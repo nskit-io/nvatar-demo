@@ -1175,27 +1175,36 @@ function _pauseMonologue() {
   if (monoActive) _scheduleMonologue();
 }
 
-// 대화 시 룸 중앙으로 돌아오기
-const CENTER = { x: 0, z: 0.5 };  // 카메라 약간 앞
+// 대화 시 카메라 앞으로 걸어오기
+function _getCameraFrontPos() {
+  const dir = new THREE.Vector3();
+  camera.getWorldDirection(dir);
+  const target = controls.target.clone();
+  return { x: target.x + dir.x * 0.3, z: target.z + dir.z * 0.3 };
+}
+
+function _faceCamera(model) {
+  const camPos = camera.position;
+  const angle = Math.atan2(camPos.x - model.position.x, camPos.z - model.position.z);
+  model.rotation.y = angle;
+}
 
 function returnToCenter() {
   const avatar = avatars[0];
   if (!avatar || !avatar.scene) return;
   const model = avatar.scene;
-  const dx = CENTER.x - model.position.x;
-  const dz = CENTER.z - model.position.z;
+  const front = _getCameraFrontPos();
+  const dx = front.x - model.position.x;
+  const dz = front.z - model.position.z;
   const dist = Math.sqrt(dx * dx + dz * dz);
 
   if (dist < 0.3) {
-    // 이미 중앙 근처 — 카메라만 바라보기
-    model.rotation.y = Math.PI;
+    _faceCamera(model);
     return;
   }
 
-  // 중앙으로 걸어가기 (도착 후 카메라 방향은 updateWalk에서 자연스럽게)
-  walkTarget = { x: CENTER.x, z: CENTER.z };
+  walkTarget = { x: front.x, z: front.z };
   walkState = 'walking';
-  // 도착 콜백: 카메라 향해 돌기
   avatar._returnToCenter = true;
 }
 
@@ -1276,9 +1285,9 @@ function updateWalk(delta) {
     // Y untouched — stays at 0
     walkTarget = null;
     walkState = 'idle';
-    // 중앙 복귀 후 카메라 바라보기
+    // 카메라 앞 도착 → 카메라 바라보기
     if (avatar._returnToCenter) {
-      model.rotation.y = Math.PI;
+      _faceCamera(model);
       avatar._returnToCenter = false;
     }
     switchToIdle();
