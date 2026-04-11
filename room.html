@@ -43,24 +43,10 @@ canvas { display: block; }
 .mobile-lookup-dialog .dlg-body { flex: 1; overflow-y: auto; padding: 10px; max-height: calc(70vh - 50px); }
 .mobile-lookup-dialog .dlg-close { padding: 4px 12px; border: 1px solid #334155; border-radius: 6px; background: transparent; color: #94a3b8; font-size: 12px; cursor: pointer; }
 
-/* Mobile chat: idle/active/sweep fade */
-#chatMessages .chat-msg { transition: opacity 0.4s; }
+/* Mobile chat: idle hides all, active-msg overrides */
+#chatMessages .chat-msg { transition: opacity 0.6s ease-out; }
 .chat-idle #chatMessages .chat-msg { opacity: 0; }
 .chat-idle #chatMessages .chat-msg.chat-active-msg { opacity: 1; }
-
-/* Gradient sweep: mask slides top→bottom over 5s */
-#chatMessages.chat-sweep-fade {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 40%);
-  mask-image: linear-gradient(to bottom, transparent 0%, black 40%);
-  -webkit-mask-size: 100% 300%;
-  mask-size: 100% 300%;
-  animation: maskSweep 5s ease-out forwards;
-}
-@keyframes maskSweep {
-  0% { -webkit-mask-position: 0 100%; mask-position: 0 100%; }
-  85% { -webkit-mask-position: 0 0%; mask-position: 0 0%; }
-  100% { -webkit-mask-position: 0 0%; mask-position: 0 0%; opacity: 0; }
-}
 
 @media (max-width: 768px) {
   .side-panel { display: none !important; }
@@ -1965,61 +1951,51 @@ function animate() {
 }
 
 // --- Mobile: Chat Fade System ---
+// idle: all hidden | active: new msgs visible | fading: sequential top→bottom
 const _isMobile = () => window.innerWidth <= 768;
 let _chatFadeTimer = null;
+let _chatFadeInterval = null;
 let _chatState = 'idle';
-let _chatConversing = false;
 
-function _chatEnterIdle() {
-  if (!_isMobile()) return;
-  _chatState = 'fading';
-  const msgs = document.getElementById('chatMessages');
-  // Start gradient sweep animation
-  msgs.classList.add('chat-sweep-fade');
-  // After animation ends → fully idle
-  setTimeout(() => {
-    msgs.classList.remove('chat-sweep-fade');
-    const overlay = document.getElementById('chatOverlay');
-    overlay.classList.add('chat-idle');
-    overlay.querySelectorAll('.chat-active-msg').forEach(el => el.classList.remove('chat-active-msg'));
-    _chatState = 'idle';
-  }, 5000);
+function _chatCancelFade() {
+  clearTimeout(_chatFadeTimer); _chatFadeTimer = null;
+  if (_chatFadeInterval) { clearInterval(_chatFadeInterval); _chatFadeInterval = null; }
 }
 
 function _chatStartFadeTimer() {
-  clearTimeout(_chatFadeTimer);
+  _chatCancelFade();
   if (!_isMobile()) return;
-  console.log('[fade] startFadeTimer (5s)');
-  _chatFadeTimer = setTimeout(() => {
-    console.log('[fade] timer fired → entering idle');
-    _chatConversing = false;
-    _chatState = 'fading';
-    _chatEnterIdle();
-  }, 5000);
+  _chatFadeTimer = setTimeout(_chatDoSequentialFade, 5000);
 }
 
-function _onBubbleComplete() {
-  console.log('[fade] _onBubbleComplete', 'mobile:', _isMobile(), 'state:', _chatState, 'conversing:', _chatConversing);
-  if (!_isMobile() || _chatState !== 'active') return;
-  _chatConversing = false;
-  _chatStartFadeTimer();
+function _chatDoSequentialFade() {
+  if (!_isMobile()) return;
+  _chatState = 'fading';
+  const actives = [...document.querySelectorAll('#chatMessages .chat-active-msg')];
+  if (actives.length === 0) { _chatFinishIdle(); return; }
+  const stagger = Math.min(600, 3000 / actives.length);
+  let idx = 0;
+  _chatFadeInterval = setInterval(() => {
+    if (idx >= actives.length) {
+      clearInterval(_chatFadeInterval); _chatFadeInterval = null;
+      setTimeout(_chatFinishIdle, 700);
+      return;
+    }
+    actives[idx].classList.remove('chat-active-msg'); // triggers CSS opacity 0 transition
+    idx++;
+  }, stagger);
 }
 
-function _onTTSComplete() {
-  if (!_isMobile() || _chatState !== 'active') return;
-  _chatConversing = false;
-  _chatStartFadeTimer();
+function _chatFinishIdle() {
+  _chatState = 'idle';
+  const overlay = document.getElementById('chatOverlay');
+  overlay.classList.add('chat-idle');
+  overlay.querySelectorAll('.chat-active-msg').forEach(el => el.classList.remove('chat-active-msg'));
 }
 
 function _chatShowMsg(el) {
   if (!_isMobile()) return;
-  // Stop any ongoing sweep
-  const msgs = document.getElementById('chatMessages');
-  msgs.classList.remove('chat-sweep-fade');
-  msgs.style.opacity = '1';
-  msgs.style.webkitMaskImage = '';
-  msgs.style.maskImage = '';
-  // Ensure idle class (hides old messages)
+  _chatCancelFade();
   const overlay = document.getElementById('chatOverlay');
   if (!overlay.classList.contains('chat-idle')) overlay.classList.add('chat-idle');
   el.classList.add('chat-active-msg');
@@ -2028,14 +2004,19 @@ function _chatShowMsg(el) {
 
 function _chatRevealAll() {
   if (!_isMobile()) return;
-  const msgs = document.getElementById('chatMessages');
-  msgs.classList.remove('chat-sweep-fade');
-  msgs.style.opacity = '1';
-  msgs.style.webkitMaskImage = '';
-  msgs.style.maskImage = '';
-  const overlay = document.getElementById('chatOverlay');
-  overlay.classList.remove('chat-idle');
+  _chatCancelFade();
+  document.getElementById('chatOverlay').classList.remove('chat-idle');
   _chatState = 'active';
+  _chatStartFadeTimer();
+}
+
+function _onBubbleComplete() {
+  if (!_isMobile() || _chatState !== 'active') return;
+  _chatStartFadeTimer();
+}
+
+function _onTTSComplete() {
+  if (!_isMobile() || _chatState !== 'active') return;
   _chatStartFadeTimer();
 }
 
@@ -2051,20 +2032,10 @@ const _origAddChatMsg = addChatMsg;
 addChatMsg = function(role, text) {
   _origAddChatMsg(role, text);
   if (!_isMobile()) return;
-  const container = document.getElementById('chatMessages');
-  const el = container.lastElementChild;
+  const el = document.getElementById('chatMessages').lastElementChild;
   if (!el) return;
-  if (role === 'user') {
-    _chatConversing = true;
-    clearTimeout(_chatFadeTimer);
-    _chatShowMsg(el);
-  } else if (role === 'avatar') {
-    _chatShowMsg(el);
-    // fade timer starts from _onBubbleComplete or _onTTSComplete
-  } else if (role === 'system') {
-    _chatShowMsg(el);
-    _chatStartFadeTimer();
-  }
+  // All message types: show + cancel any fade. Timer only from _onBubbleComplete.
+  _chatShowMsg(el);
 };
 
 // --- Mobile: Lookup Dialog ---
