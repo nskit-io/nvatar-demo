@@ -258,10 +258,13 @@ function buildRoom() {
 
     // Update bounds (no collision for now — gets in the way)
     const finalBox = new THREE.Box3().setFromObject(roomModel);
-    ROOM_BOUNDS.minX = finalBox.min.x + 0.3;
-    ROOM_BOUNDS.maxX = finalBox.max.x - 0.3;
-    ROOM_BOUNDS.minZ = finalBox.min.z + 0.3;
-    ROOM_BOUNDS.maxZ = finalBox.max.z - 0.3;
+    // Bounds: use 60% of bbox (indoor area is smaller than full bbox with outdoor env)
+    const halfX = (finalBox.max.x - finalBox.min.x) * 0.3;
+    const halfZ = (finalBox.max.z - finalBox.min.z) * 0.3;
+    ROOM_BOUNDS.minX = -halfX;
+    ROOM_BOUNDS.maxX = halfX;
+    ROOM_BOUNDS.minZ = finalBox.min.z + 0.5; // keep more room behind (room pushed back)
+    ROOM_BOUNDS.maxZ = finalBox.max.z * 0.4;
 
     console.log(`[Room] Placed: bounds X[${ROOM_BOUNDS.minX.toFixed(1)}~${ROOM_BOUNDS.maxX.toFixed(1)}] Z[${ROOM_BOUNDS.minZ.toFixed(1)}~${ROOM_BOUNDS.maxZ.toFixed(1)}], ${ROOM_OBJECTS.length} collision objects`);
   }, undefined, (err) => {
