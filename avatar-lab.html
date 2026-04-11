@@ -1668,6 +1668,7 @@ function buildSheetFbx(body) {
     grid.querySelectorAll('.bs-fbx-btn').forEach(b => b.classList.remove('active'));
     offBtn.classList.add('active');
     playMixamo(null, document.querySelector('.fbx-btn'));
+    setTimeout(closeSheet, 200);
   };
   grid.appendChild(offBtn);
 
@@ -1682,6 +1683,7 @@ function buildSheetFbx(body) {
       grid.querySelectorAll('.bs-fbx-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       playMixamo(name, document.querySelector('.fbx-btn'));
+      setTimeout(closeSheet, 200);
     };
     grid.appendChild(btn);
   });
