@@ -41,21 +41,30 @@ canvas { display: block; }
 </head>
 <body>
 
+<!-- Loading overlay -->
+<div id="loadingOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;transition:opacity 0.5s;">
+  <h2 style="font-size:20px;color:#fff;margin-bottom:12px;"><span style="color:#6366f1;">NVatar</span> Loading...</h2>
+  <div style="width:240px;height:4px;background:#1e293b;border-radius:4px;overflow:hidden;">
+    <div id="loadingBar" style="width:0%;height:100%;background:#6366f1;border-radius:4px;transition:width 0.3s;"></div>
+  </div>
+  <div id="loadingText" style="margin-top:8px;font-size:12px;color:#64748b;">Preparing room...</div>
+</div>
+
 <div class="ui-overlay">
   <div class="top-bar">
-    <h1><span>NVatar</span> <span data-i18n="title">Virtual Room</span></h1>
+    <h1><span>NVatar</span> Virtual Room</h1>
     <div class="controls">
-      <button onclick="location.href='index.html'" style="padding:4px 10px;border:1px solid #334155;border-radius:6px;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px;" data-i18n="lobby">← Lobby</button>
-      <span style="font-size:11px;color:#64748b;" data-i18n="hint_dblclick">Double-click: Move</span>
-      <button onclick="toggleLight()" data-i18n="light">💡 Light</button>
-      <button onclick="resetView()" data-i18n="reset">📷 Reset</button>
+      <button onclick="location.href='index.html'" style="padding:4px 10px;border:1px solid #334155;border-radius:6px;background:transparent;color:#94a3b8;cursor:pointer;font-size:12px;">← 로비</button>
+      <span style="font-size:11px;color:#64748b;">더블클릭: 이동</span>
+      <button onclick="toggleLight()">💡 조명</button>
+      <button onclick="resetView()">📷 리셋</button>
     </div>
   </div>
 </div>
 
 <div class="side-panel">
   <div class="panel-section">
-    <h3 data-i18n="panel_lang">Language</h3>
+    <h3>언어</h3>
     <div class="btn-grid">
       <select id="langSelect" onchange="window._changeLang(this.value)" style="padding:6px;border:1px solid #334155;border-radius:4px;background:rgba(15,23,42,0.8);color:#94a3b8;font-size:10px;width:100%;">
         <option value="ko">🇰🇷 한국어</option>
@@ -66,31 +75,22 @@ canvas { display: block; }
     </div>
   </div>
   <div class="panel-section">
-    <h3 data-i18n="panel_voice">Voice</h3>
+    <h3>음성</h3>
     <div class="btn-grid">
       <button id="btnTTS" onclick="window._toggleTTS(this)" style="background:rgba(99,102,241,0.3);">🔊 TTS ON</button>
-    </div>
-  </div>
-  <div class="panel-section">
-    <h3 data-i18n="panel_furniture">Furniture</h3>
-    <div class="btn-grid">
-      <button onclick="addFurniture('desk')" data-i18n="fur_desk">🪑 Desk</button>
-      <button onclick="addFurniture('shelf')" data-i18n="fur_shelf">📚 Shelf</button>
-      <button onclick="addFurniture('lamp')" data-i18n="fur_lamp">💡 Lamp</button>
-      <button onclick="addFurniture('plant')" data-i18n="fur_plant">🪴 Plant</button>
     </div>
   </div>
 </div>
 
 <!-- Lookup badge + panel (SDK demo) -->
 <div id="lookupBadge" onclick="toggleLookupPanel(event)" style="position:absolute;top:48px;left:16px;display:none;padding:6px 14px;border-radius:20px;background:rgba(99,102,241,0.9);color:#fff;font-size:11px;font-weight:700;cursor:pointer;pointer-events:auto;z-index:30;backdrop-filter:blur(8px);transition:all 0.3s;">
-  🔍 <span data-i18n="search_results">Search Results</span> <span id="lookupBadgeCount">0</span>
+  🔍 검색 결과 <span id="lookupBadgeCount">0</span>건
 </div>
 
 <div id="lookupPanel" style="position:absolute;top:80px;left:16px;width:340px;max-height:60vh;display:none;flex-direction:column;background:rgba(10,15,30,0.95);border:1px solid #334155;border-radius:12px;pointer-events:auto;z-index:30;backdrop-filter:blur(12px);overflow:hidden;">
   <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #1e293b;">
-    <span style="font-size:12px;font-weight:700;color:#e2e8f0;" data-i18n="search_results">🔍 Search Results</span>
-    <button onclick="toggleLookupPanel(event)" style="padding:2px 8px;border:1px solid #334155;border-radius:4px;background:transparent;color:#94a3b8;font-size:11px;cursor:pointer;" data-i18n="close">Close</button>
+    <span style="font-size:12px;font-weight:700;color:#e2e8f0;">🔍 검색 결과</span>
+    <button onclick="toggleLookupPanel(event)" style="padding:2px 8px;border:1px solid #334155;border-radius:4px;background:transparent;color:#94a3b8;font-size:11px;cursor:pointer;">닫기</button>
   </div>
   <div id="lookupList" style="flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:6px;max-height:50vh;"></div>
 </div>
@@ -100,10 +100,10 @@ canvas { display: block; }
   <div id="chatMessages" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:8px;max-height:45vh;">
   </div>
   <div style="display:flex;gap:6px;padding:4px;align-items:center;">
-    <input id="chatInput" data-i18n-placeholder="chat_placeholder" placeholder="Message..." style="flex:1;padding:10px 14px;border:1px solid #334155;border-radius:20px;background:rgba(15,23,42,0.9);color:#e2e8f0;font-size:13px;outline:none;backdrop-filter:blur(8px);">
+    <input id="chatInput" placeholder="메시지..." style="flex:1;padding:10px 14px;border:1px solid #334155;border-radius:20px;background:rgba(15,23,42,0.9);color:#e2e8f0;font-size:13px;outline:none;backdrop-filter:blur(8px);">
     <button id="micBtn" onclick="toggleMic()" style="padding:8px 12px;border:1px solid #334155;border-radius:20px;background:rgba(15,23,42,0.9);color:#94a3b8;font-size:16px;cursor:pointer;backdrop-filter:blur(8px);transition:all 0.2s;">🎤</button>
     <span id="micTimer" style="font-size:10px;color:#ef4444;font-variant-numeric:tabular-nums;min-width:28px;display:none;">0:00</span>
-    <button onclick="sendChat()" style="padding:10px 16px;border:none;border-radius:20px;background:#6366f1;color:#fff;font-size:13px;cursor:pointer;" data-i18n="send">Send</button>
+    <button onclick="sendChat()" style="padding:10px 16px;border:none;border-radius:20px;background:#6366f1;color:#fff;font-size:13px;cursor:pointer;">전송</button>
   </div>
 </div>
 
@@ -171,84 +171,138 @@ function init() {
 }
 
 // --- Room ---
+let roomModel = null;
+const ROOM_OBJECTS = []; // for collision detection
+
 function buildRoom() {
-  const roomW = 6, roomH = 3, roomD = 5;
-
-  // Floor
-  const floorGeo = new THREE.PlaneGeometry(roomW, roomD);
-  const floorMat = new THREE.MeshStandardMaterial({ color: 0x8B7355, roughness: 0.8 });
-  const floor = new THREE.Mesh(floorGeo, floorMat);
-  floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
-  scene.add(floor);
-
-  // Walls
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0xF5F0EB, roughness: 0.9 });
-
-  // Back wall
-  const backWall = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomH), wallMat);
-  backWall.position.set(0, roomH / 2, -roomD / 2);
-  backWall.receiveShadow = true;
-  scene.add(backWall);
-
-  // Left wall
-  const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat);
-  leftWall.position.set(-roomW / 2, roomH / 2, 0);
-  leftWall.rotation.y = Math.PI / 2;
-  leftWall.receiveShadow = true;
-  scene.add(leftWall);
-
-  // Right wall
-  const rightWall = new THREE.Mesh(new THREE.PlaneGeometry(roomD, roomH), wallMat);
-  rightWall.position.set(roomW / 2, roomH / 2, 0);
-  rightWall.rotation.y = -Math.PI / 2;
-  rightWall.receiveShadow = true;
-  scene.add(rightWall);
-
-  // Window (on back wall)
-  const windowFrame = new THREE.Mesh(
-    new THREE.BoxGeometry(1.5, 1.2, 0.05),
-    new THREE.MeshStandardMaterial({ color: 0x87CEEB, emissive: 0x87CEEB, emissiveIntensity: 0.3, transparent: true, opacity: 0.6 })
-  );
-  windowFrame.position.set(1.5, 1.8, -roomD / 2 + 0.03);
-  scene.add(windowFrame);
-
-  // Ceiling light
-  const ceilingLight = new THREE.PointLight(0xFFE4B5, 1.5, 10);
-  ceilingLight.position.set(0, 2.8, 0);
-  ceilingLight.castShadow = true;
-  scene.add(ceilingLight);
-  roomLights.push(ceilingLight);
-
-  // Light fixture
-  const fixture = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.15, 0.2, 0.05, 16),
-    new THREE.MeshStandardMaterial({ color: 0x333333 })
-  );
-  fixture.position.set(0, 2.95, 0);
-  scene.add(fixture);
-
-  // Ambient
-  const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+  // Ambient light
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambient);
 
-  // Window light
-  const windowLight = new THREE.DirectionalLight(0xBFD4E8, 0.5);
-  windowLight.position.set(2, 3, -2);
-  scene.add(windowLight);
+  // Directional light (sun through window)
+  const dirLight = new THREE.DirectionalLight(0xFFE4B5, 0.8);
+  dirLight.position.set(3, 5, 2);
+  dirLight.castShadow = true;
+  scene.add(dirLight);
+  roomLights.push(dirLight);
 
-  // Rug
-  const rug = new THREE.Mesh(
-    new THREE.CircleGeometry(1.2, 32),
-    new THREE.MeshStandardMaterial({ color: 0x6366f1, roughness: 1 })
-  );
-  rug.rotation.x = -Math.PI / 2;
-  rug.position.set(0, 0.01, 0.5);
-  scene.add(rug);
+  // Point light (warm room light)
+  const pointLight = new THREE.PointLight(0xFFE4B5, 0.5, 15);
+  pointLight.position.set(0, 3, 0);
+  scene.add(pointLight);
+  roomLights.push(pointLight);
+
+  // Load GLTF room model
+  //
+  // Position system:
+  //   - Everything lives at Y=0 ground plane
+  //   - Avatar position.y is NEVER modified (always 0)
+  //   - Room is scaled and positioned so its visual floor = Y=0
+  //   - Double-click raycasts onto Y=0 plane
+  //   - Walk only modifies X/Z, never Y
+  //
+  _updateLoading(20, 'Loading room...');
+  const roomLoader = new GLTFLoader();
+  roomLoader.load('https://nvatar.nskit.io/static/room/cozy_living_room/scene.gltf', (gltf) => {
+    roomModel = gltf.scene;
+    scene.add(roomModel);
+
+    // Step 1: Measure raw model
+    const rawBox = new THREE.Box3().setFromObject(roomModel);
+    const rawSize = rawBox.getSize(new THREE.Vector3());
+    console.log(`[Room] Raw: ${rawSize.x.toFixed(2)} x ${rawSize.y.toFixed(2)} x ${rawSize.z.toFixed(2)}`);
+
+    // Step 2: Uniform scale — room height ~4.5 units (VRM ~1.5 = 1/3 of ceiling)
+    const scale = 4.5 / rawSize.y;
+    roomModel.scale.setScalar(scale);
+
+    // Simple approach: scale, then manually adjust Y until floor = Y=0
+    // Bbox min.y after scale tells us where the bottom is
+    roomModel.updateMatrixWorld(true);
+    const scaledBox = new THREE.Box3().setFromObject(roomModel);
+    const center = scaledBox.getCenter(new THREE.Vector3());
+
+    // Rotate room -90° for wider view
+    roomModel.rotation.y = -Math.PI / 2;
+
+    // Center XZ (recalculate after rotation)
+    roomModel.updateMatrixWorld(true);
+    const rotatedBox = new THREE.Box3().setFromObject(roomModel);
+    const rotatedCenter = rotatedBox.getCenter(new THREE.Vector3());
+    roomModel.position.x = -rotatedCenter.x;
+    roomModel.position.z = -rotatedCenter.z - 1.5; // push room back so character appears more forward
+    // bbox min.y includes outdoor environment objects (trees, ground below window)
+    // Actual room floor is HIGHER than bbox min. Manually offset:
+    // We use bbox min + add extra to reach the real indoor floor level
+    const FLOOR_OFFSET = 0.90; // indoor floor is above bbox min (outdoor env objects below)
+    roomModel.position.y = -rotatedBox.min.y - FLOOR_OFFSET;
+
+    roomModel.updateMatrixWorld(true);
+
+    // Shadows + collect indoor furniture for collision
+    roomModel.traverse(n => {
+      if (n.isMesh) {
+        n.receiveShadow = true;
+        n.castShadow = true;
+        // Collect collision objects: indoor furniture only
+        if (n.geometry) {
+          const objBox = new THREE.Box3().setFromObject(n);
+          const objSize = objBox.getSize(new THREE.Vector3());
+          // Indoor furniture: sits above floor (Y>0), not too big (not walls/floor), has some height
+          if (objBox.min.y >= -0.1 && objSize.y > 0.3 && objSize.y < 3 && objSize.x < 4 && objSize.z < 4) {
+            ROOM_OBJECTS.push(objBox);
+          }
+        }
+      }
+    });
+
+    // Update bounds (no collision for now — gets in the way)
+    const finalBox = new THREE.Box3().setFromObject(roomModel);
+    ROOM_BOUNDS.minX = finalBox.min.x + 0.3;
+    ROOM_BOUNDS.maxX = finalBox.max.x - 0.3;
+    ROOM_BOUNDS.minZ = finalBox.min.z + 0.3;
+    ROOM_BOUNDS.maxZ = finalBox.max.z - 0.3;
+
+    console.log(`[Room] Placed: bounds X[${ROOM_BOUNDS.minX.toFixed(1)}~${ROOM_BOUNDS.maxX.toFixed(1)}] Z[${ROOM_BOUNDS.minZ.toFixed(1)}~${ROOM_BOUNDS.maxZ.toFixed(1)}], ${ROOM_OBJECTS.length} collision objects`);
+  }, undefined, (err) => {
+    console.error('[Room] Failed to load GLTF:', err);
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(8, 8),
+      new THREE.MeshStandardMaterial({ color: 0x8B7355, roughness: 0.8 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+    roomModel = floor; // mark as loaded for _waitForRoom
+  });
 }
 
 // --- VRM Loading ---
+// --- Loading ---
+function _updateLoading(pct, text) {
+  const bar = document.getElementById('loadingBar');
+  const txt = document.getElementById('loadingText');
+  if (bar) bar.style.width = pct + '%';
+  if (txt) txt.textContent = text;
+}
+function _hideLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  if (overlay) { overlay.style.opacity = '0'; setTimeout(() => overlay.remove(), 500); }
+}
+function _waitForRoom(callback) {
+  // Wait until room model is loaded (or timeout 15s)
+  let waited = 0;
+  const check = setInterval(() => {
+    waited += 100;
+    if (roomModel || waited > 15000) {
+      clearInterval(check);
+      callback();
+    }
+  }, 100);
+}
+
 async function _loadVRM(url, index) {
+  _updateLoading(10, 'Loading avatar...');
   try {
     const vrmModule = await import('https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.3.3/lib/three-vrm.module.min.js');
     const { VRMLoaderPlugin } = vrmModule;
@@ -268,22 +322,38 @@ async function _loadVRM(url, index) {
 
       const model = gltf.scene;
       model.rotation.y = Math.PI;
-      model.position.set(index === 0 ? -0.6 : 0.6, 0, 0);
+
+      // Avatar at Y=0 — room floor is aligned to Y=0
+      model.position.set(0, 0, 0);
       model.castShadow = true;
       model.traverse(n => { if (n.isMesh) n.castShadow = true; });
       model.visible = false;  // Hide until idle is ready
       scene.add(model);
 
-      avatars[index] = { vrm, scene: model, blinkTimer: 0, nextBlink: 2 + Math.random() * 4, _activeBubbles: [] };
+      avatars[index] = { vrm, scene: model, blinkTimer: 0, nextBlink: 2 + Math.random() * 4, _activeBubbles: [], _feetOffset: 0 };
       console.log('[Room] Avatar loaded at index', index);
 
-      // Auto-load Mixamo animations, then reveal + start roaming
+      // Auto-load Mixamo animations, then wait for room, reveal + welcome
       if (index === 0) {
+        _updateLoading(40, 'Loading animations...');
         loadMixamoAnimations(vrm).then(() => {
-          model.visible = true;
-          startRoaming();
+          _updateLoading(70, 'Waiting for room...');
+          _waitForRoom(() => {
+            // Place avatar on actual room floor
+            // Avatar stays at Y=0 — room floor is at Y=0
+            console.log(`[Avatar] Ready at Y=0`);
+            model.visible = true;
+            _updateLoading(100, 'Ready!');
+            setTimeout(_hideLoading, 300);
+            startRoaming();
+            // Connect chat + welcome after everything is visible
+            if (paramAvatarId) {
+              connectChat(paramAvatarId);
+            }
+          });
         }).catch(() => {
           model.visible = true;
+          _hideLoading();
         });
       } else {
         model.visible = true;
@@ -631,8 +701,8 @@ window.toggleLight = function() {
   roomLights.forEach(l => l.intensity = lightOn ? 1.5 : 0.1);
 };
 window.resetView = function() {
-  camera.position.set(0, 2.5, 4);
-  controls.target.set(0, 1, 0);
+  camera.position.set(0, 3.5, 6);
+  controls.target.set(0, 0.8, 0);
 };
 
 // --- Mixamo FBX Animation Loading ---
@@ -927,8 +997,9 @@ function doRoamAction() {
   // 50% 확률로 이동, 50% 확률로 idle 변형
   if (Math.random() < 0.5) {
     // 랜덤 포인트로 이동
-    const tx = ROAM.boundary.minX + Math.random() * (ROAM.boundary.maxX - ROAM.boundary.minX);
-    const tz = ROAM.boundary.minZ + Math.random() * (ROAM.boundary.maxZ - ROAM.boundary.minZ);
+    const bnd = { minX: ROOM_BOUNDS.minX * 0.6, maxX: ROOM_BOUNDS.maxX * 0.6, minZ: ROOM_BOUNDS.minZ * 0.6, maxZ: ROOM_BOUNDS.maxZ * 0.6 };
+    const tx = bnd.minX + Math.random() * (bnd.maxX - bnd.minX);
+    const tz = bnd.minZ + Math.random() * (bnd.maxZ - bnd.minZ);
     walkTarget = { x: tx, z: tz };
     walkState = 'walking';
   } else {
@@ -1022,6 +1093,18 @@ function showWalkIndicator(x, z) {
   setTimeout(() => { if (walkIndicator) { scene.remove(walkIndicator); walkIndicator = null; } }, 2000);
 }
 
+// AABB collision check — avatar radius ~0.3
+function checkCollision(x, z) {
+  const avatarBox = new THREE.Box3(
+    new THREE.Vector3(x - 0.3, 0, z - 0.3),
+    new THREE.Vector3(x + 0.3, 1.5, z + 0.3)
+  );
+  for (const objBox of ROOM_OBJECTS) {
+    if (avatarBox.intersectsBox(objBox)) return true;
+  }
+  return false;
+}
+
 function updateWalk(delta) {
   const avatar = avatars[0];
   if (!avatar || !avatar.vrm || !avatar.scene) return;
@@ -1038,7 +1121,7 @@ function updateWalk(delta) {
   if (dist <= step || dist < 0.05) {
     model.position.x = walkTarget.x;
     model.position.z = walkTarget.z;
-    model.position.y = 0; // Ground lock
+    // Y untouched — stays at 0
     walkTarget = null;
     walkState = 'idle';
     // 중앙 복귀 후 카메라 바라보기
@@ -1051,9 +1134,20 @@ function updateWalk(delta) {
   }
   const nx = dx / dist;
   const nz = dz / dist;
-  model.position.x += nx * step;
-  model.position.z += nz * step;
-  model.position.y = 0; // Ground lock — never float
+  const newX = model.position.x + nx * step;
+  const newZ = model.position.z + nz * step;
+
+  // Collision check against indoor furniture
+  if (!checkCollision(newX, newZ)) {
+    model.position.x = newX;
+    model.position.z = newZ;
+  } else {
+    walkTarget = null;
+    walkState = 'idle';
+    switchToIdle();
+    return;
+  }
+  // Don't touch Y during walk — keep initial position
 
   const angle = Math.atan2(nx, nz);
   model.rotation.y = angle + Math.PI;
@@ -1566,67 +1660,10 @@ init();
 const urlParams = new URLSearchParams(window.location.search);
 const paramAvatarId = urlParams.get('avatar');
 const paramVRM = urlParams.get('vrm') || 'https://raw.githubusercontent.com/josephrocca/ChatVRM-js/main/avatars/AvatarSample_B.vrm';
-const paramLang = urlParams.get('lang') || 'en';
-
-// --- i18n ---
-const I18N = {
-  en: {
-    title: 'Virtual Room', lobby: '← Lobby', hint_dblclick: 'Double-click: Move',
-    light: '💡 Light', reset: '📷 Reset',
-    panel_lang: 'Language', panel_voice: 'Voice', panel_furniture: 'Furniture',
-    fur_desk: '🪑 Desk', fur_shelf: '📚 Shelf', fur_lamp: '💡 Lamp', fur_plant: '🪴 Plant',
-    chat_placeholder: 'Message...', send: 'Send',
-    search_results: '🔍 Search Results', close: 'Close',
-  },
-  ko: {
-    title: '가상 룸', lobby: '← 로비', hint_dblclick: '더블클릭: 이동',
-    light: '💡 조명', reset: '📷 리셋',
-    panel_lang: '언어', panel_voice: '음성', panel_furniture: '가구',
-    fur_desk: '🪑 책상', fur_shelf: '📚 선반', fur_lamp: '💡 조명', fur_plant: '🪴 화분',
-    chat_placeholder: '메시지...', send: '전송',
-    search_results: '🔍 검색 결과', close: '닫기',
-  },
-  ja: {
-    title: 'バーチャルルーム', lobby: '← ロビー', hint_dblclick: 'ダブルクリック: 移動',
-    light: '💡 照明', reset: '📷 リセット',
-    panel_lang: '言語', panel_voice: '音声', panel_furniture: '家具',
-    fur_desk: '🪑 デスク', fur_shelf: '📚 棚', fur_lamp: '💡 ランプ', fur_plant: '🪴 植物',
-    chat_placeholder: 'メッセージ...', send: '送信',
-    search_results: '🔍 検索結果', close: '閉じる',
-  },
-  zh: {
-    title: '虚拟房间', lobby: '← 大厅', hint_dblclick: '双击: 移动',
-    light: '💡 灯光', reset: '📷 重置',
-    panel_lang: '语言', panel_voice: '语音', panel_furniture: '家具',
-    fur_desk: '🪑 书桌', fur_shelf: '📚 书架', fur_lamp: '💡 灯', fur_plant: '🪴 植物',
-    chat_placeholder: '消息...', send: '发送',
-    search_results: '🔍 搜索结果', close: '关闭',
-  },
-};
-
-function applyI18n(lang) {
-  const dict = I18N[lang] || I18N.en;
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    const key = el.dataset.i18n;
-    if (dict[key]) el.textContent = dict[key];
-  });
-  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-    const key = el.dataset.i18nPlaceholder;
-    if (dict[key]) el.placeholder = dict[key];
-  });
-  // Set lang selector
-  const sel = document.getElementById('langSelect');
-  if (sel) sel.value = lang;
-}
-
-applyI18n(paramLang);
 
 _loadVRM(paramVRM, 0);
 
-// If avatar ID provided, connect chat directly
-if (paramAvatarId) {
-  setTimeout(() => connectChat(paramAvatarId), 2000);
-}
+// Chat connection happens after loading completes (in _loadVRM callback)
 </script>
 </body>
 </html>
