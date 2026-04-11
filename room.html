@@ -43,11 +43,24 @@ canvas { display: block; }
 .mobile-lookup-dialog .dlg-body { flex: 1; overflow-y: auto; padding: 10px; max-height: calc(70vh - 50px); }
 .mobile-lookup-dialog .dlg-close { padding: 4px 12px; border: 1px solid #334155; border-radius: 6px; background: transparent; color: #94a3b8; font-size: 12px; cursor: pointer; }
 
-/* Mobile chat: idle state hides messages, active messages override */
-#chatMessages .chat-msg { transition: opacity 0.5s; }
+/* Mobile chat: idle/active/sweep fade */
+#chatMessages .chat-msg { transition: opacity 0.4s; }
 .chat-idle #chatMessages .chat-msg { opacity: 0; }
 .chat-idle #chatMessages .chat-msg.chat-active-msg { opacity: 1; }
-.chat-idle #chatMessages .chat-msg.chat-fading-msg { opacity: 0; transition: opacity 2s; }
+
+/* Gradient sweep: mask slides top→bottom over 5s */
+#chatMessages.chat-sweep-fade {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 40%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 40%);
+  -webkit-mask-size: 100% 300%;
+  mask-size: 100% 300%;
+  animation: maskSweep 5s ease-out forwards;
+}
+@keyframes maskSweep {
+  0% { -webkit-mask-position: 0 100%; mask-position: 0 100%; }
+  85% { -webkit-mask-position: 0 0%; mask-position: 0 0%; }
+  100% { -webkit-mask-position: 0 0%; mask-position: 0 0%; opacity: 0; }
+}
 
 @media (max-width: 768px) {
   .side-panel { display: none !important; }
@@ -1955,16 +1968,18 @@ let _chatConversing = false;
 
 function _chatEnterIdle() {
   if (!_isMobile()) return;
-  _chatState = 'idle';
-  const overlay = document.getElementById('chatOverlay');
-  overlay.classList.add('chat-idle');
-  overlay.querySelectorAll('.chat-active-msg').forEach(el => {
-    el.classList.remove('chat-active-msg');
-    el.classList.add('chat-fading-msg');
-  });
+  _chatState = 'fading';
+  const msgs = document.getElementById('chatMessages');
+  // Start gradient sweep animation
+  msgs.classList.add('chat-sweep-fade');
+  // After animation ends → fully idle
   setTimeout(() => {
-    overlay.querySelectorAll('.chat-fading-msg').forEach(el => el.classList.remove('chat-fading-msg'));
-  }, 2500);
+    msgs.classList.remove('chat-sweep-fade');
+    const overlay = document.getElementById('chatOverlay');
+    overlay.classList.add('chat-idle');
+    overlay.querySelectorAll('.chat-active-msg').forEach(el => el.classList.remove('chat-active-msg'));
+    _chatState = 'idle';
+  }, 5000);
 }
 
 function _chatStartFadeTimer() {
@@ -1994,18 +2009,28 @@ function _onTTSComplete() {
 
 function _chatShowMsg(el) {
   if (!_isMobile()) return;
+  // Stop any ongoing sweep
+  const msgs = document.getElementById('chatMessages');
+  msgs.classList.remove('chat-sweep-fade');
+  msgs.style.opacity = '1';
+  msgs.style.webkitMaskImage = '';
+  msgs.style.maskImage = '';
+  // Ensure idle class (hides old messages)
   const overlay = document.getElementById('chatOverlay');
   if (!overlay.classList.contains('chat-idle')) overlay.classList.add('chat-idle');
   el.classList.add('chat-active-msg');
   _chatState = 'active';
-  console.log('[fade] showMsg, state:', _chatState, 'el:', el.textContent?.slice(0, 20));
 }
 
 function _chatRevealAll() {
   if (!_isMobile()) return;
+  const msgs = document.getElementById('chatMessages');
+  msgs.classList.remove('chat-sweep-fade');
+  msgs.style.opacity = '1';
+  msgs.style.webkitMaskImage = '';
+  msgs.style.maskImage = '';
   const overlay = document.getElementById('chatOverlay');
   overlay.classList.remove('chat-idle');
-  overlay.querySelectorAll('.chat-fading-msg').forEach(el => el.classList.remove('chat-fading-msg'));
   _chatState = 'active';
   _chatStartFadeTimer();
 }
