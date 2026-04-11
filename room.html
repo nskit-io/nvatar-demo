@@ -1194,7 +1194,12 @@ function _getCameraFrontPos() {
   const dx = cx - tx, dz = cz - tz;
   const dist = Math.sqrt(dx * dx + dz * dz);
   if (dist < 0.1) return { x: tx, z: tz };
-  return { x: tx + (dx / dist) * 1.2, z: tz + (dz / dist) * 1.2 };
+  let rx = tx + (dx / dist) * 1.2;
+  let rz = tz + (dz / dist) * 1.2;
+  // Clamp to room bounds
+  rx = Math.max(ROOM_BOUNDS.minX + 0.3, Math.min(ROOM_BOUNDS.maxX - 0.3, rx));
+  rz = Math.max(ROOM_BOUNDS.minZ + 0.3, Math.min(ROOM_BOUNDS.maxZ - 0.3, rz));
+  return { x: rx, z: rz };
 }
 
 function _faceCamera(model) {
