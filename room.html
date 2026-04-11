@@ -1138,7 +1138,7 @@ async function processQueue() {
   ttsPlaying = true;
   const text = ttsQueue.shift();
   try {
-    const res = await fetch(`/api/v1/tts?text=${encodeURIComponent(text)}`, { method: 'POST' });
+    const res = await fetch(`https://nvatar.nskit.io/api/v1/tts?text=${encodeURIComponent(text)}`, { method: 'POST' });
     if (!res.ok) { processQueue(); return; }
     const blob = await res.blob();
     const audio = new Audio(URL.createObjectURL(blob));
