@@ -311,6 +311,7 @@ async function createAvatar() {
         tone: preset.tone,
         speech_level: langPreset.speech_level,
         speech_style: langPreset.speech_style,
+        language: lang,
       }),
     });
     const d = await r.json();
