@@ -101,6 +101,9 @@ canvas { display: block; }
     <div class="btn-grid">
       <button id="btnTTS" onclick="window._toggleTTS(this)" style="background:rgba(99,102,241,0.3);"></button>
     </div>
+    <select id="voiceSelect" onchange="window._changeVoice(this.value)" style="width:100%;margin-top:6px;padding:6px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;color:#e2e8f0;font-size:11px;">
+      <option value="">Default Voice</option>
+    </select>
   </div>
 </div>
 
@@ -113,6 +116,15 @@ canvas { display: block; }
     <option value="zh">🇨🇳</option>
   </select>
   <button id="mobileTTS" onclick="window._toggleTTS(document.getElementById('btnTTS'))">🔊</button>
+  <button onclick="openVoiceSheet()">🎙</button>
+</div>
+
+<!-- Voice bottom sheet (mobile) -->
+<div id="voiceSheetBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;" onclick="closeVoiceSheet()"></div>
+<div id="voiceSheet" style="position:fixed;left:0;right:0;bottom:0;max-height:50vh;background:#1e293b;border-top:1px solid #475569;border-radius:14px 14px 0 0;z-index:201;transform:translateY(100%);transition:transform 0.3s ease;display:flex;flex-direction:column;">
+  <div style="padding:10px 0 6px;text-align:center;" onclick="closeVoiceSheet()"><div style="width:36px;height:4px;background:#475569;border-radius:2px;margin:0 auto;"></div></div>
+  <div style="padding:0 16px 8px;font-size:13px;font-weight:600;color:#e2e8f0;border-bottom:1px solid #334155;">🎙 Voice</div>
+  <div id="voiceSheetBody" style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;"></div>
 </div>
 
 <!-- Mobile lookup dialog -->
@@ -1496,7 +1508,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // --- TTS (Server Proxy) ---
-const TTS_CONFIG = { volume: 0.67, enabled: true };
+const TTS_CONFIG = { volume: 0.67, enabled: true, voiceId: null };
 const ttsQueue = [];
 let ttsPlaying = false;
 let ttsCurrentAudio = null;
@@ -1538,6 +1550,67 @@ window._toggleTTS = function(btn) {
   console.log('[TTS] enabled:', TTS_CONFIG.enabled);
 };
 
+// --- Voice Selection ---
+let _voiceList = [];
+
+window._changeVoice = function(voiceId) {
+  TTS_CONFIG.voiceId = voiceId || null;
+  console.log('[TTS] voice:', voiceId);
+};
+
+async function _loadVoices() {
+  try {
+    const res = await fetch('https://nvatar.nskit.io/api/v1/tts/voices');
+    const data = await res.json();
+    if (data.code !== 200 || !data.voices) return;
+    _voiceList = data.voices;
+    const sel = document.getElementById('voiceSelect');
+    if (sel) {
+      data.voices.forEach(v => {
+        if (!v.voice_id) return;
+        const opt = document.createElement('option');
+        opt.value = v.voice_id;
+        opt.textContent = v.display_name;
+        sel.appendChild(opt);
+      });
+    }
+  } catch(e) {}
+}
+
+function openVoiceSheet() {
+  const body = document.getElementById('voiceSheetBody');
+  body.innerHTML = '';
+  // Default
+  const defBtn = document.createElement('button');
+  defBtn.style.cssText = 'padding:8px 16px;border:1px solid #334155;border-radius:10px;background:#0f172a;color:#e2e8f0;font-size:13px;cursor:pointer;';
+  defBtn.textContent = 'Default';
+  if (!TTS_CONFIG.voiceId) defBtn.style.borderColor = '#6366f1';
+  defBtn.onclick = () => { TTS_CONFIG.voiceId = null; closeVoiceSheet(); };
+  body.appendChild(defBtn);
+  // Voices
+  _voiceList.forEach(v => {
+    if (!v.voice_id) return;
+    const btn = document.createElement('button');
+    btn.style.cssText = 'padding:8px 16px;border:1px solid #334155;border-radius:10px;background:#0f172a;color:#e2e8f0;font-size:13px;cursor:pointer;';
+    if (TTS_CONFIG.voiceId === v.voice_id) btn.style.borderColor = '#6366f1';
+    btn.textContent = v.display_name;
+    btn.onclick = () => { TTS_CONFIG.voiceId = v.voice_id; closeVoiceSheet(); };
+    body.appendChild(btn);
+  });
+  document.getElementById('voiceSheetBackdrop').style.display = 'block';
+  document.getElementById('voiceSheet').style.transform = 'translateY(0)';
+}
+
+function closeVoiceSheet() {
+  document.getElementById('voiceSheetBackdrop').style.display = 'none';
+  document.getElementById('voiceSheet').style.transform = 'translateY(100%)';
+  // PC select 동기화
+  const sel = document.getElementById('voiceSelect');
+  if (sel) sel.value = TTS_CONFIG.voiceId || '';
+}
+
+_loadVoices();
+
 async function speakTTS(text) {
   if (!TTS_CONFIG.enabled || !text || text === '...') return;
   ttsQueue.push(text);
@@ -1549,7 +1622,9 @@ async function processQueue() {
   ttsPlaying = true;
   const text = ttsQueue.shift();
   try {
-    const res = await fetch(`https://nvatar.nskit.io/api/v1/tts?text=${encodeURIComponent(text)}`, { method: 'POST' });
+    let ttsUrl = `https://nvatar.nskit.io/api/v1/tts?text=${encodeURIComponent(text)}`;
+    if (TTS_CONFIG.voiceId) ttsUrl += `&voice_id=${encodeURIComponent(TTS_CONFIG.voiceId)}`;
+    const res = await fetch(ttsUrl, { method: 'POST' });
     if (!res.ok) { processQueue(); return; }
     const blob = await res.blob();
     const audio = new Audio(URL.createObjectURL(blob));
