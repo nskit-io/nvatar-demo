@@ -49,15 +49,34 @@ export async function loadVoices() {
     });
     // Restore last selection from localStorage
     const saved = localStorage.getItem('nvatar_voice_id');
-    if (saved && sel.querySelector(`option[value="${CSS.escape(saved)}"]`)) {
-      sel.value = saved;
-      TTS_CONFIG.voiceId = saved;
-      TTS_CONFIG.voiceName = sel.options[sel.selectedIndex]?.text || '';
-      console.log('[TTS] Restored voice:', saved);
+    if (saved) {
+      const match = [...sel.options].find(o => o.value === saved);
+      if (match) {
+        sel.value = saved;
+        TTS_CONFIG.voiceId = saved;
+        TTS_CONFIG.voiceName = match.text;
+        console.log('[TTS] Restored voice:', saved);
+      } else {
+        // Saved voice not found — clear and use default
+        localStorage.removeItem('nvatar_voice_id');
+        console.log('[TTS] Saved voice not found, using default');
+      }
     }
   } catch(e) {
     console.warn('[TTS] Failed to load voices:', e.message);
   }
+}
+
+// Fallback: if TTS fails with saved voice, retry with default
+async function _ttsWithFallback(ttsUrl) {
+  let res = await fetch(ttsUrl, { method: 'POST' });
+  if (!res.ok && TTS_CONFIG.voiceId) {
+    // Retry without voice_id
+    const fallbackUrl = ttsUrl.replace(/&voice_id=[^&]*/, '');
+    console.warn('[TTS] Voice failed, retrying with default');
+    res = await fetch(fallbackUrl, { method: 'POST' });
+  }
+  return res;
 }
 
 export async function speakTTS(text) {
@@ -73,7 +92,7 @@ async function processQueue() {
   try {
     let ttsUrl = `${S.API_BASE}/api/v1/tts?text=${encodeURIComponent(text)}`;
     if (TTS_CONFIG.voiceId) ttsUrl += `&voice_id=${encodeURIComponent(TTS_CONFIG.voiceId)}`;
-    const res = await fetch(ttsUrl, { method: 'POST' });
+    const res = await _ttsWithFallback(ttsUrl);
     if (!res.ok) { processQueue(); return; }
     const blob = await res.blob();
     const audio = new Audio(URL.createObjectURL(blob));
