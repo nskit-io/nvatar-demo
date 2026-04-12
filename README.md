@@ -20,7 +20,7 @@
 
 ## What Makes NVatar Different?
 
-Most AI chatbots are stateless text generators. NVatar is an **AI companion that lives in a 3D room** — it remembers your conversations, develops its personality over time, tracks emotions across 8 dimensions, and speaks with a cloned human voice in 32+ languages.
+Most AI chatbots are stateless text generators. NVatar is an **AI companion that lives in a 3D room** — it remembers your conversations, develops its personality over time, tracks emotions across 9 dimensions, and speaks with a cloned human voice in 32+ languages.
 
 ### Hybrid AI Architecture
 NVatar combines the best of **local** and **cloud** AI:
@@ -37,9 +37,9 @@ Your avatar doesn't just respond — it **remembers**:
 
 When conversations exceed 100 messages, L1 automatically compacts into L2/L3 — like how humans remember the gist, not every word.
 
-### 8-Dimensional Emotion Tracking
+### 9-Dimensional Emotion Tracking
 Every message updates the avatar's emotional state across 8 axes:
-`joy · sadness · anger · anxiety · affection · excitement · boredom · trust`
+`joy · sadness · anger · anxiety · affection · excitement · boredom · trust · curiosity`
 
 Emotions naturally decay over time (sadness fades, excitement calms down), and high emotions trigger visible expressions and gestures on the 3D avatar.
 
@@ -171,7 +171,7 @@ MIT — Demo client code. VRM models have individual licenses. Mixamo animations
 NVatar is an independent R&D project. If you find it valuable:
 
 - **Star this repo** — It helps others discover NVatar
-- **Sponsor** — [GitHub Sponsors](https://github.com/sponsors/nskit-io) (coming soon)
+- **Investment & Sponsorship** — nskit@nskit.io
 - **Investment inquiries** — We're open to partnerships and investment discussions
 
 For business inquiries, investment opportunities, or self-hosting licenses:
