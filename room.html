@@ -1577,6 +1577,9 @@ async function _loadVoices() {
   } catch(e) {}
 }
 
+window.openVoiceSheet = openVoiceSheet;
+window.closeVoiceSheet = closeVoiceSheet;
+
 function openVoiceSheet() {
   const body = document.getElementById('voiceSheetBody');
   body.innerHTML = '';
