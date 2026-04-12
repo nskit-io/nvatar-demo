@@ -28,6 +28,8 @@ export function changeVoice(voiceId) {
   const sel = document.getElementById('voiceSelect');
   const name = sel?.options[sel.selectedIndex]?.text || '기본';
   TTS_CONFIG.voiceName = name;
+  // Persist selection
+  try { localStorage.setItem('nvatar_voice_id', voiceId || ''); } catch {}
   console.log('[TTS] voice changed:', voiceId, name);
 }
 
@@ -45,6 +47,14 @@ export async function loadVoices() {
       opt.textContent = v.display_name;
       sel.appendChild(opt);
     });
+    // Restore last selection from localStorage
+    const saved = localStorage.getItem('nvatar_voice_id');
+    if (saved && sel.querySelector(`option[value="${CSS.escape(saved)}"]`)) {
+      sel.value = saved;
+      TTS_CONFIG.voiceId = saved;
+      TTS_CONFIG.voiceName = sel.options[sel.selectedIndex]?.text || '';
+      console.log('[TTS] Restored voice:', saved);
+    }
   } catch(e) {
     console.warn('[TTS] Failed to load voices:', e.message);
   }
