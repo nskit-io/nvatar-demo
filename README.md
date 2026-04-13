@@ -38,7 +38,7 @@ Your avatar doesn't just respond — it **remembers**:
 When conversations exceed 100 messages, L1 automatically compacts into L2/L3 — like how humans remember the gist, not every word.
 
 ### 9-Dimensional Emotion Tracking
-Every message updates the avatar's emotional state across 8 axes:
+Every message updates the avatar's emotional state across 9 dimensions:
 `joy · sadness · anger · anxiety · affection · excitement · boredom · trust · curiosity`
 
 Emotions naturally decay over time (sadness fades, excitement calms down), and high emotions trigger visible expressions and gestures on the 3D avatar.
