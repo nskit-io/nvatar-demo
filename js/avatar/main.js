@@ -1,10 +1,11 @@
 // NVatar Avatar Lab — Entry Point & Bootstrap
-import { toggleRotate, resetCamera } from './scene.js';
+import { toggleRotate, resetCamera, toggleStatusDetail, toggleMobileStatus } from './scene.js';
 import { load, handleFile } from './loader.js';
 import { setEmotion } from './emotion.js';
 import { playMixamo } from './fbx.js';
 import { logMeshTree, showAllMesh } from './mesh.js';
 import { buildVrmListPanel, scanAllVrmBones } from './vrm-panel.js';
+import { openSheet, closeSheet } from './mobile.js';
 
 // Expose to window for HTML onclick handlers
 window.load = (url, btn) => load(url, btn);
@@ -15,6 +16,10 @@ window.playMixamo = playMixamo;
 window.logMeshTree = logMeshTree;
 window.showAllMesh = showAllMesh;
 window.scanAllVrmBones = scanAllVrmBones;
+window.toggleStatusDetail = toggleStatusDetail;
+window.toggleMobileStatus = toggleMobileStatus;
+window.openSheet = openSheet;
+window.closeSheet = closeSheet;
 
 window.switchTab = function(tab) {
   document.getElementById('tabMesh').classList.toggle('active', tab === 'mesh');

@@ -62,6 +62,7 @@ function loadGLB(url) {
 
 async function loadVRM(url) {
   try {
+    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
     const vrmModule = await import('https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.3.3/lib/three-vrm.module.min.js');
     const { VRMLoaderPlugin } = vrmModule;
 
@@ -77,25 +78,36 @@ async function loadVRM(url) {
 
       S.currentModel = gltf.scene;
       S.currentModel._vrmUrl = url;
-      S.currentModel.visible = false;
+      S.currentModel.visible = false;  // Hide until idle is ready
       S.scene.add(S.currentModel);
       S.currentModel.rotation.y = Math.PI;
 
+      // VRM uses fbxMixer only — kill GLB mixer to prevent interference
       S.mixer = null;
       S.animations = [];
       window._vrm = vrm;
 
       findMorphMeshes();
       buildMeshList();
-      setStatus('ok', `VRM 로드 완료 (expressions: ${Object.keys(vrm.expressionManager?.expressionMap || {}).join(', ') || 'none'})`);
+      const exprKeys = Object.keys(vrm.expressionManager?.expressionMap || {});
+      const exprDetail = exprKeys.length > 0 ? exprKeys.join(', ') : '';
+      setStatus('ok', `VRM 로드 완료 (${exprKeys.length}개 표정)`, exprDetail);
       buildEmotionButtons();
 
       document.getElementById('animList').innerHTML = '<p style="font-size:11px;color:#64748b;">VRM: 표정은 감정 버튼으로 테스트</p>';
 
+      // Auto-load Mixamo FBX animations, then reveal
       initMixamoForVRM().then(() => {
         S.currentModel.visible = true;
+        // Bird view camera — slightly above, zoomed out
+        S.camera.position.set(0, 2.8, 4.5);
+        S.controls.target.set(0, 0.8, 0);
+        S.controls.update();
       }).catch(() => {
         S.currentModel.visible = true;
+        S.camera.position.set(0, 2.8, 4.5);
+        S.controls.target.set(0, 0.8, 0);
+        S.controls.update();
       });
     }, undefined, (err) => {
       setStatus('error', 'VRM 로드 실패: ' + (err.message || err));
@@ -129,6 +141,9 @@ export function handleFile(file) {
   const url = URL.createObjectURL(file);
   const ext = file.name.split('.').pop().toLowerCase();
   document.getElementById('dropZone').textContent = file.name;
-  // Fix: route through load() which handles VRM/GLB dispatch
-  load(url);
+  if (ext === 'vrm') {
+    loadVRM(url);
+  } else {
+    load(url);
+  }
 }

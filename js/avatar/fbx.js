@@ -82,6 +82,7 @@ function loadMixamoFBX(url, name, vrm) {
       }
     });
 
+    // Keep Hips Y position (grounding), remove XZ (no root drift)
     const hipsNodeName = vrm.humanoid?.getNormalizedBoneNode('hips')?.name;
     const filtered = tracks.filter(t => {
       if (!t.name.endsWith('.position')) return true;
@@ -92,6 +93,7 @@ function loadMixamoFBX(url, name, vrm) {
       return false;
     });
     S.fbxClips[name] = new THREE.AnimationClip(name, clip.duration, filtered);
+    // Debug: check track-to-node binding
     const foundNodes = [], missingNodes = [];
     filtered.forEach(t => {
       const nodeName = t.name.split('.')[0];
@@ -108,48 +110,69 @@ export async function initMixamoForVRM() {
   S.fbxClips = {};
   S.fbxMixer = new THREE.AnimationMixer(S.currentModel);
   try {
+    // Load all FBX from assets API
     const res = await fetch(S.API_BASE + '/api/v1/assets');
     const assets = await res.json();
     for (const fbx of assets.fbx) {
-      await loadMixamoFBX(fbx.path, fbx.name, window._vrm);
+      const name = fbx.name;
+      const fbxUrl = fbx.path.startsWith('/') ? S.API_BASE + fbx.path : fbx.path;
+      await loadMixamoFBX(fbxUrl, name, window._vrm);
     }
     console.log(`[Mixamo] ${assets.fbx.length}개 애니메이션 로드 완료`);
     buildFbxButtons();
+    // Auto-play Idle_Default on load
     if (S.fbxClips['Idle_Default']) {
       S.fbxCurrentAction = S.fbxMixer.clipAction(S.fbxClips['Idle_Default']);
       S.fbxCurrentAction.play();
       S.fbxCurrentName = 'Idle_Default';
+      console.log('[Mixamo] Auto-playing Idle_Default');
     } else if (S.fbxClips['Idle_Breathing']) {
       S.fbxCurrentAction = S.fbxMixer.clipAction(S.fbxClips['Idle_Breathing']);
       S.fbxCurrentAction.play();
       S.fbxCurrentName = 'Idle_Breathing';
+      console.log('[Mixamo] Auto-playing Idle_Breathing');
     }
   } catch(e) { console.error('[Mixamo]', e); }
 }
 
+// FBX → Face expression auto-pairing
 const FBX_FACE = {
-  Idle_Default:'neutral', Idle_Breathing:'neutral', Idle_WeightShift:'neutral',
-  Idle_Happy:'happy', Idle_Sad:'sad', Idle_Thinking:'neutral',
-  Idle_LookAround:'neutral', Idle_Sitting:'relaxed',
-  Gesture_Wave:'happy', Gesture_Nod:'happy', Gesture_HeadShake:'sad',
-  Gesture_Shrug:'neutral', Gesture_Clap:'happy', Gesture_Point:'neutral',
-  Gesture_ThumbsUp:'happy', Gesture_Talk:'neutral', Gesture_Greeting:'happy',
-  Emotion_Angry:'angry', Emotion_Cheer:'happy', Emotion_Cry:'sad',
-  Emotion_Laugh:'happy', Emotion_Surprised:'surprised', Emotion_Victory:'happy',
-  Walk_Default:'neutral', Walk_Casual:'neutral', Walk_Brisk:'neutral',
-  Walk_Female:'neutral', Walk_Catwalk:'relaxed', Walk_Swagger:'happy',
-  Dance_HipHop:'happy', Dance_RunningMan:'happy', Dance_Salsa:'happy',
-  Action_StandToSit:'neutral',
+  // Idle
+  Idle_Default: 'neutral', Idle_Breathing: 'neutral', Idle_WeightShift: 'neutral',
+  Idle_Happy: 'happy', Idle_Sad: 'sad', Idle_Thinking: 'neutral',
+  Idle_LookAround: 'neutral', Idle_Sitting: 'relaxed',
+  // Gesture
+  Gesture_Wave: 'happy', Gesture_Nod: 'happy', Gesture_HeadShake: 'sad',
+  Gesture_Shrug: 'neutral', Gesture_Clap: 'happy', Gesture_Point: 'neutral',
+  Gesture_ThumbsUp: 'happy', Gesture_Talk: 'neutral', Gesture_Greeting: 'happy',
+  // Emotion
+  Emotion_Angry: 'angry', Emotion_Cheer: 'happy', Emotion_Cry: 'sad',
+  Emotion_Laugh: 'happy', Emotion_Surprised: 'surprised', Emotion_Victory: 'happy',
+  // Walk / Run
+  Walk_Default: 'neutral', Walk_Casual: 'neutral', Walk_Brisk: 'neutral',
+  Walk_Female: 'neutral', Walk_Catwalk: 'relaxed', Walk_Swagger: 'happy',
+  // Dance
+  Dance_HipHop: 'happy', Dance_RunningMan: 'happy', Dance_Salsa: 'happy',
+  // Action
+  Action_StandToSit: 'neutral',
 };
-const FBX_EMOJI = { Idle:'😐', Walk:'🚶', Gesture:'🤝', Emotion:'😊', Dance:'💃', Action:'🎬' };
+
+export const FBX_EMOJI = {
+  Idle:'😐', Walk:'🚶', Gesture:'🤝', Emotion:'😊', Dance:'💃', Action:'🎬'
+};
 
 export function playMixamo(name, btn) {
   document.querySelectorAll('.fbx-btn').forEach(b => b.classList.remove('active'));
-  if (!S.fbxMixer) return;
+
+  console.log(`[playMixamo] name="${name}" fbxMixer=${!!S.fbxMixer} mixer=${!!S.mixer} prevAction=${S.fbxCurrentName}`);
+
+  if (!S.fbxMixer) { console.warn('[playMixamo] No fbxMixer!'); return; }
+
   const CROSSFADE = 0.4;
 
   if (!name) {
     const idleClip = S.fbxClips['Idle_Default'] || S.fbxClips['Idle_Breathing'];
+    console.log(`[playMixamo] → Stop, return to idle: ${idleClip?.name || 'none'}`);
     if (idleClip && S.fbxCurrentAction) {
       const idleAction = S.fbxMixer.clipAction(idleClip);
       S.fbxCurrentAction.fadeOut(CROSSFADE);
@@ -167,10 +190,12 @@ export function playMixamo(name, btn) {
   }
 
   const clip = S.fbxClips[name];
-  if (!clip) return;
+  if (!clip) { console.warn(`[playMixamo] Clip "${name}" not found!`); return; }
 
   const prevAction = S.fbxCurrentAction;
   const newAction = S.fbxMixer.clipAction(clip);
+
+  console.log(`[playMixamo] → Play "${name}" (${clip.tracks.length} tracks, dur=${clip.duration.toFixed(1)}s) prevEnabled=${prevAction?.enabled} newEnabled=${newAction.enabled}`);
 
   if (prevAction && prevAction !== newAction) {
     prevAction.fadeOut(CROSSFADE);
@@ -183,6 +208,7 @@ export function playMixamo(name, btn) {
   S.fbxCurrentName = name;
   if (btn) btn.classList.add('active');
 
+  // Auto-pair facial expression
   const face = FBX_FACE[name];
   if (face) setEmotion(face);
 }
@@ -190,11 +216,19 @@ export function playMixamo(name, btn) {
 function buildFbxButtons() {
   const area = document.getElementById('fbxButtonArea');
   const names = Object.keys(S.fbxClips).sort();
-  if (names.length === 0) { area.innerHTML = '<small style="color:#888;">FBX 없음</small>'; return; }
+  if (names.length === 0) {
+    area.innerHTML = '<small style="color:#888;">FBX 없음</small>';
+    return;
+  }
   area.innerHTML = '';
+  // Group by prefix
   const groups = {};
-  names.forEach(n => { const prefix = n.split('_')[0] || 'Other'; if (!groups[prefix]) groups[prefix] = []; groups[prefix].push(n); });
-
+  names.forEach(n => {
+    const prefix = n.split('_')[0] || 'Other';
+    if (!groups[prefix]) groups[prefix] = [];
+    groups[prefix].push(n);
+  });
+  // Off button first
   const offBtn = document.createElement('button');
   offBtn.className = 'anim-btn fbx-btn';
   offBtn.textContent = '⏹ Off';
@@ -211,7 +245,8 @@ function buildFbxButtons() {
       const btn = document.createElement('button');
       btn.className = 'anim-btn fbx-btn';
       const shortName = name.includes('_') ? name.split('_').slice(1).join('_') : name;
-      btn.textContent = (FBX_EMOJI[prefix] || '🎬') + ' ' + shortName;
+      const emoji = FBX_EMOJI[prefix] || '🎬';
+      btn.textContent = emoji + ' ' + shortName;
       btn.style.cssText = 'flex:0 0 auto;font-size:11px;';
       btn.onclick = () => playMixamo(name, btn);
       area.appendChild(btn);

@@ -151,7 +151,19 @@ export function resetCamera() {
   S.controls.target.set(0, 1, 0);
 }
 
-export function setStatus(type, text) {
+// --- Status bar with expandable detail ---
+export function setStatus(type, text, detail) {
   const bar = document.getElementById('statusBar');
-  bar.innerHTML = `<span class="status-tag ${type === 'ok' ? 'ok' : ''}">${text}</span>`;
+  const arrow = detail ? ' \u25B8' : '';
+  bar.innerHTML = `<span class="status-tag ${type === 'ok' ? 'ok' : ''}" ${detail ? 'onclick="toggleStatusDetail()"' : ''}>${text}${arrow}</span>` +
+    (detail ? `<div class="status-detail" id="statusDetail">${detail}</div>` : '');
+}
+
+export function toggleStatusDetail() {
+  const d = document.getElementById('statusDetail');
+  if (d) d.classList.toggle('open');
+}
+
+export function toggleMobileStatus() {
+  document.getElementById('statusBar').classList.toggle('mobile-open');
 }

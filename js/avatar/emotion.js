@@ -35,13 +35,13 @@ export function applyEmotionPose(vrm, delta) {
   }
 }
 
-const EXPR_EMOJI = {
+export const EXPR_EMOJI = {
   neutral:'😐', happy:'😊', sad:'😢', angry:'😡', surprised:'😮', relaxed:'😌',
   blink:'😉', blinkLeft:'😉', blinkRight:'😉', aa:'👄', ih:'👄', ou:'👄', ee:'👄', oh:'👄',
   lookUp:'👆', lookDown:'👇', lookLeft:'👈', lookRight:'👉',
   joy:'😄', fun:'😆', sorrow:'😿', fear:'😨', love:'🥰', shy:'😳',
 };
-const EXPR_LABEL = {
+export const EXPR_LABEL = {
   neutral:'중립', happy:'기쁨', sad:'슬픔', angry:'화남', surprised:'놀람', relaxed:'편안',
   blink:'눈감기', blinkLeft:'왼눈', blinkRight:'오른눈', aa:'아', ih:'이', ou:'우', ee:'에', oh:'오',
   lookUp:'위보기', lookDown:'아래보기', lookLeft:'왼쪽보기', lookRight:'오른쪽보기',
@@ -81,11 +81,14 @@ export function buildEmotionButtons() {
     sorted.forEach(name => {
       const btn = document.createElement('button');
       btn.className = 'emo-btn';
-      btn.innerHTML = (EXPR_EMOJI[name] || '🎭') + ' ' + (EXPR_LABEL[name] || name);
+      const emoji = EXPR_EMOJI[name] || '🎭';
+      const label = EXPR_LABEL[name] || name;
+      btn.innerHTML = emoji + ' ' + label;
       btn.onclick = () => setEmotion(name, btn);
       grid.appendChild(btn);
     });
     info.textContent = `${exprNames.length}개 표정 지원`;
+    buildMobileEmoBar();
     return;
   }
 
@@ -144,4 +147,76 @@ export function setEmotion(emotion, btn) {
       if (idx !== undefined) mesh.morphTargetInfluences[idx] = value;
     }
   });
+}
+
+// --- Mobile Emotion Bar ---
+export function buildMobileEmoBar() {
+  const bar = document.getElementById('mobileEmoBar');
+  if (!bar) return;
+  bar.innerHTML = '';
+  if (!window._vrm?.expressionManager) { bar.classList.remove('active'); return; }
+  const allExprs = Object.keys(window._vrm.expressionManager.expressionMap || {});
+  if (allExprs.length === 0) { bar.classList.remove('active'); return; }
+
+  const emotionKeywords = [
+    'neutral','happy','sad','angry','surprised','relaxed',
+    'joy','fun','sorrow','fear','love','shy',
+    'cheekpuff','jawopen','tongueout','eyewide'
+  ];
+  const filtered = allExprs.filter(name => {
+    const lower = name.toLowerCase();
+    return emotionKeywords.some(k => lower === k || lower.startsWith(k));
+  });
+  // Pair Left/Right into single buttons
+  const pairMap = {};
+  const singles = [];
+  filtered.forEach(name => {
+    const base = name.replace(/(Left|Right)$/i, '');
+    if (base !== name) {
+      if (!pairMap[base]) pairMap[base] = [];
+      pairMap[base].push(name);
+    } else {
+      singles.push(name);
+    }
+  });
+
+  const order = ['neutral','happy','sad','angry','surprised','relaxed','joy','fun','sorrow','fear','love','shy'];
+  singles.sort((a,b) => {
+    const ai = order.indexOf(a.toLowerCase()), bi = order.indexOf(b.toLowerCase());
+    if (ai >= 0 && bi >= 0) return ai - bi;
+    if (ai >= 0) return -1;
+    if (bi >= 0) return 1;
+    return a.localeCompare(b);
+  });
+
+  // Single expression buttons
+  singles.forEach(name => {
+    const btn = document.createElement('button');
+    btn.textContent = (EXPR_EMOJI[name.toLowerCase()] || EXPR_EMOJI[name] || '🎭') + ' ' + (EXPR_LABEL[name.toLowerCase()] || EXPR_LABEL[name] || name);
+    btn.onclick = () => {
+      bar.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      setEmotion(name);
+    };
+    bar.appendChild(btn);
+  });
+  // Paired expressions (apply both sides)
+  Object.keys(pairMap).forEach(base => {
+    const names = pairMap[base];
+    const btn = document.createElement('button');
+    const lower = base.toLowerCase();
+    btn.textContent = (EXPR_EMOJI[lower] || '🎭') + ' ' + (EXPR_LABEL[lower] || base);
+    btn.onclick = () => {
+      bar.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      names.forEach(n => {
+        window._vrm.expressionManager.setValue(n, 1.0);
+      });
+      window._vrm.expressionManager.update();
+    };
+    bar.appendChild(btn);
+  });
+
+  if (bar.children.length > 0) bar.classList.add('active');
+  else bar.classList.remove('active');
 }
