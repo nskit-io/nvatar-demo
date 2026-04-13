@@ -46,11 +46,17 @@ Emotions naturally decay over time (sadness fades, excitement calms down), and h
 ### Personality Evolution
 Your avatar starts with a base personality (Friendly, Calm, Tsundere, etc.) + random MBTI. Over time, conversations shape 8 personality traits through a `pending_delta → decay → commit` cycle. The avatar literally grows with you.
 
+### Identity Preservation
+When your avatar works as a code assistant or language tutor, it gains domain knowledge without changing its core personality. This is achieved through a **3-track memory architecture** — core memories (personality), user profile (behavioral patterns), and franchise memories (domain-specific) are kept strictly separate. A tutor session makes your avatar smarter about the subject, not a different person.
+
 ### Voice Cloning TTS
 Not a generic robot voice — a **cloned human voice** that speaks 32+ languages with natural intonation:
 - Language-aware speed (KO: 0.85x, JA: 0.65x)
 - Text preprocessing (emoji removal, pronunciation guide stripping)
 - Queue-based playback with interrupt-on-input
+
+### BehaviorPattern Registry
+NVatar's capabilities are extensible through a **pluggable behavior system**. Each behavior — Normal Chat, Code Assist, Language Tutor, or your own custom pattern — registers as a self-contained plugin with its own prompt style, tool access, and memory track. A **God Mode** meta-layer analyzes incoming messages and routes them to the right pattern without character bias, so the avatar seamlessly switches between casual conversation and specialized tasks.
 
 ### Structured Search SDK
 When you ask factual questions, the avatar searches the web and delivers results through `NVatarSDK`:
@@ -60,6 +66,8 @@ NVatarSDK.onLookupResult = (data) => {
 };
 ```
 Results are collected passively — the SDK is designed for integration into any frontend.
+
+For building custom integrations, see [NVatar SDK](https://github.com/nskit-io/nvatar-sdk).
 
 ---
 
@@ -75,6 +83,8 @@ Results are collected passively — the SDK is designed for integration into any
 | **Multi-language** | KO, JA, EN, ZH — UI and conversation |
 | **Avatar Lab** | Test VRM models with Mixamo FBX animations |
 | **Anti-Repeat** | Tracks already-discussed topics to keep conversations moving forward |
+| **Behavior Patterns** | Pluggable registry — Normal Chat, Code Assist, custom patterns via SDK |
+| **Franchise Memory** | Domain-specific memory track that preserves avatar identity across tasks |
 
 ---
 
@@ -117,12 +127,14 @@ index.html                       REST API
   → Enter room                     → Language change
 
 room.html                        WebSocket + AI Pipeline
-  → Chat                            → Context Router (10 types)
-  → TTS                             → Gemma 26B (local)
-  → STT                             → ElevenLabs TTS (cloud)
-  → Search SDK                      → CSW WebSearch (cloud)
-                                     → Emotion Engine (8-dim)
-                                     → Memory System (L1→L2→L3)
+  → Chat                            → God Mode (message analysis & routing)
+  → TTS                             → BehaviorPattern Registry
+  → STT                               → NormalChat / CodeAssist / custom
+  → Search SDK                      → Gemma 26B (local)
+                                     → ElevenLabs TTS (cloud)
+                                     → CSW WebSearch (cloud)
+                                     → Emotion Engine (9-dim)
+                                     → Memory (Core + User Profile + Franchise)
                                      → Persona Evolution
 
 avatar-lab.html                  Static Assets
@@ -152,6 +164,7 @@ NVatar is part of the **NSKit** framework — an AI-native development platform.
 | Project | Description |
 |---------|-------------|
 | **NVatar** | AI Avatar Chat (this project) |
+| **[NVatar SDK](https://github.com/nskit-io/nvatar-sdk)** | Build custom behavior patterns and integrations |
 | **NSKit Whisper** | Local STT/TTS API server on Apple Silicon |
 | **CSW** | Claude Subscription Worker — AI processing pipeline |
 | **NSKit Frontend** | Self-contained UI framework (jQuery-based, AI-optimized) |
