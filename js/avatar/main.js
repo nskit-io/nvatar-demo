@@ -1,11 +1,14 @@
 // NVatar Avatar Lab — Entry Point & Bootstrap
-import { toggleRotate, resetCamera, toggleStatusDetail, toggleMobileStatus } from './scene.js';
+import { initScene, toggleRotate, resetCamera, toggleStatusDetail, toggleMobileStatus } from './scene.js';
 import { load, handleFile } from './loader.js';
 import { setEmotion } from './emotion.js';
 import { playMixamo } from './fbx.js';
 import { logMeshTree, showAllMesh } from './mesh.js';
 import { buildVrmListPanel, scanAllVrmBones } from './vrm-panel.js';
 import { openSheet, closeSheet } from './mobile.js';
+
+// Init Three.js scene
+initScene();
 
 // Expose to window for HTML onclick handlers
 window.load = (url, btn) => load(url, btn);
