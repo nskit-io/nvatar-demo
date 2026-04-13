@@ -27,6 +27,10 @@ export function initScene() {
   S.renderer.setSize(container.clientWidth, container.clientHeight);
   S.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   S.renderer.outputColorSpace = THREE.SRGBColorSpace;
+  S.renderer.domElement.style.position = 'absolute';
+  S.renderer.domElement.style.top = '0';
+  S.renderer.domElement.style.left = '0';
+  S.renderer.domElement.style.zIndex = '0';
   container.appendChild(S.renderer.domElement);
 
   S.scene.add(new THREE.AmbientLight(0xffffff, 0.7));
