@@ -6,7 +6,7 @@ import { loadVRM, loadLocalVRM } from './vrm-loader.js';
 import { setMood } from './mood.js';
 import { sendChat, addChatMsg } from './chat.js';
 import { toggleMic } from './stt.js';
-import { changeVoice, loadVoices, openVoiceSheet, closeVoiceSheet } from './tts.js';
+import { changeVoice, loadVoices } from './tts.js';
 import { NVatarSDK } from './lookup.js';
 import { mobileToggleLookupPanel, mobileChangeLang, mobileToggleTTS, openMobileLookup, closeMobileLookup, initMobile } from './mobile.js';
 
@@ -26,8 +26,6 @@ window.toggleLookupPanel = mobileToggleLookupPanel;
 window.openMobileLookup = openMobileLookup;
 window.closeMobileLookup = closeMobileLookup;
 window.NVatarSDK = NVatarSDK;
-window.openVoiceSheet = openVoiceSheet;
-window.closeVoiceSheet = closeVoiceSheet;
 
 // Init scene
 init();
