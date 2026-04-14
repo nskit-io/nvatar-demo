@@ -2,8 +2,12 @@
 // All modules import S and read/write properties on this single object.
 // Using an object (not primitive exports) so mutations are visible across modules.
 
-// API base: empty for same-origin (server), full URL for GitHub Pages
-const API_BASE = location.hostname === 'nskit-io.github.io' ? 'https://nvatar.nskit.io' : '';
+// API base: from URL param > localStorage > hostname detection > empty (same-origin)
+const _params = new URLSearchParams(location.search);
+const _serverParam = _params.get('server');
+const _savedServer = localStorage.getItem('nvatar_server_url');
+const _isGitHubPages = location.hostname === 'nskit-io.github.io' || location.hostname.endsWith('.github.io');
+const API_BASE = _serverParam || _savedServer || (_isGitHubPages ? 'https://nvatar.nskit.io' : '');
 
 const S = {
   API_BASE,
@@ -53,6 +57,8 @@ const S = {
   hooks: {
     onBubbleComplete: null,
     onTTSComplete: null,
+    onChatMsg: null,
+    onReconnect: null,
   },
 };
 
