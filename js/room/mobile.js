@@ -36,7 +36,9 @@ function _chatStartFadeTimer() {
 
 function _onBubbleComplete() {
   if (!_isMobile() || _chatState !== 'active') return;
-  if (S._waitingForResponse) return;
+  // bubble.js calls this when the bubble queue is empty (all done).
+  // Do NOT start fade if TTS is still playing — _onTTSComplete handles that.
+  if (TTS_CONFIG.enabled) return;
   _chatStartFadeTimer();
 }
 
@@ -90,6 +92,8 @@ function _onChatMsg(role, el) {
 // --- Mobile Lookup Dialog ---
 let _lookupDialogTimer = null;
 
+let _lookupTouchBound = false;
+
 export function openMobileLookup() {
   const dlg = document.getElementById('mobileLookupDialog');
   const body = document.getElementById('mobileLookupBody');
@@ -97,10 +101,13 @@ export function openMobileLookup() {
   dlg.style.display = 'flex';
   clearTimeout(_lookupDialogTimer);
   _lookupDialogTimer = setTimeout(closeMobileLookup, 5000);
-  dlg.addEventListener('touchstart', () => {
-    clearTimeout(_lookupDialogTimer);
-    _lookupDialogTimer = setTimeout(closeMobileLookup, 5000);
-  }, { passive: true });
+  if (!_lookupTouchBound) {
+    _lookupTouchBound = true;
+    dlg.addEventListener('touchstart', () => {
+      clearTimeout(_lookupDialogTimer);
+      _lookupDialogTimer = setTimeout(closeMobileLookup, 5000);
+    }, { passive: true });
+  }
 }
 
 export function closeMobileLookup() {
