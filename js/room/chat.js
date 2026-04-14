@@ -11,15 +11,28 @@ import { addLookupResult, NVatarSDK } from './lookup.js';
 export function connectChat(avatarId) {
   if (S.chatWs) S.chatWs.close();
   S.currentAvatarId = avatarId;
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsHost = S.API_BASE ? 'nvatar.nskit.io' : location.host;
-  S.chatWs = new WebSocket(`${proto}//${wsHost}/ws/chat/${avatarId}`);
+  let wsUrl;
+  if (S.API_BASE) {
+    // Extract host from API_BASE (e.g. 'https://nvatar.nskit.io' → 'wss://nvatar.nskit.io')
+    const url = new URL(S.API_BASE);
+    const proto = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    wsUrl = `${proto}//${url.host}/ws/chat/${avatarId}`;
+  } else {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    wsUrl = `${proto}//${location.host}/ws/chat/${avatarId}`;
+  }
+  S.chatWs = new WebSocket(wsUrl);
 
   S.chatWs.onopen = () => {
     addChatMsg('system', t('connected'));
+    const isReconnect = _reconnectAttempt > 0;
+    _reconnectAttempt = 0;
+    // Signal server that client is ready (TTS initialized)
     setTimeout(() => {
       if (S.chatWs && S.chatWs.readyState === 1) {
         S.chatWs.send(JSON.stringify({ type: 'client_ready' }));
+        // Only fire onReconnect for RE-connections, not the first connect
+        if (isReconnect && S.hooks.onReconnect) S.hooks.onReconnect();
       }
     }, 1500);
   };
@@ -40,8 +53,10 @@ export function connectChat(avatarId) {
         const gesture = detectGestureFromText(data.text);
         if (gesture) setTimeout(() => playGesture(gesture), 500);
       }
+      returnToCenter();
       pauseRoaming();
     } else if (data.type === 'push_prepare') {
+      // Server push incoming — reset all avatar state for clean delivery
       stopTTS();
       S._waitingForResponse = false;
       returnToCenter();
@@ -61,11 +76,17 @@ export function connectChat(avatarId) {
       addChatMsg('avatar', data.text);
       const mood = detectMoodFromText(data.text);
       if (mood) setMood(mood);
+    } else if (data.type === 'code_result') {
+      addCodeResult(data);
+    } else if (data.type === 'error') {
+      S._waitingForResponse = false;
+      console.warn('[Chat] Server error:', data.text);
     } else if (data.type === 'emotion_update' && data.emotions) {
       const emo = data.emotions;
       if (emo.joy > 65) { setMood('happy'); playGesture('cheer'); }
       else if (emo.sadness > 50) setMood('sad');
       else if (emo.excitement > 60) { setMood('happy'); playGesture('wave'); }
+      else if (emo.curiosity > 65) { setMood('happy'); playGesture('wave'); }
     }
   };
 
@@ -141,6 +162,80 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// --- Code Assist Panel ---
+let _codeBlockId = 0;
+
+export function addCodeResult(data) {
+  const panel = document.getElementById('codePanel');
+  const body = document.getElementById('codePanelBody');
+  if (!panel || !body) return;
+
+  // Show panel
+  if (window.innerWidth > 768) {
+    panel.style.display = 'flex';
+  }
+
+  const id = ++_codeBlockId;
+  const dbId = data.id || 0;
+  const isError = data.status === 'error';
+  const time = data.ts ? data.ts.slice(11, 19) : '';
+  const resId = 'cb-res-' + id;
+
+  // Collapse previous blocks
+  body.querySelectorAll('.cb-res').forEach(r => { r.style.display = 'none'; });
+
+  const block = document.createElement('div');
+  block.className = 'code-block';
+  block.id = 'code-block-' + id;
+  block.dataset.dbId = dbId;
+
+  // Header (click to toggle response)
+  const header = document.createElement('div');
+  header.className = 'cb-req';
+  header.innerHTML = `
+    <span class="cb-title" title="${_escHtml(data.request || '')}">▶ ${_escHtml(data.request || '')}</span>
+    <span class="cb-time">${time}</span>
+  `;
+  header.addEventListener('click', () => {
+    const res = document.getElementById(resId);
+    if (res) res.style.display = res.style.display === 'none' ? 'block' : 'none';
+  });
+
+  // Close button
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'cb-close';
+  closeBtn.textContent = '×';
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    block.remove();
+    if (dbId > 0) {
+      const url = S.API_BASE + '/api/v1/sdk/results/' + dbId;
+      console.log('[CodeAssist] Deleting:', url);
+      fetch(url, { method: 'DELETE' })
+        .then(r => console.log('[CodeAssist] Delete response:', r.status))
+        .catch(e => console.warn('[CodeAssist] Delete error:', e));
+    }
+  });
+  header.appendChild(closeBtn);
+
+  // Response body
+  const resDiv = document.createElement('div');
+  resDiv.className = 'cb-res' + (isError ? ' error' : '');
+  resDiv.id = resId;
+  resDiv.textContent = data.response || '';
+
+  block.appendChild(header);
+  block.appendChild(resDiv);
+  body.appendChild(block);
+
+  body.scrollTop = body.scrollHeight;
+  resDiv.scrollTop = 0;
+}
+
+function _escHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 // --- Send Chat ---
 export function sendChat() {
