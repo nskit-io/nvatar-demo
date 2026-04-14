@@ -36,12 +36,13 @@ function _chatStartFadeTimer() {
 
 function _onBubbleComplete() {
   if (!_isMobile() || _chatState !== 'active') return;
-  // bubble.js calls this when the bubble queue is empty (all done).
-  // If TTS is playing, let _onTTSComplete handle the fade timer.
-  // But if nothing is in the TTS queue (e.g. monologue has no TTS),
-  // we must start the fade timer here.
-  if (TTS_CONFIG.enabled && isTTSPlaying()) return;
-  _chatStartFadeTimer();
+  // Delay check: TTS fetch is async, so at bubble-complete time the
+  // audio may not have started yet.  Wait 1s then decide.
+  setTimeout(() => {
+    if (_chatState !== 'active') return;
+    if (TTS_CONFIG.enabled && isTTSPlaying()) return;
+    _chatStartFadeTimer();
+  }, 1000);
 }
 
 
