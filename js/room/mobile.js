@@ -36,13 +36,10 @@ function _chatStartFadeTimer() {
 
 function _onBubbleComplete() {
   if (!_isMobile() || _chatState !== 'active') return;
-  // Delay check: TTS fetch is async, so at bubble-complete time the
-  // audio may not have started yet.  Wait 1s then decide.
-  setTimeout(() => {
-    if (_chatState !== 'active') return;
-    if (TTS_CONFIG.enabled && isTTSPlaying()) return;
-    _chatStartFadeTimer();
-  }, 1000);
+  // bubble.js fires this after the last character is typed + 2s pause.
+  // If TTS is still playing, _onTTSComplete will start the fade timer.
+  if (TTS_CONFIG.enabled && isTTSPlaying()) return;
+  _chatStartFadeTimer();
 }
 
 
@@ -86,6 +83,7 @@ function _onChatMsg(role, el) {
     clearTimeout(_chatFadeTimer);
     _chatShowMsg(el);
   } else if (role === 'avatar') {
+    clearTimeout(_chatFadeTimer);
     _chatShowMsg(el);
   } else if (role === 'system' || role === 'lookup') {
     _chatShowMsg(el);
