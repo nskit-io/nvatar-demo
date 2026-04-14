@@ -1,7 +1,7 @@
 // NVatar Room — Mobile UI (Chat Fade, Mobile Lookup Dialog, Selector Sync)
 import S from './state.js';
 import { t, changeLang } from './i18n.js';
-import { TTS_CONFIG, toggleTTS as _baseTTS } from './tts.js';
+import { TTS_CONFIG, toggleTTS as _baseTTS, isTTSPlaying } from './tts.js';
 import { toggleLookupPanel as _baseLookup } from './lookup.js';
 
 const _isMobile = () => window.innerWidth <= 768;
@@ -37,10 +37,13 @@ function _chatStartFadeTimer() {
 function _onBubbleComplete() {
   if (!_isMobile() || _chatState !== 'active') return;
   // bubble.js calls this when the bubble queue is empty (all done).
-  // Do NOT start fade if TTS is still playing — _onTTSComplete handles that.
-  if (TTS_CONFIG.enabled) return;
+  // If TTS is playing, let _onTTSComplete handle the fade timer.
+  // But if nothing is in the TTS queue (e.g. monologue has no TTS),
+  // we must start the fade timer here.
+  if (TTS_CONFIG.enabled && isTTSPlaying()) return;
   _chatStartFadeTimer();
 }
+
 
 function _onTTSComplete() {
   if (!_isMobile() || _chatState !== 'active') return;
