@@ -14,14 +14,24 @@ function _chatEnterIdle() {
   if (!_isMobile()) return;
   _chatState = 'fading';
   const msgs = document.getElementById('chatMessages');
-  msgs.classList.add('chat-sweep-fade');
+  // Sequential fade: each message fades out top-to-bottom with staggered delay
+  const items = [...msgs.querySelectorAll('.chat-msg')];
+  const stagger = items.length > 0 ? Math.min(600, 3000 / items.length) : 600;
+  items.forEach((el, i) => {
+    setTimeout(() => {
+      el.style.transition = 'opacity 0.8s ease-out';
+      el.style.opacity = '0';
+    }, i * stagger);
+  });
+  const totalMs = items.length * stagger + 800;
   setTimeout(() => {
-    msgs.classList.remove('chat-sweep-fade');
     const overlay = document.getElementById('chatOverlay');
     overlay.classList.add('chat-idle');
     overlay.querySelectorAll('.chat-active-msg').forEach(el => el.classList.remove('chat-active-msg'));
+    // Reset inline opacity so CSS classes take over again
+    items.forEach(el => { el.style.transition = ''; el.style.opacity = ''; });
     _chatState = 'idle';
-  }, 5000);
+  }, totalMs);
 }
 
 function _chatStartFadeTimer() {
