@@ -1,392 +1,681 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="https://nvatar-res.nskit.io/res/favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="https://nvatar-res.nskit.io/res/apple-touch-icon.png">
+<meta property="og:title" content="NVatar — AI Avatar Chat">
+<meta property="og:description" content="3D AI Avatar with personality, memory, and voice.">
+<meta property="og:image" content="https://nvatar-res.nskit.io/res/og-image.png">
+<meta property="og:type" content="website">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NVatar Demo — AI Avatar Chat</title>
+<title>NVatar — AI Avatar Chat</title>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #0a0a1a; color: #e2e8f0; min-height: 100vh; }
+body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
 
-.container { max-width: 960px; margin: 0 auto; padding: 40px 20px; }
+.container { max-width: 900px; width: 100%; padding: 24px; }
 
-.hero { text-align: center; margin-bottom: 48px; }
-.hero h1 { font-size: 36px; font-weight: 800; margin-bottom: 8px; }
-.hero h1 span { background: linear-gradient(135deg, #6366f1, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-.hero p { font-size: 16px; color: #94a3b8; line-height: 1.6; max-width: 600px; margin: 0 auto; }
-.hero .badge { display: inline-block; margin-top: 16px; padding: 6px 16px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); border-radius: 20px; font-size: 12px; color: #a78bfa; }
-
-.section-title { font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 16px; }
-
-/* Avatar creation */
-.create-section { margin-bottom: 48px; }
-.create-form {
-  background: rgba(15,23,42,0.8); border: 1px solid #1e293b; border-radius: 16px;
-  padding: 24px; max-width: 480px; margin: 0 auto;
-}
-.form-row { margin-bottom: 16px; }
-.form-row label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 6px; }
-.form-row input, .form-row select {
-  width: 100%; padding: 10px 14px; font-size: 14px;
-  border: 1px solid #334155; border-radius: 10px;
-  background: #0f172a; color: #e2e8f0; outline: none;
-}
-.form-row input:focus, .form-row select:focus { border-color: #6366f1; }
-.btn-create {
-  width: 100%; padding: 12px; border: none; border-radius: 10px;
-  background: #6366f1; color: #fff; font-size: 15px; font-weight: 600;
-  cursor: pointer; transition: background 0.2s;
-}
-.btn-create:hover { background: #4f46e5; }
-.btn-create:disabled { background: #334155; color: #64748b; cursor: default; }
-
-/* Avatar list */
-.avatar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 32px; }
-.avatar-card {
-  background: rgba(15,23,42,0.8); border: 1px solid #1e293b; border-radius: 12px;
-  padding: 16px; cursor: pointer; transition: all 0.2s;
-}
-.avatar-card:hover { border-color: #6366f1; transform: translateY(-2px); }
-.avatar-card .name { font-size: 15px; font-weight: 600; color: #e2e8f0; margin-bottom: 4px; }
-.avatar-card .persona { font-size: 12px; color: #64748b; line-height: 1.4; }
-.avatar-card .mbti { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 6px; background: rgba(99,102,241,0.2); color: #a78bfa; margin-top: 6px; }
-
-.empty-state { text-align: center; color: #475569; padding: 40px; font-size: 14px; }
-
-/* VRM selector */
-.vrm-card {
-  border: 2px solid #1e293b; border-radius: 8px; padding: 8px;
-  text-align: center; cursor: pointer; transition: all 0.2s;
-  background: #0f172a;
-}
-.vrm-card:hover { border-color: #6366f1; }
-.vrm-card.selected { border-color: #6366f1; background: rgba(99,102,241,0.15); }
-.vrm-card .vrm-name { font-size: 10px; color: #94a3b8; margin-top: 4px; line-height: 1.3; word-break: break-all; }
-.vrm-card .vrm-icon { font-size: 28px; }
-.vrm-card .vrm-thumb { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; background: #1e293b; }
-
-/* Links */
-.links { display: flex; gap: 12px; justify-content: center; margin-top: 32px; flex-wrap: wrap; }
-.link-btn {
-  padding: 10px 20px; border: 1px solid #334155; border-radius: 10px;
-  background: transparent; color: #94a3b8; font-size: 13px; cursor: pointer;
-  text-decoration: none; transition: all 0.2s;
-}
-.link-btn:hover { border-color: #6366f1; color: #e2e8f0; }
-
-.footer { text-align: center; margin-top: 60px; padding-top: 20px; border-top: 1px solid #1e293b; font-size: 12px; color: #475569; }
-.footer a { color: #6366f1; text-decoration: none; }
-
-.status-bar { text-align: center; margin-bottom: 24px; }
-.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
-.status-dot.online { background: #22c55e; }
-.status-dot.offline { background: #ef4444; }
+/* Create layout: form left, preview right */
+.create-layout { display: flex; gap: 20px; }
+.create-form { flex: 1; min-width: 0; }
+.create-preview { width: 320px; height: 450px; border: 1px solid #334155; border-radius: 16px; overflow: hidden; position: relative; background: #0a0f1a; flex-shrink: 0; }
+.create-preview canvas { width: 100% !important; height: 100% !important; display: block; }
+.preview-label { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font-size: 11px; color: #64748b; pointer-events: none; }
 
 @media (max-width: 768px) {
-  .container { padding: 20px 12px; }
-  .hero h1 { font-size: 24px; }
-  .hero p { font-size: 14px; }
-  .hero .badge { font-size: 10px; }
-  .create-form { padding: 16px; }
-  .avatar-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
-  .avatar-card { padding: 12px; }
-  .vrm-grid { grid-template-columns: repeat(4, 1fr) !important; gap: 6px !important; }
-  .vrm-card { padding: 4px; }
-  .vrm-card .vrm-name { font-size: 9px; }
-  .links { flex-direction: column; align-items: center; }
+  .create-layout { flex-direction: column; }
+  .create-preview { width: 100%; height: 300px; }
 }
+
+/* Header */
+.logo { text-align: center; margin-bottom: 32px; }
+.logo h1 { font-size: 28px; font-weight: 700; }
+.logo h1 span { color: #6366f1; }
+.logo p { font-size: 13px; color: #64748b; margin-top: 4px; }
+
+/* Card */
+.card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+.card h2 { font-size: 16px; margin-bottom: 16px; }
+
+/* Tabs */
+.tabs { display: flex; border-radius: 10px; overflow: hidden; border: 1px solid #334155; margin-bottom: 20px; }
+.tab { flex: 1; padding: 12px; text-align: center; font-size: 14px; cursor: pointer; background: #0f172a; color: #94a3b8; border: none; transition: all 0.15s; }
+.tab.active { background: #6366f1; color: #fff; }
+
+/* Form */
+label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 4px; margin-top: 14px; }
+input, textarea, select { width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #e2e8f0; outline: none; }
+input:focus, textarea:focus, select:focus { border-color: #6366f1; }
+textarea { height: 70px; resize: vertical; }
+.row { display: flex; gap: 10px; }
+.row > div { flex: 1; }
+
+/* VRM selector */
+.vrm-section-title { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 8px; margin-bottom: 6px; }
+.vrm-scroll { max-height: 260px; overflow-y: auto; border: 1px solid #334155; border-radius: 10px; padding: 8px; }
+.vrm-scroll::-webkit-scrollbar { width: 4px; }
+.vrm-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+.vrm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.vrm-option { padding: 10px 6px; border: 2px solid #334155; border-radius: 10px; text-align: center; cursor: pointer; transition: all 0.15s; font-size: 11px; position: relative; }
+.vrm-option:hover { border-color: #6366f1; background: rgba(99,102,241,0.05); }
+.vrm-option.selected { border-color: #6366f1; background: rgba(99,102,241,0.1); }
+.vrm-option .emoji { font-size: 22px; display: block; margin-bottom: 2px; }
+.vrm-option .vrm-thumb { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; display: block; margin: 0 auto 4px; border: 2px solid #334155; background: #0f172a; }
+.avatar-thumb { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid #334155; background: #0f172a; flex-shrink: 0; }
+.vrm-option .vrm-name { font-weight: 600; line-height: 1.3; }
+.vrm-option .vrm-creator { font-size: 9px; color: #64748b; margin-top: 2px; }
+.vrm-option .vrm-badge { position: absolute; top: 4px; right: 4px; font-size: 8px; padding: 1px 5px; border-radius: 4px; background: #334155; color: #94a3b8; }
+.vrm-filter { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.vrm-filter-btn { padding: 4px 10px; font-size: 11px; border: 1px solid #334155; border-radius: 6px; background: transparent; color: #94a3b8; cursor: pointer; }
+.vrm-filter-btn.active { background: #6366f1; border-color: #6366f1; color: #fff; }
+
+/* Existing list */
+.avatar-list { display: flex; flex-direction: column; gap: 8px; }
+.avatar-item { padding: 12px; border: 1px solid #334155; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.15s; }
+.avatar-item:hover { border-color: #6366f1; background: rgba(99,102,241,0.05); }
+.avatar-item .info { flex: 1; }
+.avatar-item .name { font-weight: 600; font-size: 15px; }
+.avatar-item .desc { font-size: 12px; color: #64748b; margin-top: 2px; }
+.avatar-item .arrow { color: #64748b; font-size: 18px; }
+.empty { text-align: center; color: #64748b; padding: 20px; font-size: 13px; }
+
+/* Button */
+.btn-primary { width: 100%; padding: 14px; margin-top: 20px; font-size: 15px; font-weight: 600; border: none; border-radius: 10px; background: #6366f1; color: #fff; cursor: pointer; transition: background 0.15s; }
+.btn-primary:hover { background: #4f46e5; }
+.btn-primary:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+
+/* Footer */
+.footer { text-align: center; font-size: 11px; color: #475569; margin-top: 16px; }
+.footer a { color: #6366f1; text-decoration: none; }
+.lang-btn { padding: 4px 12px; font-size: 11px; border: 1px solid #334155; border-radius: 6px; background: transparent; color: #94a3b8; cursor: pointer; }
+.lang-btn.active { background: #6366f1; border-color: #6366f1; color: #fff; }
 </style>
 </head>
 <body>
 
 <div class="container">
+  <div class="logo">
+    <h1><span>NVatar</span></h1>
+    <p id="heroDesc">AI 아바타와 대화하세요</p>
+    <div style="margin-top:10px;display:flex;justify-content:center;gap:6px;">
+      <button class="lang-btn active" onclick="setLang('ko')">🇰🇷 한국어</button>
+      <button class="lang-btn" onclick="setLang('ja')">🇯🇵 日本語</button>
+      <button class="lang-btn" onclick="setLang('en')">🇺🇸 English</button>
+    </div>
+  </div>
 
-<div class="hero">
-  <h1><span>NVatar</span> Demo</h1>
-  <p>Meet your AI avatar companion. Chat in a 3D room with voice, emotions, personality, and memory.</p>
-  <div class="badge">Powered by Gemma 26B + ElevenLabs TTS + Three.js</div>
-</div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('existing')">내 아바타</button>
+    <button class="tab" onclick="switchTab('create')">새로 만들기</button>
+  </div>
 
-<div class="status-bar">
-  <span class="status-dot" id="statusDot"></span>
-  <span id="statusText" style="font-size:12px;color:#64748b;">Checking server...</span>
-</div>
+  <!-- Existing -->
+  <div id="tabExisting">
+    <div class="avatar-list" id="avatarList">
+      <div class="empty">로딩 중...</div>
+    </div>
+  </div>
 
-<!-- Existing Avatars -->
-<div class="section-title">Your Avatars</div>
-<div class="avatar-grid" id="avatarGrid">
-  <div class="empty-state">Loading...</div>
-</div>
+  <!-- Create -->
+  <div id="tabCreate" style="display:none;">
+    <div class="create-layout">
+    <div class="create-form card">
+      <h2>아바타 만들기</h2>
 
-<!-- Create New -->
-<div class="create-section">
-  <div class="section-title">Create New Avatar</div>
-  <div class="create-form">
-    <div class="form-row">
-      <label>Character Model</label>
-      <div id="vrmGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;max-height:240px;overflow-y:auto;padding:4px;">
-        <div style="color:#475569;font-size:12px;grid-column:1/-1;">Loading models...</div>
+      <label>이름</label>
+      <input id="inName" placeholder="예: 하루">
+
+      <label>성격 (페르소나)</label>
+      <textarea id="inPersona" placeholder="예: 밝고 활발하며 호기심이 많은 성격. 공감을 잘하고 가끔 장난도 친다."></textarea>
+
+      <div class="row">
+        <div>
+          <label>MBTI</label>
+          <select id="inMbti">
+            <option value="">랜덤 배정</option>
+            <optgroup label="분석가 (NT)">
+              <option value="INTJ">INTJ 전략가</option>
+              <option value="INTP">INTP 논리술사</option>
+              <option value="ENTJ">ENTJ 통솔자</option>
+              <option value="ENTP">ENTP 변론가</option>
+            </optgroup>
+            <optgroup label="외교관 (NF)">
+              <option value="INFJ">INFJ 옹호자</option>
+              <option value="INFP">INFP 중재자</option>
+              <option value="ENFJ">ENFJ 선도자</option>
+              <option value="ENFP">ENFP 활동가</option>
+            </optgroup>
+            <optgroup label="관리자 (SJ)">
+              <option value="ISTJ">ISTJ 현실주의자</option>
+              <option value="ISFJ">ISFJ 수호자</option>
+              <option value="ESTJ">ESTJ 경영자</option>
+              <option value="ESFJ">ESFJ 집정관</option>
+            </optgroup>
+            <optgroup label="탐험가 (SP)">
+              <option value="ISTP">ISTP 장인</option>
+              <option value="ISFP">ISFP 모험가</option>
+              <option value="ESTP">ESTP 사업가</option>
+              <option value="ESFP">ESFP 연예인</option>
+            </optgroup>
+          </select>
+        </div>
+        <div>
+          <label>말투</label>
+          <input id="inTone" placeholder="예: 다정하고 따뜻한">
+        </div>
       </div>
+
+      <div class="row">
+        <div>
+          <label>말투 레벨</label>
+          <select id="inSpeechLevel">
+            <option value="formal">존대 (~습니다)</option>
+            <option value="polite" selected>반존대 (~요)</option>
+            <option value="casual">평대 (~해)</option>
+            <option value="informal">하대 (~다, ~렴)</option>
+          </select>
+        </div>
+      </div>
+
+      <label>외형 선택</label>
+      <div class="vrm-filter" id="vrmFilter">
+        <button class="vrm-filter-btn active" onclick="filterVRM('all')">All</button>
+        <button class="vrm-filter-btn" onclick="filterVRM('Female')">Female</button>
+        <button class="vrm-filter-btn" onclick="filterVRM('Male')">Male</button>
+        <button class="vrm-filter-btn" onclick="filterVRM('booth')">BOOTH</button>
+        <button class="vrm-filter-btn" onclick="filterVRM('vroid')">VRoid</button>
+      </div>
+      <div class="vrm-scroll">
+        <div class="vrm-grid" id="vrmGrid">
+          <div style="grid-column:1/-1;text-align:center;color:#64748b;padding:16px;font-size:12px;">Loading models...</div>
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="createAndEnter()">만들고 입장하기</button>
     </div>
-    <div class="form-row">
-      <label>Name</label>
-      <input id="createName" placeholder="e.g. Haru, Sakura, Alex...">
+    <div class="create-preview" id="previewContainer">
+      <div id="previewPlaceholder" style="display:flex;align-items:center;justify-content:center;height:100%;color:#475569;font-size:13px;">외형을 선택하면 미리보기</div>
+      <div class="preview-label">마우스로 회전 가능</div>
     </div>
-    <div class="form-row">
-      <label>Personality</label>
-      <select id="createPersona">
-        <option value="friendly">Friendly & Cheerful</option>
-        <option value="calm">Calm & Thoughtful</option>
-        <option value="energetic">Energetic & Playful</option>
-        <option value="tsundere">Tsundere</option>
-        <option value="intellectual">Intellectual & Curious</option>
-      </select>
     </div>
-    <div class="form-row">
-      <label>Language</label>
-      <select id="createLang">
-        <option value="ko">Korean</option>
-        <option value="ja">Japanese</option>
-        <option value="en">English</option>
-      </select>
-    </div>
-    <button class="btn-create" id="btnCreate" onclick="createAvatar()">Create Avatar</button>
+  </div>
+
+  <div class="footer">
+    Powered by Gemma 4 + Whisper STT · <a href="avatar-lab.html">Avatar Lab</a>
   </div>
 </div>
 
-<!-- Links -->
-<div class="links">
-  <a href="avatar-lab.html" class="link-btn">🧪 Avatar Lab</a>
-  <a href="room-gallery.html" class="link-btn">🏠 Room Gallery</a>
-  <a href="https://github.com/nskit-io/nvatar-demo" class="link-btn" target="_blank">GitHub</a>
-</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 
-<div class="footer">
-  Built by <a href="https://github.com/nskit-io">NSKit</a> · AI Avatar Chat with Voice &amp; Memory
-</div>
+// Core API (chat, avatar) vs Resource API (VRM, assets, static)
+const _isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const CORE = _isLocal ? 'http://localhost:54444' : 'https://nvatar.nskit.io';
+const RES = _isLocal ? location.origin : 'https://nvatar-res.nskit.io';
 
-</div>
+// Resolve VRM uid → full URL via API
+async function resolveVrmUrl(uid) {
+  if (!uid) return '';
+  try {
+    const r = await fetch(`${RES}/api/v1/vrm/resolve/${uid}`);
+    if (r.ok) { const d = await r.json(); return RES + d.model.url; }
+  } catch(e) {}
+  return '';
+}
 
-<script>
-const API_BASE = 'https://nvatar.nskit.io';
-const RES_BASE = 'https://nvatar-res.nskit.io';
-const DEMO_USER = 'demo-' + (localStorage.getItem('nvatar_demo_uid') || (() => { const uid = Math.random().toString(36).slice(2, 10); localStorage.setItem('nvatar_demo_uid', uid); return uid; })());
-const MAX_AVATARS = 3;
+// VRM models loaded from API
+let allModels = [];
+let selectedVRM = null;  // model object { uid, name, ... }
+let currentFilter = 'all';
 
-// VRM selection
-let selectedVRM = null;
-let vrmList = [];
+function getUserId() {
+  let uid = localStorage.getItem('nvatar_uid');
+  if (!uid) {
+    uid = 'user_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('nvatar_uid', uid);
+  }
+  return uid;
+}
 
-async function loadVRMList() {
+// --- Tabs ---
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (tab === 'existing' && i === 0) || (tab === 'create' && i === 1));
+  });
+  document.getElementById('tabExisting').style.display = tab === 'existing' ? 'block' : 'none';
+  document.getElementById('tabCreate').style.display = tab === 'create' ? 'block' : 'none';
+}
+
+// --- VRM models ---
+async function loadVRMModels() {
+  try {
+    const r = await fetch(`${RES}/api/v1/vrm/models`);
+    const d = await r.json();
+    allModels = (d.models || []).map(m => ({
+      ...m,
+      tags: typeof m.tags === 'string' ? JSON.parse(m.tags) : (m.tags || []),
+    }));
+    // Default: Victoria first, then first model
+    selectedVRM = allModels.find(m => m.name === 'Victoria') || allModels[0] || null;
+    renderVRMGrid();
+  } catch(e) {
+    document.getElementById('vrmGrid').innerHTML = '<div style="grid-column:1/-1;color:#ef4444;font-size:12px;padding:12px;">Failed to load models</div>';
+  }
+}
+
+function getGenderEmoji(tags) {
+  if (tags.some(t => t === 'Male')) return '\u{1F468}';
+  if (tags.some(t => t === 'Female')) return '\u{1F469}';
+  return '\u{1F9D1}';
+}
+
+function renderVRMGrid() {
   const grid = document.getElementById('vrmGrid');
-  try {
-    const r = await fetch(RES_BASE + '/api/v1/vrm/models');
-    const d = await r.json();
-    vrmList = (d.models || []);
+  const filtered = allModels.filter(m => {
+    if (currentFilter === 'all') return true;
+    if (currentFilter === 'Female') return m.tags.includes('Female');
+    if (currentFilter === 'Male') return m.tags.includes('Male');
+    if (currentFilter === 'booth') return m.source === 'booth';
+    if (currentFilter === 'vroid') return m.source === 'vroid-samples';
+    return true;
+  });
 
-    if (vrmList.length === 0) {
-      grid.innerHTML = '<div style="color:#475569;font-size:12px;">No models available</div>';
-      return;
-    }
-
-    grid.innerHTML = '';
-    // Sort Victoria to front
-    const victoriaIdx = vrmList.findIndex(v => v.name === 'Victoria');
-    if (victoriaIdx > 0) { vrmList.unshift(vrmList.splice(victoriaIdx, 1)[0]); }
-
-    vrmList.forEach((v, i) => {
-      const card = document.createElement('div');
-      card.className = 'vrm-card';
-      const thumbUrl = v.thumbnail ? RES_BASE + v.thumbnail : '';
-      card.innerHTML = thumbUrl
-        ? `<img class="vrm-thumb" src="${thumbUrl}" alt="${v.name}" loading="lazy"><div class="vrm-name">${v.name}</div>`
-        : `<div class="vrm-icon">👤</div><div class="vrm-name">${v.name}</div>`;
-      card.onclick = () => {
-        grid.querySelectorAll('.vrm-card').forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
-        selectedVRM = v.uid;
-      };
-      // Auto-select first (Victoria after sort)
-      if (i === 0) {
-        card.classList.add('selected');
-        selectedVRM = v.uid;
-      }
-      grid.appendChild(card);
-    });
-  } catch (e) {
-    grid.innerHTML = '<div style="color:#ef4444;font-size:12px;">Failed to load models</div>';
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#64748b;padding:16px;font-size:12px;">No models</div>';
+    return;
   }
-}
-loadVRMList();
 
-// Check server
-async function checkServer() {
-  const dot = document.getElementById('statusDot');
-  const text = document.getElementById('statusText');
-  try {
-    const r = await fetch(API_BASE + '/health');
-    const d = await r.json();
-    dot.className = 'status-dot online';
-    text.textContent = 'Server Online';
-  } catch (e) {
-    dot.className = 'status-dot offline';
-    text.textContent = 'Server Offline — please try later';
-  }
+  grid.innerHTML = filtered.map(m => {
+    const isSelected = selectedVRM && selectedVRM.uid === m.uid;
+    const emoji = getGenderEmoji(m.tags);
+    const badge = m.source === 'booth' ? 'BOOTH' : 'VRoid';
+    const thumb = m.thumbnail ? `<img class="vrm-thumb" src="${RES}${m.thumbnail}" alt="${m.name}">` : `<span class="emoji">${emoji}</span>`;
+    return `<div class="vrm-option${isSelected ? ' selected' : ''}" onclick="selectVRMModel('${m.uid}')">
+      <span class="vrm-badge">${badge}</span>
+      ${thumb}
+      <div class="vrm-name">${m.name}</div>
+      ${m.name_ja ? `<div class="vrm-creator">${m.name_ja}</div>` : ''}
+      ${m.creator ? `<div class="vrm-creator">${m.creator}</div>` : ''}
+    </div>`;
+  }).join('');
 }
-checkServer();
 
-// Load avatars
+async function selectVRMModel(uid) {
+  const model = allModels.find(m => m.uid === uid);
+  if (!model) return;
+  selectedVRM = model;
+  renderVRMGrid();
+  const url = await resolveVrmUrl(model.uid);
+  if (url) loadPreviewVRM(url);
+}
+
+// --- Load existing ---
 async function loadAvatars() {
-  const grid = document.getElementById('avatarGrid');
+  const uid = getUserId();
   try {
-    const r = await fetch(API_BASE + '/api/v1/avatars?user_id=' + DEMO_USER);
+    const r = await fetch(`${CORE}/api/v1/avatars?user_id=${uid}`);
     const d = await r.json();
-    const list = d.response || [];
+    const list = d.response || d;
+    const container = document.getElementById('avatarList');
 
-    if (list.length === 0) {
-      grid.innerHTML = '<div class="empty-state">No avatars yet. Create one below!</div>';
+    if (!list.length) {
+      container.innerHTML = '<div class="empty">아바타가 없습니다.<br>"새로 만들기" 탭에서 만들어보세요!</div>';
       return;
     }
 
-    grid.innerHTML = '';
+    container.innerHTML = '';
     list.forEach(a => {
-      const card = document.createElement('div');
-      card.className = 'avatar-card';
-      const aid = a.id || a.avatar_id;
-      card.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:start;">
-          <div class="name">${a.avatar_name || a.name || 'Avatar'}</div>
-          <button onclick="event.stopPropagation();deleteAvatar(${aid},'${(a.avatar_name||a.name||'').replace(/'/g,'')}')" style="padding:2px 6px;border:1px solid #334155;border-radius:4px;background:transparent;color:#64748b;font-size:10px;cursor:pointer;">✕</button>
+      const saved = JSON.parse(localStorage.getItem('nvatar_' + a.id) || '{}');
+      const vrmUid = saved.vrm_uid || saved.vrm_url || '';
+      const vrmName = saved.vrm_name || 'Default';
+      const thumbUrl = saved.vrm_thumbnail || '';
+      const el = document.createElement('div');
+      el.className = 'avatar-item';
+      el.innerHTML = `
+        ${thumbUrl ? `<img class="avatar-thumb" src="${RES}${thumbUrl}" alt="${a.name}">` : ''}
+        <div class="info">
+          <div class="name">${a.name}</div>
+          <div class="desc">${(a.persona || '').substring(0, 50)}${(a.persona || '').length > 50 ? '...' : ''} · ${vrmName}</div>
         </div>
-        <div class="persona">${(a.persona || '').slice(0, 60)}</div>
-        ${a.mbti ? `<span class="mbti">${a.mbti}</span>` : ''}
-        ${a.language ? `<span class="mbti" style="background:rgba(34,197,94,0.2);color:#4ade80;">${a.language.toUpperCase()}</span>` : ''}
+        <div class="arrow">\u2192</div>
       `;
-      card.onclick = () => enterRoom(a);
-      grid.appendChild(card);
+      el.onclick = () => enterRoom(a.id, vrmUid);
+      container.appendChild(el);
     });
-
-    // Disable create if max reached
-    if (list.length >= MAX_AVATARS) {
-      document.getElementById('btnCreate').disabled = true;
-      document.getElementById('btnCreate').textContent = `Max ${MAX_AVATARS} avatars reached`;
-    }
-  } catch (e) {
-    grid.innerHTML = '<div class="empty-state">Failed to load. Is the server running?</div>';
+  } catch(e) {
+    document.getElementById('avatarList').innerHTML = '<div class="empty">서버 연결 실패</div>';
   }
 }
+
+// --- Create ---
+async function createAndEnter() {
+  const name = document.getElementById('inName').value.trim();
+  const persona = document.getElementById('inPersona').value.trim();
+  const tone = document.getElementById('inTone').value.trim();
+  if (!name || !persona || !tone) { alert('이름, 성격, 말투를 입력하세요'); return; }
+
+  const uid = getUserId();
+  if (!selectedVRM) { alert('외형을 선택하세요'); return; }
+
+  const r = await fetch(`${CORE}/api/v1/avatars`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      user_id: uid,
+      name, persona, tone,
+      mbti: document.getElementById('inMbti').value || null,
+      speech_style: '',
+      speech_level: document.getElementById('inSpeechLevel').value,
+      proactive_level: 3,
+    })
+  });
+  const d = await r.json();
+  if (d.response) {
+    const avatarId = d.response.id;
+    localStorage.setItem('nvatar_' + avatarId, JSON.stringify({
+      vrm_uid: selectedVRM.uid,
+      vrm_name: selectedVRM.name,
+      vrm_thumbnail: selectedVRM.thumbnail || '',
+    }));
+    enterRoom(avatarId, selectedVRM.uid);
+  }
+}
+
+// --- Enter Room ---
+function enterRoom(avatarId, vrmUid) {
+  const uid = vrmUid || (selectedVRM ? selectedVRM.uid : '');
+  if (!uid) {
+    alert('VRM model not selected');
+    return;
+  }
+  window.location.href = `room.html?avatar=${avatarId}&vrm=${uid}`;
+}
+
+// --- 3D Preview ---
+let pScene, pCamera, pRenderer, pControls, pModel, pClock;
+let pIdleMixer = null;
+let pIdleAction = null;
+
+// Official Mixamo→VRM rig map (full, from pixiv/three-vrm)
+const mixamoVRMRigMap = {
+  mixamorigHips:'hips',mixamorigSpine:'spine',mixamorigSpine1:'chest',mixamorigSpine2:'upperChest',
+  mixamorigNeck:'neck',mixamorigHead:'head',
+  mixamorigLeftShoulder:'leftShoulder',mixamorigLeftArm:'leftUpperArm',mixamorigLeftForeArm:'leftLowerArm',mixamorigLeftHand:'leftHand',
+  mixamorigLeftHandThumb1:'leftThumbMetacarpal',mixamorigLeftHandThumb2:'leftThumbProximal',mixamorigLeftHandThumb3:'leftThumbDistal',
+  mixamorigLeftHandIndex1:'leftIndexProximal',mixamorigLeftHandIndex2:'leftIndexIntermediate',mixamorigLeftHandIndex3:'leftIndexDistal',
+  mixamorigLeftHandMiddle1:'leftMiddleProximal',mixamorigLeftHandMiddle2:'leftMiddleIntermediate',mixamorigLeftHandMiddle3:'leftMiddleDistal',
+  mixamorigLeftHandRing1:'leftRingProximal',mixamorigLeftHandRing2:'leftRingIntermediate',mixamorigLeftHandRing3:'leftRingDistal',
+  mixamorigLeftHandPinky1:'leftLittleProximal',mixamorigLeftHandPinky2:'leftLittleIntermediate',mixamorigLeftHandPinky3:'leftLittleDistal',
+  mixamorigRightShoulder:'rightShoulder',mixamorigRightArm:'rightUpperArm',mixamorigRightForeArm:'rightLowerArm',mixamorigRightHand:'rightHand',
+  mixamorigRightHandThumb1:'rightThumbMetacarpal',mixamorigRightHandThumb2:'rightThumbProximal',mixamorigRightHandThumb3:'rightThumbDistal',
+  mixamorigRightHandIndex1:'rightIndexProximal',mixamorigRightHandIndex2:'rightIndexIntermediate',mixamorigRightHandIndex3:'rightIndexDistal',
+  mixamorigRightHandMiddle1:'rightMiddleProximal',mixamorigRightHandMiddle2:'rightMiddleIntermediate',mixamorigRightHandMiddle3:'rightMiddleDistal',
+  mixamorigRightHandRing1:'rightRingProximal',mixamorigRightHandRing2:'rightRingIntermediate',mixamorigRightHandRing3:'rightRingDistal',
+  mixamorigRightHandPinky1:'rightLittleProximal',mixamorigRightHandPinky2:'rightLittleIntermediate',mixamorigRightHandPinky3:'rightLittleDistal',
+  mixamorigLeftUpLeg:'leftUpperLeg',mixamorigLeftLeg:'leftLowerLeg',mixamorigLeftFoot:'leftFoot',mixamorigLeftToeBase:'leftToes',
+  mixamorigRightUpLeg:'rightUpperLeg',mixamorigRightLeg:'rightLowerLeg',mixamorigRightFoot:'rightFoot',mixamorigRightToeBase:'rightToes',
+};
+
+function loadMixamoForPreview(url, vrm, model) {
+  const loader = new FBXLoader();
+  loader.load(url, (asset) => {
+    const clip = THREE.AnimationClip.findByName(asset.animations, 'mixamo.com') || asset.animations[0];
+    if (!clip) return;
+
+    const tracks = [];
+    const restRotationInverse = new THREE.Quaternion();
+    const parentRestWorldRotation = new THREE.Quaternion();
+    const _quatA = new THREE.Quaternion();
+
+    const motionHipsNode = asset.getObjectByName('mixamorigHips');
+    const motionHipsHeight = motionHipsNode ? motionHipsNode.position.y : 1;
+    const vrmHipsHeight = vrm.humanoid?.normalizedRestPose?.hips?.position?.[1] || 1;
+    const hipsPositionScale = vrmHipsHeight / motionHipsHeight;
+
+    clip.tracks.forEach((track) => {
+      const trackSplitted = track.name.split('.');
+      const mixamoRigName = trackSplitted[0];
+      const vrmBoneName = mixamoVRMRigMap[mixamoRigName];
+      const vrmNodeName = vrm.humanoid?.getNormalizedBoneNode(vrmBoneName)?.name;
+      const mixamoRigNode = asset.getObjectByName(mixamoRigName);
+
+      if (vrmNodeName != null) {
+        const propertyName = trackSplitted[1];
+        mixamoRigNode.getWorldQuaternion(restRotationInverse).invert();
+        mixamoRigNode.parent.getWorldQuaternion(parentRestWorldRotation);
+
+        if (track instanceof THREE.QuaternionKeyframeTrack) {
+          for (let i = 0; i < track.values.length; i += 4) {
+            const flatQuaternion = track.values.slice(i, i + 4);
+            _quatA.fromArray(flatQuaternion);
+            _quatA.premultiply(parentRestWorldRotation).multiply(restRotationInverse);
+            _quatA.toArray(flatQuaternion);
+            flatQuaternion.forEach((v, index) => { track.values[index + i] = v; });
+          }
+          tracks.push(new THREE.QuaternionKeyframeTrack(
+            `${vrmNodeName}.${propertyName}`, track.times,
+            track.values.map((v, i) => (vrm.meta?.metaVersion === '0' && i % 2 === 0 ? -v : v)),
+          ));
+        }
+      }
+    });
+
+    const filteredTracks = tracks.filter(t => !t.name.endsWith('.position'));
+    const idleClip = new THREE.AnimationClip('idle', clip.duration, filteredTracks);
+
+    pIdleMixer = new THREE.AnimationMixer(model);
+    pIdleAction = pIdleMixer.clipAction(idleClip);
+    pIdleAction.play();
+    if (pModel) pModel.visible = true;
+    console.log(`[Preview] Idle loaded (${filteredTracks.length} tracks)`);
+  }, undefined, (err) => {
+    console.warn('[Preview] FBX load failed, using manual pose fallback');
+    _applyManualIdlePose(vrm);
+    if (pModel) pModel.visible = true;
+  });
+}
+
+// Post-animation arm spread adjustment (prevents arms clipping into body)
+function _adjustArmSpread(vrm) {
+  const h = vrm.humanoid;
+  if (!h) return;
+  const L = h.getNormalizedBoneNode('leftUpperArm');
+  const R = h.getNormalizedBoneNode('rightUpperArm');
+  if (L) { L.rotation.z -= 0.15; L.rotation.x += 0.05; }   // ~9° outward, ~3° forward
+  if (R) { R.rotation.z += 0.15; R.rotation.x += 0.05; }
+}
+
+function _applyManualIdlePose(vrm) {
+  const h = vrm.humanoid;
+  if (!h) return;
+  const DEG = Math.PI / 180;
+  const poses = {
+    leftUpperArm: { z: 65 * DEG }, rightUpperArm: { z: -65 * DEG },
+    leftLowerArm: { z: 3 * DEG }, rightLowerArm: { z: -3 * DEG },
+  };
+  for (const [boneName, rot] of Object.entries(poses)) {
+    const node = h.getNormalizedBoneNode(boneName);
+    if (node && rot.z) node.rotation.z = rot.z;
+  }
+}
+
+function initPreview() {
+  if (pRenderer) return;
+  const container = document.getElementById('previewContainer');
+  pClock = new THREE.Clock();
+
+  pScene = new THREE.Scene();
+  pScene.background = new THREE.Color(0x0a0f1a);
+
+  pCamera = new THREE.PerspectiveCamera(30, container.clientWidth / container.clientHeight, 0.1, 100);
+  pCamera.position.set(0, 1.2, 3);
+
+  pRenderer = new THREE.WebGLRenderer({ antialias: true });
+  pRenderer.setSize(container.clientWidth, container.clientHeight);
+  pRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  pRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  container.appendChild(pRenderer.domElement);
+
+  pScene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+  dir.position.set(2, 3, 2);
+  pScene.add(dir);
+
+  pControls = new OrbitControls(pCamera, pRenderer.domElement);
+  pControls.target.set(0, 1, 0);
+  pControls.enableDamping = true;
+  pControls.enableZoom = true;
+  pControls.minDistance = 1.5;
+  pControls.maxDistance = 6;
+
+  document.getElementById('previewPlaceholder').style.display = 'none';
+
+  new ResizeObserver(() => {
+    const w = container.clientWidth, h = container.clientHeight;
+    if (w > 0 && h > 0 && pRenderer) {
+      pCamera.aspect = w / h;
+      pCamera.updateProjectionMatrix();
+      pRenderer.setSize(w, h);
+    }
+  }).observe(container);
+
+  (function animateP() {
+    requestAnimationFrame(animateP);
+    const delta = pClock.getDelta();
+    if (pControls) pControls.update();
+    if (pIdleMixer) { pIdleMixer.update(delta); if (pModel && pModel._vrm) _adjustArmSpread(pModel._vrm); }
+    if (pModel && pModel._vrm) pModel._vrm.update(delta);
+    if (pRenderer) pRenderer.render(pScene, pCamera);
+  })();
+}
+
+function applyIdlePose(vrm, model) {
+  // Use official Mixamo retarget with Idle_Default.fbx (same as room-demo)
+  loadMixamoForPreview(RES + '/res/fbx/mixamo/Idle_Default.fbx', vrm, model);
+}
+
+async function loadPreviewVRM(url) {
+  initPreview();
+  try {
+    const vrmModule = await import('https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.3.3/lib/three-vrm.module.min.js');
+    const { VRMLoaderPlugin } = vrmModule;
+    const loader = new GLTFLoader();
+    loader.register((parser) => new VRMLoaderPlugin(parser));
+
+    if (pModel) pScene.remove(pModel);
+    if (pIdleMixer) { pIdleMixer.stopAllAction(); pIdleMixer = null; }
+
+    loader.load(url, (gltf) => {
+      pModel = gltf.scene;
+      pModel._vrm = gltf.userData.vrm;
+      pModel.rotation.y = Math.PI;
+      pModel.visible = false;
+      pScene.add(pModel);
+      applyIdlePose(gltf.userData.vrm, pModel);
+    });
+  } catch(e) { console.error('Preview:', e); }
+}
+
+// Expose functions to HTML onclick
+window.switchTab = function(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', (tab === 'existing' && i === 0) || (tab === 'create' && i === 1));
+  });
+  document.getElementById('tabExisting').style.display = tab === 'existing' ? 'block' : 'none';
+  document.getElementById('tabCreate').style.display = tab === 'create' ? 'block' : 'none';
+  if (tab === 'create') {
+    requestAnimationFrame(() => setTimeout(async () => {
+      if (!pRenderer && selectedVRM) { const u = await resolveVrmUrl(selectedVRM.uid); if (u) loadPreviewVRM(u); }
+    }, 200));
+  }
+};
+
+window.selectVRMModel = async function(uid) {
+  const model = allModels.find(m => m.uid === uid);
+  if (!model) return;
+  selectedVRM = model;
+  renderVRMGrid();
+  loadPreviewVRM(await resolveVrmUrl(model.uid));
+};
+
+window.filterVRM = function(filter) {
+  currentFilter = filter;
+  document.querySelectorAll('.vrm-filter-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent === filter || (filter === 'all' && b.textContent === 'All'));
+  });
+  renderVRMGrid();
+};
+
+window.createAndEnter = createAndEnter;
+
+// --- i18n ---
+const i18n = {
+  ko: { heroDesc: 'AI 아바타와 대화하세요', tabExisting: '내 아바타', tabCreate: '새로 만들기',
+    createTitle: '아바타 만들기', labelName: '이름', phName: '예: 하루',
+    labelPersona: '성격 (페르소나)', phPersona: '예: 밝고 활발하며 호기심이 많은 성격.',
+    labelMbti: 'MBTI', mbtiRandom: '랜덤 배정', labelTone: '말투', phTone: '예: 다정하고 따뜻한',
+    labelSpeechLevel: '말투 레벨', slFormal: '존대 (~습니다)', slPolite: '반존대 (~요)', slCasual: '평대 (~해)', slInformal: '하대 (~다)',
+    labelAppearance: '외형 선택', btnCreate: '만들고 입장하기', previewHint: '외형을 선택하면 미리보기',
+    previewMouse: '마우스로 회전 가능', emptyAvatar: '아바타가 없습니다.<br>"새로 만들기" 탭에서 만들어보세요!',
+    loading: '로딩 중...', serverFail: '서버 연결 실패', fillRequired: '이름, 성격, 말투를 입력하세요', selectVRM: '외형을 선택하세요' },
+  ja: { heroDesc: 'AIアバターと会話しよう', tabExisting: 'マイアバター', tabCreate: '新規作成',
+    createTitle: 'アバター作成', labelName: '名前', phName: '例: ハル、サクラ',
+    labelPersona: '性格', phPersona: '例: 明るく好奇心旺盛で共感力がある性格。',
+    labelMbti: 'MBTI', mbtiRandom: 'ランダム', labelTone: '話し方', phTone: '例: 優しくて温かい',
+    labelSpeechLevel: '敬語レベル', slFormal: '敬語 (~ます)', slPolite: '丁寧 (~です)', slCasual: 'タメ口 (~だよ)', slInformal: 'くだけた (~だ)',
+    labelAppearance: '外見選択', btnCreate: '作成して入室', previewHint: '外見を選ぶとプレビュー',
+    previewMouse: 'マウスで回転可能', emptyAvatar: 'アバターがありません。<br>「新規作成」タブで作りましょう！',
+    loading: '読み込み中...', serverFail: 'サーバー接続失敗', fillRequired: '名前・性格・話し方を入力してください', selectVRM: '外見を選んでください' },
+  en: { heroDesc: 'Chat with your AI Avatar', tabExisting: 'My Avatars', tabCreate: 'Create New',
+    createTitle: 'Create Avatar', labelName: 'Name', phName: 'e.g. Haru, Alex',
+    labelPersona: 'Personality', phPersona: 'e.g. Cheerful and curious with great empathy.',
+    labelMbti: 'MBTI', mbtiRandom: 'Random', labelTone: 'Tone', phTone: 'e.g. Warm and friendly',
+    labelSpeechLevel: 'Speech Level', slFormal: 'Formal', slPolite: 'Polite', slCasual: 'Casual', slInformal: 'Informal',
+    labelAppearance: 'Appearance', btnCreate: 'Create & Enter', previewHint: 'Select appearance to preview',
+    previewMouse: 'Drag to rotate', emptyAvatar: 'No avatars yet.<br>Create one in the "Create New" tab!',
+    loading: 'Loading...', serverFail: 'Server connection failed', fillRequired: 'Please fill name, personality, and tone', selectVRM: 'Please select an appearance' },
+};
+let curLang = 'ko';
+
+window.setLang = function(lang) {
+  curLang = lang;
+  const t = i18n[lang] || i18n.ko;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.includes(lang === 'ko' ? '한국어' : lang === 'ja' ? '日本語' : 'English')));
+  document.getElementById('heroDesc').textContent = t.heroDesc;
+  document.querySelectorAll('.tab')[0].textContent = t.tabExisting;
+  document.querySelectorAll('.tab')[1].textContent = t.tabCreate;
+  document.querySelector('.create-form h2').textContent = t.createTitle;
+  const labels = document.querySelectorAll('.create-form label');
+  labels[0].textContent = t.labelName; labels[1].textContent = t.labelPersona;
+  labels[2].textContent = t.labelMbti; labels[3].textContent = t.labelTone;
+  labels[4].textContent = t.labelSpeechLevel; labels[5].textContent = t.labelAppearance;
+  document.getElementById('inName').placeholder = t.phName;
+  document.getElementById('inPersona').placeholder = t.phPersona;
+  document.getElementById('inTone').placeholder = t.phTone;
+  document.getElementById('inMbti').options[0].textContent = t.mbtiRandom;
+  const sl = document.getElementById('inSpeechLevel');
+  sl.options[0].textContent = t.slFormal; sl.options[1].textContent = t.slPolite;
+  sl.options[2].textContent = t.slCasual; sl.options[3].textContent = t.slInformal;
+  document.querySelector('.btn-primary').textContent = t.btnCreate;
+  document.getElementById('previewPlaceholder').textContent = t.previewHint;
+  document.querySelector('.preview-label').textContent = t.previewMouse;
+};
+
+// Init
 loadAvatars();
-
-// Enter room
-function enterRoom(avatar) {
-  const avatarId = avatar.id || avatar.avatar_id;
-  const vrm = localStorage.getItem('nvatar_vrm_uid_' + avatarId) || (vrmList.length > 0 ? vrmList[0].uid : '');
-  const lang = avatar.language || document.getElementById('createLang')?.value || 'en';
-  window.location.href = `room.html?avatar=${avatarId}&vrm=${encodeURIComponent(vrm)}&lang=${lang}`;
-}
-
-// Delete avatar
-async function deleteAvatar(avatarId, name) {
-  if (!confirm(`Delete "${name}"? This will remove all conversation history.`)) return;
-  try {
-    const r = await fetch(API_BASE + '/api/v1/avatars/' + avatarId, { method: 'DELETE' });
-    const d = await r.json();
-    if (d.code === 200) {
-      localStorage.removeItem('nvatar_vrm_uid_' + avatarId);
-      loadAvatars();
-    } else {
-      alert('Delete failed: ' + (d.message || ''));
-    }
-  } catch (e) {
-    alert('Server error: ' + e.message);
-  }
-}
-
-// Persona presets → API fields (per language)
-const PERSONA_PRESETS = {
-  friendly: {
-    ko: { persona: "밝고 다정한 성격. 상대방에게 관심이 많고 공감을 잘 해준다.", tone: "상냥하고 따뜻한 톤, 이모지를 자주 사용" },
-    ja: { persona: "明るくて優しい性格。相手に関心が高く、共感が上手。", tone: "優しくて温かいトーン、絵文字をよく使う" },
-    en: { persona: "Bright and caring personality. Very empathetic and interested in others.", tone: "Warm and friendly tone, uses emojis often" },
-    zh: { persona: "开朗体贴的性格。对他人很关心，善于共情。", tone: "温柔温暖的语气，经常使用表情符号" },
-  },
-  calm: {
-    ko: { persona: "차분하고 사려 깊은 성격. 깊이 있는 대화를 좋아한다.", tone: "조용하고 차분한 톤, 생각을 정리해서 말함" },
-    ja: { persona: "落ち着いて思慮深い性格。深い会話を好む。", tone: "静かで落ち着いたトーン、考えをまとめて話す" },
-    en: { persona: "Calm and thoughtful personality. Enjoys deep conversations.", tone: "Quiet and composed tone, speaks with considered thoughts" },
-    zh: { persona: "沉稳体贴的性格。喜欢深度对话。", tone: "安静沉稳的语气，条理清晰地表达" },
-  },
-  energetic: {
-    ko: { persona: "에너지 넘치고 장난기 있는 성격. 유머와 리액션이 풍부하다.", tone: "신나고 활기찬 톤, 감탄사를 많이 사용" },
-    ja: { persona: "エネルギッシュでお茶目な性格。ユーモアとリアクションが豊か。", tone: "元気で活発なトーン、感嘆詞を多用" },
-    en: { persona: "Energetic and playful personality. Rich in humor and reactions.", tone: "Excited and lively tone, uses lots of exclamations" },
-    zh: { persona: "精力充沛、爱开玩笑的性格。幽默感和反应都很丰富。", tone: "兴奋活泼的语气，经常使用感叹词" },
-  },
-  tsundere: {
-    ko: { persona: "겉으로는 무뚝뚝하지만 속으로는 챙겨주는 성격. 칭찬에 쑥스러워한다.", tone: "도도하지만 가끔 솔직해지는 톤" },
-    ja: { persona: "表面はそっけないけど内心は気にかけてくれる性格。褒められると照れる。", tone: "ツンとしているけど時々素直になるトーン" },
-    en: { persona: "Acts aloof but secretly caring. Gets flustered by compliments.", tone: "Cool and distant but occasionally honest tone" },
-    zh: { persona: "表面冷淡但内心关心人的性格。被夸奖会害羞。", tone: "高冷但偶尔会坦诚的语气" },
-  },
-  intellectual: {
-    ko: { persona: "지적 호기심이 강하고 다양한 주제에 관심이 많다. 논리적이면서도 유연하다.", tone: "침착하고 지적인 톤, 근거를 들어 설명" },
-    ja: { persona: "知的好奇心が強く、様々なテーマに関心がある。論理的でありながら柔軟。", tone: "落ち着いて知的なトーン、根拠を挙げて説明" },
-    en: { persona: "Intellectually curious with wide-ranging interests. Logical yet flexible.", tone: "Composed and intellectual tone, explains with evidence" },
-    zh: { persona: "求知欲强，对各种话题都感兴趣。逻辑性强又灵活。", tone: "沉着理性的语气，善于举例说明" },
-  },
-};
-
-const LANG_SPEECH = {
-  ko: { speech_level: "polite", speech_style: "" },
-  ja: { speech_level: "polite", speech_style: "です/ます体で話して" },
-  en: { speech_level: "casual", speech_style: "" },
-};
-
-// Create avatar
-async function createAvatar() {
-  const name = document.getElementById('createName').value.trim();
-  if (!name) { alert('Enter a name'); return; }
-
-  const btn = document.getElementById('btnCreate');
-  btn.disabled = true;
-  btn.textContent = 'Creating...';
-
-  const personaKey = document.getElementById('createPersona').value;
-  const lang = document.getElementById('createLang').value;
-  const preset = PERSONA_PRESETS[personaKey][lang] || PERSONA_PRESETS[personaKey].ko;
-  const langPreset = LANG_SPEECH[lang] || LANG_SPEECH.ko;
-  const vrm = selectedVRM || '';
-
-  try {
-    const r = await fetch(API_BASE + '/api/v1/avatars', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user_id: DEMO_USER,
-        name: name,
-        persona: preset.persona,
-        tone: preset.tone,
-        speech_level: langPreset.speech_level,
-        speech_style: langPreset.speech_style,
-        language: lang,
-      }),
-    });
-    const d = await r.json();
-    if (d.code === 200 && d.response) {
-      // Store VRM uid locally (server doesn't store VRM selection)
-      const avatarId = d.response.id || d.response.avatar_id;
-      localStorage.setItem('nvatar_vrm_uid_' + avatarId, vrm);
-      enterRoom(d.response);
-    } else {
-      alert('Failed to create: ' + (d.message || JSON.stringify(d)));
-    }
-  } catch (e) {
-    alert('Server error: ' + e.message);
-  }
-
-  btn.disabled = false;
-  btn.textContent = 'Create Avatar';
-}
+loadVRMModels();
 </script>
 </body>
 </html>
