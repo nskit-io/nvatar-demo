@@ -180,9 +180,9 @@ let vrmList = [];
 async function loadVRMList() {
   const grid = document.getElementById('vrmGrid');
   try {
-    const r = await fetch(RES_BASE + '/api/v1/assets');
+    const r = await fetch(RES_BASE + '/api/v1/vrm/models');
     const d = await r.json();
-    vrmList = (d.vrm || []).filter(v => v.meta?.verified !== false);
+    vrmList = (d.models || []);
 
     if (vrmList.length === 0) {
       grid.innerHTML = '<div style="color:#475569;font-size:12px;">No models available</div>';
@@ -190,8 +190,8 @@ async function loadVRMList() {
     }
 
     grid.innerHTML = '';
-    // Sort Victoria_Rubin to front
-    const victoriaIdx = vrmList.findIndex(v => v.name === 'Victoria' || v.path?.includes('Victoria_Rubin'));
+    // Sort Victoria to front
+    const victoriaIdx = vrmList.findIndex(v => v.name === 'Victoria');
     if (victoriaIdx > 0) { vrmList.unshift(vrmList.splice(victoriaIdx, 1)[0]); }
 
     vrmList.forEach((v, i) => {
@@ -204,12 +204,12 @@ async function loadVRMList() {
       card.onclick = () => {
         grid.querySelectorAll('.vrm-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
-        selectedVRM = RES_BASE + v.path;
+        selectedVRM = v.uid;
       };
-      // Auto-select first (Victoria_Rubin after sort)
+      // Auto-select first (Victoria after sort)
       if (i === 0) {
         card.classList.add('selected');
-        selectedVRM = RES_BASE + v.path;
+        selectedVRM = v.uid;
       }
       grid.appendChild(card);
     });
@@ -280,7 +280,7 @@ loadAvatars();
 // Enter room
 function enterRoom(avatar) {
   const avatarId = avatar.id || avatar.avatar_id;
-  const vrm = localStorage.getItem('nvatar_vrm_' + avatarId) || (vrmList.length > 0 ? RES_BASE + vrmList[0].path : RES_BASE + '/res/vrm/vroid-samples/Victoria_Rubin.vrm');
+  const vrm = localStorage.getItem('nvatar_vrm_uid_' + avatarId) || (vrmList.length > 0 ? vrmList[0].uid : '');
   const lang = avatar.language || document.getElementById('createLang')?.value || 'en';
   window.location.href = `room.html?avatar=${avatarId}&vrm=${encodeURIComponent(vrm)}&lang=${lang}`;
 }
@@ -292,7 +292,7 @@ async function deleteAvatar(avatarId, name) {
     const r = await fetch(API_BASE + '/api/v1/avatars/' + avatarId, { method: 'DELETE' });
     const d = await r.json();
     if (d.code === 200) {
-      localStorage.removeItem('nvatar_vrm_' + avatarId);
+      localStorage.removeItem('nvatar_vrm_uid_' + avatarId);
       loadAvatars();
     } else {
       alert('Delete failed: ' + (d.message || ''));
@@ -355,7 +355,7 @@ async function createAvatar() {
   const lang = document.getElementById('createLang').value;
   const preset = PERSONA_PRESETS[personaKey][lang] || PERSONA_PRESETS[personaKey].ko;
   const langPreset = LANG_SPEECH[lang] || LANG_SPEECH.ko;
-  const vrm = selectedVRM || (RES_BASE + '/res/vrm/vroid-samples/Victoria_Rubin.vrm');
+  const vrm = selectedVRM || '';
 
   try {
     const r = await fetch(API_BASE + '/api/v1/avatars', {
@@ -373,9 +373,9 @@ async function createAvatar() {
     });
     const d = await r.json();
     if (d.code === 200 && d.response) {
-      // Store VRM mapping locally (server doesn't store VRM URL)
+      // Store VRM uid locally (server doesn't store VRM selection)
       const avatarId = d.response.id || d.response.avatar_id;
-      localStorage.setItem('nvatar_vrm_' + avatarId, vrm);
+      localStorage.setItem('nvatar_vrm_uid_' + avatarId, vrm);
       enterRoom(d.response);
     } else {
       alert('Failed to create: ' + (d.message || JSON.stringify(d)));

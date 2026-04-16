@@ -49,6 +49,39 @@ loadVoices();
 // Load from URL params
 const urlParams = new URLSearchParams(window.location.search);
 S.paramAvatarId = urlParams.get('avatar');
-const paramVRM = urlParams.get('vrm') || S.RES_BASE + '/res/vrm/vroid-samples/Victoria_Rubin.vrm';
+const vrmUid = urlParams.get('vrm');
 
-loadVRM(paramVRM, 0);
+// UID-based VRM resolution
+async function resolveAndLoadVRM(uid) {
+  if (!uid) { loadFallbackVRM(); return; }
+  // Backward compat: direct URL passthrough
+  if (uid.startsWith('http') || uid.startsWith('/')) {
+    loadVRM(uid, 0);
+    return;
+  }
+  try {
+    const resp = await fetch(`${S.RES_BASE}/api/v1/vrm/resolve/${encodeURIComponent(uid)}`);
+    if (resp.ok) {
+      const data = await resp.json();
+      loadVRM(S.RES_BASE + data.model.url, 0);
+      return;
+    }
+  } catch (e) {
+    console.warn('[Main] VRM resolve failed:', e);
+  }
+  loadFallbackVRM();
+}
+
+async function loadFallbackVRM() {
+  try {
+    const resp = await fetch(`${S.RES_BASE}/api/v1/vrm/models`);
+    if (resp.ok) {
+      const data = await resp.json();
+      const vic = (data.models || []).find(m => m.name === 'Victoria');
+      if (vic) { resolveAndLoadVRM(vic.uid); return; }
+    }
+  } catch (e) { /* fall through */ }
+  console.error('[Main] All VRM loading failed');
+}
+
+resolveAndLoadVRM(vrmUid);
