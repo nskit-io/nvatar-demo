@@ -13,7 +13,7 @@ function saveVerified() {
 export async function buildVrmListPanel() {
   const panel = document.getElementById('vrmListPanel');
   try {
-    const res = await fetch(S.API_BASE + '/api/v1/assets');
+    const res = await fetch(S.RES_BASE + '/api/v1/assets');
     const data = await res.json();
     if (!data.vrm || data.vrm.length === 0) { panel.innerHTML = '<small style="color:#888;">VRM 없음</small>'; return; }
     panel.innerHTML = '';
@@ -55,7 +55,7 @@ export async function buildVrmListPanel() {
           if (e.target.tagName === 'INPUT') return;
           document.querySelectorAll('.vrm-card').forEach(c => c.classList.remove('loaded'));
           card.classList.add('loaded');
-          const vrmUrl = v.path.startsWith('/') ? S.API_BASE + v.path : v.path;
+          const vrmUrl = v.path.startsWith('/') ? S.RES_BASE + v.path : v.path;
           load(vrmUrl);
         });
 
@@ -69,7 +69,7 @@ export async function buildVrmListPanel() {
           badge.className = 'vrm-badge ' + (cb.checked ? 'ok' : 'ng');
           badge.textContent = cb.checked ? 'OK' : 'NG';
           // Update meta.json on server
-          fetch(S.API_BASE + '/api/v1/assets/verify', {
+          fetch(S.RES_BASE + '/api/v1/assets/verify', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({path: v.path, verified: cb.checked})
@@ -104,7 +104,7 @@ export async function scanAllVrmBones() {
   btn.textContent = '스캔 중...';
 
   try {
-    const res = await fetch(S.API_BASE + '/api/v1/assets');
+    const res = await fetch(S.RES_BASE + '/api/v1/assets');
     const data = await res.json();
     const vrms = data.vrm.filter(v => v.path.endsWith('.vrm'));
     const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
@@ -117,7 +117,7 @@ export async function scanAllVrmBones() {
     // Load reference FBX animation
     status.textContent = 'Idle FBX 로드중...';
     const fbxLoader = new FBXLoader();
-    const fbxAsset = await fbxLoader.loadAsync(S.API_BASE + '/static/fbx/mixamo/Idle_Default.fbx');
+    const fbxAsset = await fbxLoader.loadAsync(S.RES_BASE + '/res/fbx/mixamo/Idle_Default.fbx');
     const refClip = THREE.AnimationClip.findByName(fbxAsset.animations, 'mixamo.com') || fbxAsset.animations[0];
     if (!refClip) { status.textContent = 'FBX 클립 없음'; return; }
 
@@ -126,7 +126,7 @@ export async function scanAllVrmBones() {
       status.textContent = `(${i+1}/${vrms.length}) ${v.name}...`;
 
       try {
-        const scanUrl = v.path.startsWith('/') ? S.API_BASE + v.path : v.path;
+        const scanUrl = v.path.startsWith('/') ? S.RES_BASE + v.path : v.path;
         const gltf = await vrmLoader.loadAsync(scanUrl);
         const vrm = gltf.userData.vrm;
         if (!vrm || !vrm.humanoid) {
@@ -196,7 +196,7 @@ export async function scanAllVrmBones() {
         saveVerified();
         updateCardVerified(v.path, ok);
 
-        fetch(S.API_BASE + '/api/v1/assets/verify', {
+        fetch(S.RES_BASE + '/api/v1/assets/verify', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({path: v.path, verified: ok, boneRate: typeof armScore === 'number' ? armScore : 0, armRate: typeof armScore === 'number' ? armScore : 0})

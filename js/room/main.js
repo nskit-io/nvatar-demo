@@ -49,6 +49,6 @@ loadVoices();
 // Load from URL params
 const urlParams = new URLSearchParams(window.location.search);
 S.paramAvatarId = urlParams.get('avatar');
-const paramVRM = urlParams.get('vrm') || S.API_BASE + '/static/vrm/vroid-samples/Victoria_Rubin.vrm';
+const paramVRM = urlParams.get('vrm') || S.RES_BASE + '/res/vrm/vroid-samples/Victoria_Rubin.vrm';
 
 loadVRM(paramVRM, 0);

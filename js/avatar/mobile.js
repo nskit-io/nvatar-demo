@@ -36,7 +36,7 @@ async function buildSheetVrm(body) {
   if (!_sheetVrmData) {
     body.innerHTML = '<small style="color:#888;">로딩중...</small>';
     try {
-      const res = await fetch(S.API_BASE + '/api/v1/assets');
+      const res = await fetch(S.RES_BASE + '/api/v1/assets');
       const data = await res.json();
       _sheetVrmData = data.vrm || [];
     } catch(e) {
@@ -53,14 +53,14 @@ async function buildSheetVrm(body) {
     const alias = v.meta?.alias;
     const name = alias ? alias.ko : v.name.replace('.vrm','');
     const rawThumb = v.thumbnail || '';
-    const thumbUrl = rawThumb.startsWith('/') ? S.API_BASE + rawThumb : rawThumb;
+    const thumbUrl = rawThumb.startsWith('/') ? S.RES_BASE + rawThumb : rawThumb;
     item.innerHTML = thumbUrl
       ? `<img class="bs-vrm-thumb" src="${thumbUrl}" alt="${name}"><div>${name}</div>`
       : `<div style="width:100%;aspect-ratio:1;border-radius:6px;background:#334155;margin-bottom:4px;display:flex;align-items:center;justify-content:center;">👤</div><div>${name}</div>`;
     item.onclick = () => {
       grid.querySelectorAll('.bs-vrm-item').forEach(i => i.classList.remove('active'));
       item.classList.add('active');
-      const vrmUrl = v.path.startsWith('/') ? S.API_BASE + v.path : v.path;
+      const vrmUrl = v.path.startsWith('/') ? S.RES_BASE + v.path : v.path;
       load(vrmUrl);
       setTimeout(closeSheet, 300);
     };

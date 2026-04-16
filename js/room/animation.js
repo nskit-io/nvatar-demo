@@ -123,19 +123,19 @@ function _applyManualIdlePose(vrm) {
 }
 
 const MOOD_FBX = {
-  idle:      S.API_BASE + '/static/fbx/mixamo/Idle_Default.fbx',
-  happy:     S.API_BASE + '/static/fbx/mixamo/Idle_Happy.fbx',
-  sad:       S.API_BASE + '/static/fbx/mixamo/Idle_Sad.fbx',
-  think:     S.API_BASE + '/static/fbx/mixamo/Idle_Thinking.fbx',
-  lookAround:S.API_BASE + '/static/fbx/mixamo/Idle_LookAround.fbx',
-  weightShift:S.API_BASE + '/static/fbx/mixamo/Idle_WeightShift.fbx',
+  idle:      S.RES_BASE + '/res/fbx/mixamo/Idle_Default.fbx',
+  happy:     S.RES_BASE + '/res/fbx/mixamo/Idle_Happy.fbx',
+  sad:       S.RES_BASE + '/res/fbx/mixamo/Idle_Sad.fbx',
+  think:     S.RES_BASE + '/res/fbx/mixamo/Idle_Thinking.fbx',
+  lookAround:S.RES_BASE + '/res/fbx/mixamo/Idle_LookAround.fbx',
+  weightShift:S.RES_BASE + '/res/fbx/mixamo/Idle_WeightShift.fbx',
 };
 const GESTURE_FBX = {
-  wave:    S.API_BASE + '/static/fbx/mixamo/Gesture_Wave.fbx',
-  nod:     S.API_BASE + '/static/fbx/mixamo/Gesture_Nod.fbx',
-  laugh:   S.API_BASE + '/static/fbx/mixamo/Emotion_Laugh.fbx',
-  cheer:   S.API_BASE + '/static/fbx/mixamo/Emotion_Cheer.fbx',
-  surprised:S.API_BASE + '/static/fbx/mixamo/Emotion_Surprised.fbx',
+  wave:    S.RES_BASE + '/res/fbx/mixamo/Gesture_Wave.fbx',
+  nod:     S.RES_BASE + '/res/fbx/mixamo/Gesture_Nod.fbx',
+  laugh:   S.RES_BASE + '/res/fbx/mixamo/Emotion_Laugh.fbx',
+  cheer:   S.RES_BASE + '/res/fbx/mixamo/Emotion_Cheer.fbx',
+  surprised:S.RES_BASE + '/res/fbx/mixamo/Emotion_Surprised.fbx',
 };
 
 export async function loadMixamoAnimations(vrm) {
@@ -146,7 +146,7 @@ export async function loadMixamoAnimations(vrm) {
     for (const [name, path] of Object.entries(GESTURE_FBX)) {
       await loadMixamoAnimation(path, vrm, 'gesture_' + name);
     }
-    await loadMixamoAnimation(S.API_BASE + '/static/fbx/mixamo/Walk_Default.fbx', vrm, 'walking');
+    await loadMixamoAnimation(S.RES_BASE + '/res/fbx/mixamo/Walk_Default.fbx', vrm, 'walking');
     console.log(`[Mixamo] All animations loaded (${Object.keys(S.mixamoClips).length} clips)`);
 
     const avatar = S.avatars[0];

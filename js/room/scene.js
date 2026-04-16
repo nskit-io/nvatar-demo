@@ -90,7 +90,7 @@ function buildRoom() {
 
   updateLoading(20, t('loadingRoom'));
   const roomLoader = new GLTFLoader();
-  roomLoader.load(`${S.API_BASE}/static/room/cozy_living_room/scene.gltf`, (gltf) => {
+  roomLoader.load(`${S.RES_BASE}/res/room/cozy_living_room/scene.gltf`, (gltf) => {
     S.roomModel = gltf.scene;
     S.scene.add(S.roomModel);
 

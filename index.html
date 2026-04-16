@@ -169,6 +169,7 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #0a0a1a; 
 
 <script>
 const API_BASE = 'https://nvatar.nskit.io';
+const RES_BASE = 'https://nvatar-res.nskit.io';
 const DEMO_USER = 'demo-' + (localStorage.getItem('nvatar_demo_uid') || (() => { const uid = Math.random().toString(36).slice(2, 10); localStorage.setItem('nvatar_demo_uid', uid); return uid; })());
 const MAX_AVATARS = 3;
 
@@ -179,7 +180,7 @@ let vrmList = [];
 async function loadVRMList() {
   const grid = document.getElementById('vrmGrid');
   try {
-    const r = await fetch(API_BASE + '/api/v1/assets');
+    const r = await fetch(RES_BASE + '/api/v1/assets');
     const d = await r.json();
     vrmList = (d.vrm || []).filter(v => v.meta?.verified !== false);
 
@@ -196,19 +197,19 @@ async function loadVRMList() {
     vrmList.forEach((v, i) => {
       const card = document.createElement('div');
       card.className = 'vrm-card';
-      const thumbUrl = v.thumbnail ? API_BASE + v.thumbnail : '';
+      const thumbUrl = v.thumbnail ? RES_BASE + v.thumbnail : '';
       card.innerHTML = thumbUrl
         ? `<img class="vrm-thumb" src="${thumbUrl}" alt="${v.name}" loading="lazy"><div class="vrm-name">${v.name}</div>`
         : `<div class="vrm-icon">👤</div><div class="vrm-name">${v.name}</div>`;
       card.onclick = () => {
         grid.querySelectorAll('.vrm-card').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
-        selectedVRM = API_BASE + v.path;
+        selectedVRM = RES_BASE + v.path;
       };
       // Auto-select first (Victoria_Rubin after sort)
       if (i === 0) {
         card.classList.add('selected');
-        selectedVRM = API_BASE + v.path;
+        selectedVRM = RES_BASE + v.path;
       }
       grid.appendChild(card);
     });
@@ -279,7 +280,7 @@ loadAvatars();
 // Enter room
 function enterRoom(avatar) {
   const avatarId = avatar.id || avatar.avatar_id;
-  const vrm = localStorage.getItem('nvatar_vrm_' + avatarId) || (vrmList.length > 0 ? API_BASE + vrmList[0].path : API_BASE + '/static/vrm/vroid-samples/Victoria_Rubin.vrm');
+  const vrm = localStorage.getItem('nvatar_vrm_' + avatarId) || (vrmList.length > 0 ? RES_BASE + vrmList[0].path : RES_BASE + '/res/vrm/vroid-samples/Victoria_Rubin.vrm');
   const lang = avatar.language || document.getElementById('createLang')?.value || 'en';
   window.location.href = `room.html?avatar=${avatarId}&vrm=${encodeURIComponent(vrm)}&lang=${lang}`;
 }
@@ -354,7 +355,7 @@ async function createAvatar() {
   const lang = document.getElementById('createLang').value;
   const preset = PERSONA_PRESETS[personaKey][lang] || PERSONA_PRESETS[personaKey].ko;
   const langPreset = LANG_SPEECH[lang] || LANG_SPEECH.ko;
-  const vrm = selectedVRM || (API_BASE + '/static/vrm/vroid-samples/Victoria_Rubin.vrm');
+  const vrm = selectedVRM || (RES_BASE + '/res/vrm/vroid-samples/Victoria_Rubin.vrm');
 
   try {
     const r = await fetch(API_BASE + '/api/v1/avatars', {

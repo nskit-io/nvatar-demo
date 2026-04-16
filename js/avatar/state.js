@@ -1,8 +1,11 @@
 // NVatar Avatar Lab — Shared Mutable State
-const API_BASE = location.hostname === 'nskit-io.github.io' ? 'https://nvatar.nskit.io' : '';
+const _isGitHubPages = location.hostname === 'nskit-io.github.io' || location.hostname.endsWith('.github.io');
+const API_BASE = _isGitHubPages ? 'https://nvatar.nskit.io' : '';
+const RES_BASE = _isGitHubPages ? 'https://nvatar-res.nskit.io' : '';
 
 const S = {
   API_BASE,
+  RES_BASE,
   scene: null,
   camera: null,
   renderer: null,

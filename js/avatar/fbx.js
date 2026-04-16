@@ -111,11 +111,11 @@ export async function initMixamoForVRM() {
   S.fbxMixer = new THREE.AnimationMixer(S.currentModel);
   try {
     // Load all FBX from assets API
-    const res = await fetch(S.API_BASE + '/api/v1/assets');
+    const res = await fetch(S.RES_BASE + '/api/v1/assets');
     const assets = await res.json();
     for (const fbx of assets.fbx) {
       const name = fbx.name;
-      const fbxUrl = fbx.path.startsWith('/') ? S.API_BASE + fbx.path : fbx.path;
+      const fbxUrl = fbx.path.startsWith('/') ? S.RES_BASE + fbx.path : fbx.path;
       await loadMixamoFBX(fbxUrl, name, window._vrm);
     }
     console.log(`[Mixamo] ${assets.fbx.length}개 애니메이션 로드 완료`);
