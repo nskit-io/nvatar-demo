@@ -340,7 +340,7 @@ async function loadAvatars() {
       const saved = JSON.parse(localStorage.getItem('nvatar_' + a.id) || '{}');
       const vrmUid = saved.vrm_uid || saved.vrm_url || '';
       const vrmName = saved.vrm_name || 'Default';
-      const thumbUrl = saved.vrm_thumbnail || '';
+      const thumbUrl = (saved.vrm_thumbnail || '').replace('/static/', '/res/');
       const el = document.createElement('div');
       el.className = 'avatar-item';
       el.innerHTML = `
