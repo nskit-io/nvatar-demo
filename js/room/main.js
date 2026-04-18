@@ -86,11 +86,19 @@ if (mobileLangSel) mobileLangSel.value = uiLang;
 // Load voices
 loadVoices();
 
-// Load from URL params — slug-based VRM resolution
+// URL params — avatar + vrm are opaque uids (8-char hex)
 const urlParams = new URLSearchParams(window.location.search);
-S.paramAvatarId = urlParams.get('avatar');
-// VRM loading by uid (8-char random ID from DB)
+const paramAvatarUid = urlParams.get('avatar') || '';
 const vrmUid = urlParams.get('vrm');
+
+// avatar uid must be exactly 8 hex chars (no numeric ids)
+if (!/^[0-9a-f]{8}$/.test(paramAvatarUid)) {
+  console.warn('[Main] Invalid avatar uid, redirecting:', paramAvatarUid);
+  location.replace('index.html');
+  throw new Error('Invalid avatar param; redirecting');
+}
+S.paramAvatarUid = paramAvatarUid;
+S.paramAvatarId = null;
 
 async function resolveAndLoadVRM(uid) {
   if (!uid) { loadFallbackVRM(); return; }
@@ -108,7 +116,6 @@ async function resolveAndLoadVRM(uid) {
 }
 
 async function loadFallbackVRM() {
-  // Resolve victoria uid from model list
   try {
     const resp = await fetch(`${S.RES_BASE}/api/v1/vrm/models`);
     if (resp.ok) {
@@ -120,4 +127,16 @@ async function loadFallbackVRM() {
   console.error('[Main] All VRM loading failed');
 }
 
-resolveAndLoadVRM(vrmUid);
+(async () => {
+  try {
+    const r = await fetch(`${S.API_BASE}/api/v1/avatars/by-uid/${encodeURIComponent(paramAvatarUid)}`);
+    if (!r.ok) { location.replace('index.html'); return; }
+    const d = await r.json();
+    S.paramAvatarId = d.response.id;
+  } catch (e) {
+    console.error('[Main] avatar uid resolve failed:', e);
+    location.replace('index.html');
+    return;
+  }
+  resolveAndLoadVRM(vrmUid);
+})();

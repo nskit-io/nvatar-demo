@@ -31,8 +31,8 @@ export function changeVoice(voiceId) {
   TTS_CONFIG.voiceName = name;
   // Persist selection
   try { localStorage.setItem('nvatar_voice_id', voiceId || ''); } catch {}
-  // Persist per-avatar to DB (main avatar)
-  const avatarId = S.currentAvatarId || parseInt(new URLSearchParams(location.search).get('avatar') || '0', 10);
+  // Persist per-avatar to DB (uses resolved numeric id, not uid)
+  const avatarId = S.currentAvatarId || S.paramAvatarId;
   if (avatarId) {
     fetch(`${S.API_BASE}/api/v1/avatars/${avatarId}`, {
       method: 'PATCH',
@@ -59,7 +59,7 @@ export async function loadVoices() {
     });
     // Restore: prefer avatar's voice_id from DB; fall back to localStorage
     let saved = null;
-    const avatarId = parseInt(new URLSearchParams(location.search).get('avatar') || '0', 10);
+    const avatarId = S.paramAvatarId;
     if (avatarId) {
       try {
         const r = await fetch(`${S.API_BASE}/api/v1/avatars/${avatarId}`);

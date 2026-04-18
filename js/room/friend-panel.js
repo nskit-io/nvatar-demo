@@ -11,9 +11,9 @@ function getUserUid() {
   return localStorage.getItem('nvatar_uid') || '';
 }
 
-function getCurrentAvatarId() {
+function getCurrentAvatarUid() {
   const p = new URLSearchParams(location.search);
-  return parseInt(p.get('avatar') || '0', 10);
+  return p.get('avatar') || '';
 }
 
 function getSavedVrm(avatarId) {
@@ -114,11 +114,11 @@ function renderList() {
     return;
   }
 
-  const currentId = getCurrentAvatarId();
-  const others = avatarsCache.filter(a => a.id !== currentId);
+  const currentUid = getCurrentAvatarUid();
+  const others = avatarsCache.filter(a => a.uid !== currentUid);
 
   if (others.length === 0) {
-    body.innerHTML = '<div style="padding:20px;color:#64748b;text-align:center;font-size:11px;">다른 아바타 없음<br><a href="/res/index.html" style="color:#6366f1;">로비로 이동</a></div>';
+    body.innerHTML = '<div style="padding:20px;color:#64748b;text-align:center;font-size:11px;">다른 아바타 없음<br><a href="index.html" style="color:#6366f1;">로비로 이동</a></div>';
     return;
   }
 

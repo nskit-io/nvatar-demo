@@ -351,7 +351,7 @@ async function loadAvatars() {
         </div>
         <div class="arrow">\u2192</div>
       `;
-      el.onclick = () => enterRoom(a.id, vrmUid);
+      el.onclick = () => enterRoom(a.uid, vrmUid);
       container.appendChild(el);
     });
   } catch(e) {
@@ -384,23 +384,24 @@ async function createAndEnter() {
   const d = await r.json();
   if (d.response) {
     const avatarId = d.response.id;
+    const avatarUid = d.response.uid;
     localStorage.setItem('nvatar_' + avatarId, JSON.stringify({
       vrm_uid: selectedVRM.uid,
       vrm_name: selectedVRM.name,
       vrm_thumbnail: selectedVRM.thumbnail || '',
     }));
-    enterRoom(avatarId, selectedVRM.uid);
+    enterRoom(avatarUid, selectedVRM.uid);
   }
 }
 
 // --- Enter Room ---
-function enterRoom(avatarId, vrmUid) {
+function enterRoom(avatarUid, vrmUid) {
   const uid = vrmUid || (selectedVRM ? selectedVRM.uid : '');
   if (!uid) {
     alert('VRM model not selected');
     return;
   }
-  window.location.href = `room.html?avatar=${avatarId}&vrm=${uid}`;
+  window.location.href = `room.html?avatar=${avatarUid}&vrm=${uid}`;
 }
 
 // --- 3D Preview ---
