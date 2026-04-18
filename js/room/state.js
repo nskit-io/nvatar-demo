@@ -6,22 +6,23 @@
 // API_BASE: core server (chat, avatar, memory, tts, channel)
 // RES_BASE: resource server (static files, VRM, room, assets, layout)
 //
-// Local dev:  API_BASE='' (same-origin), RES_BASE='' (same-origin)
+// Local dev:  API_BASE='' (same-origin :54445 → but chat goes to :54444)
+//             RES_BASE='' (same-origin :54445)
 // GitHub Pages: API→nvatar.nskit.io, RES→nvatar-res.nskit.io
 // Production:  same as GitHub Pages
 
 const _params = new URLSearchParams(location.search);
 const _serverParam = _params.get('server');
 const _savedServer = localStorage.getItem('nvatar_server_url');
-const _isGitHubPages = location.hostname === 'nskit-io.github.io' || location.hostname.endsWith('.github.io');
+const _isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 
 // Core API: chat, avatar, memory, tts, channel
 const _coreParam = _params.get('core') || _params.get('server');
-const API_BASE = _coreParam || _savedServer || (_isGitHubPages ? 'https://nvatar.nskit.io' : '');
+const API_BASE = _coreParam || _savedServer || (_isLocal ? 'http://localhost:54444' : 'https://nvatar.nskit.io');
 
-// Resource server: static, VRM, room, assets, layout
+// Resource server: static, VRM, room, assets, layout (same-origin when served from res)
 const _resParam = _params.get('res');
-const RES_BASE = _resParam || (_isGitHubPages ? 'https://nvatar-res.nskit.io' : '');
+const RES_BASE = _resParam || (_isLocal ? '' : 'https://nvatar-res.nskit.io');
 
 const S = {
   API_BASE,

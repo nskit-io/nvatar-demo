@@ -11,6 +11,30 @@ import { addLookupResult, NVatarSDK } from './lookup.js';
 export function connectChat(avatarId) {
   if (S.chatWs) S.chatWs.close();
   S.currentAvatarId = avatarId;
+
+  // Populate main avatar's name/voice so room-manager can use them in dialogue starters
+  (async () => {
+    try {
+      const r = await fetch(`${S.API_BASE}/api/v1/avatars/${avatarId}`);
+      const d = await r.json();
+      const info = d?.response || {};
+      if (S.avatars[0]) {
+        S.avatars[0].name = info.name || S.avatars[0].name;
+        S.avatars[0].avatarId = avatarId;
+        if (info.voice_id) S.avatars[0].voiceId = info.voice_id;
+      } else {
+        // avatar object not created yet — populate on next frame retry
+        setTimeout(() => {
+          if (S.avatars[0]) {
+            S.avatars[0].name = info.name;
+            S.avatars[0].avatarId = avatarId;
+            if (info.voice_id) S.avatars[0].voiceId = info.voice_id;
+          }
+        }, 1500);
+      }
+    } catch (e) { console.warn('[Chat] main info fetch failed:', e); }
+  })();
+
   let wsUrl;
   if (S.API_BASE) {
     // Extract host from API_BASE (e.g. 'https://nvatar.nskit.io' → 'wss://nvatar.nskit.io')
@@ -47,6 +71,7 @@ export function connectChat(avatarId) {
       addChatMsg('avatar', data.text);
       showBubble(0, data.text);
       speakTTS(data.text);
+      import('./room-manager.js').then(mod => mod.onAvatarResponse(0, data.text));
       const mood = detectMoodFromText(data.text);
       if (mood) {
         setMood(mood);
@@ -237,25 +262,104 @@ function _escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// --- Per-friend chat ws ---
+// Each friend avatar has its own ws at S.avatars[index]._ws. Responses from that ws
+// route to showBubble(index, text) — not the main avatar's bubble.
+export function connectFriendChat(avatarIndex, avatarId) {
+  const av = S.avatars[avatarIndex];
+  if (!av) return;
+  if (av._ws) { try { av._ws.close(); } catch {} av._ws = null; }
+
+  let wsUrl;
+  if (S.API_BASE) {
+    const url = new URL(S.API_BASE);
+    const proto = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    wsUrl = `${proto}//${url.host}/ws/chat/${avatarId}`;
+  } else {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    wsUrl = `${proto}//${location.host}/ws/chat/${avatarId}`;
+  }
+  const ws = new WebSocket(wsUrl);
+  av._ws = ws;
+
+  ws.onopen = () => {
+    setTimeout(() => {
+      if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'client_ready' }));
+    }, 800);
+  };
+
+  ws.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    if (data.type === 'bubble' || data.type === 'proactive' || data.type === 'monologue') {
+      const text = data.text || data.message;
+      if (!text) return;
+      addChatMsg('avatar', `${av.name}: ${text}`);
+      showBubble(avatarIndex, text);
+      // Per-avatar TTS voice
+      import('./tts.js').then(mod => mod.speakTTS(text, av.voiceId));
+      // Friend stays near wherever they are — listeners approach speakers via walkToAvatar
+      import('./room-manager.js').then(mod => mod.onAvatarResponse(avatarIndex, text));
+    } else if (data.type === 'typing') {
+      showBubble(avatarIndex, '...');
+    }
+  };
+
+  ws.onclose = () => { av._ws = null; };
+  ws.onerror = () => {};
+  return ws;
+}
+
+export function closeFriendChat(avatarIndex) {
+  const av = S.avatars[avatarIndex];
+  if (av?._ws) { try { av._ws.close(); } catch {} av._ws = null; }
+}
+
+// --- Name routing: pick target avatar from input text ---
+// Supported prefixes: "A야, ~~", "A아, ~~", "A님, ~~", "A: ~~", "@A ~~"
+// Returns { avatar, stripped } or null for main avatar.
+function resolveTarget(text) {
+  for (let i = 1; i < S.avatars.length; i++) {
+    const av = S.avatars[i];
+    if (!av || !av.name) continue;
+    const n = av.name;
+    const patterns = [
+      new RegExp('^' + _escRe(n) + '\\s*[야아](?:[,;:\\s]|$)'),
+      new RegExp('^' + _escRe(n) + '\\s*(?:님|씨)(?:[,;:\\s]|$)'),
+      new RegExp('^@' + _escRe(n) + '\\s'),
+      new RegExp('^' + _escRe(n) + '\\s*[,:]'),
+    ];
+    for (const re of patterns) {
+      const m = text.match(re);
+      if (m) {
+        return { avatar: av, index: i, stripped: text.slice(m[0].length).trim() || text };
+      }
+    }
+  }
+  return null;
+}
+
+function _escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
 // --- Send Chat ---
+// All user input goes through Room Manager which parses names, resolves sticky
+// targets, and serializes multi-target speech via the gemma lock.
 export function sendChat() {
   const input = document.getElementById('chatInput');
   const text = input.value.trim();
   if (!text) return;
   input.value = '';
 
-  // Import dynamically to avoid circular — stopTTS is lightweight
   import('./tts.js').then(mod => mod.stopTTS());
-
   addChatMsg('user', text);
 
-  if (S.chatWs && S.chatWs.readyState === 1) {
-    S.chatWs.send(JSON.stringify({ type: 'message', text }));
-    S._waitingForResponse = true;
-    returnToCenter();
-    pauseRoaming();
-    showBubble(0, '...');
-  } else {
-    addChatMsg('system', t('noAvatarSend'));
-  }
+  import('./room-manager.js').then(mod => {
+    mod.onUserMessage(text);
+    // Main avatar-specific side effects when it's the target
+    const targetIndex = mod.getLastAddressed();
+    if (targetIndex === 0) {
+      S._waitingForResponse = true;
+      returnToCenter();
+      pauseRoaming();
+    }
+  });
 }

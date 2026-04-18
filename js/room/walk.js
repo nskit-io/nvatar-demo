@@ -1,7 +1,7 @@
 // NVatar Room — Click-to-Walk, Collision, Walk Cycle
 import * as THREE from 'three';
 import S from './state.js';
-import { switchToWalk, switchToIdle } from './animation.js';
+import { switchToWalk, switchToIdle, friendSwitchToWalk, friendSwitchToIdle } from './animation.js';
 import { pauseRoaming, _faceCamera } from './roaming.js';
 
 const WALK_SPEED = 1.0;
@@ -54,48 +54,112 @@ function checkCollision(x, z) {
   return false;
 }
 
+const AVATAR_CLEARANCE = 0.55;
+function checkAvatarCollision(selfIndex, x, z) {
+  for (let i = 0; i < S.avatars.length; i++) {
+    if (i === selfIndex) continue;
+    const other = S.avatars[i];
+    if (!other || !other.scene) continue;
+    const op = other.scene.position;
+    if (Math.hypot(x - op.x, z - op.z) < AVATAR_CLEARANCE) return true;
+  }
+  return false;
+}
+
+function _faceAvatar(mover, target) {
+  const mp = mover.position, tp = target.position;
+  mover.rotation.y = Math.atan2(tp.x - mp.x, tp.z - mp.z) + Math.PI;
+}
+
 export function updateWalk(delta) {
+  // Main avatar (S.walkTarget / S.walkState / S.walkAction)
   const avatar = S.avatars[0];
-  if (!avatar || !avatar.vrm || !avatar.scene) return;
-  const model = avatar.scene;
-
-  if (S.walkState !== 'walking' || !S.walkTarget) return;
-
-  const dx = S.walkTarget.x - model.position.x;
-  const dz = S.walkTarget.z - model.position.z;
-  const dist = Math.sqrt(dx * dx + dz * dz);
-
-  const step = WALK_SPEED * delta;
-
-  if (dist <= step || dist < 0.05) {
-    model.position.x = S.walkTarget.x;
-    model.position.z = S.walkTarget.z;
-    S.walkTarget = null;
-    S.walkState = 'idle';
-    if (avatar._returnToCenter) {
-      _faceCamera(model);
-      avatar._returnToCenter = false;
+  if (avatar && avatar.vrm && avatar.scene && S.walkState === 'walking' && S.walkTarget) {
+    const model = avatar.scene;
+    const dx = S.walkTarget.x - model.position.x;
+    const dz = S.walkTarget.z - model.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    const step = WALK_SPEED * delta;
+    if (dist <= step || dist < 0.05) {
+      model.position.x = S.walkTarget.x;
+      model.position.z = S.walkTarget.z;
+      S.walkTarget = null;
+      S.walkState = 'idle';
+      if (avatar._approachTargetIndex != null) {
+        const tgt = S.avatars[avatar._approachTargetIndex];
+        if (tgt && tgt.scene) _faceAvatar(model, tgt.scene);
+        avatar._approachTargetIndex = null;
+      } else if (avatar._returnToCenter) {
+        _faceCamera(model); avatar._returnToCenter = false;
+      }
+      switchToIdle();
+    } else {
+      const nx = dx / dist, nz = dz / dist;
+      const newX = model.position.x + nx * step;
+      const newZ = model.position.z + nz * step;
+      if (!checkCollision(newX, newZ) && !checkAvatarCollision(0, newX, newZ)) {
+        model.position.x = newX;
+        model.position.z = newZ;
+        model.rotation.y = Math.atan2(nx, nz) + Math.PI;
+        switchToWalk();
+      } else {
+        // Blocked — stop at current position and face target if approach mode
+        if (avatar._approachTargetIndex != null) {
+          const tgt = S.avatars[avatar._approachTargetIndex];
+          if (tgt && tgt.scene) _faceAvatar(model, tgt.scene);
+          avatar._approachTargetIndex = null;
+        }
+        S.walkTarget = null; S.walkState = 'idle'; switchToIdle();
+      }
     }
-    switchToIdle();
-    return;
-  }
-  const nx = dx / dist;
-  const nz = dz / dist;
-  const newX = model.position.x + nx * step;
-  const newZ = model.position.z + nz * step;
-
-  if (!checkCollision(newX, newZ)) {
-    model.position.x = newX;
-    model.position.z = newZ;
-  } else {
-    S.walkTarget = null;
-    S.walkState = 'idle';
-    switchToIdle();
-    return;
   }
 
-  const angle = Math.atan2(nx, nz);
-  model.rotation.y = angle + Math.PI;
-
-  switchToWalk();
+  // Friends (per-avatar walk state + anim)
+  for (let i = 1; i < S.avatars.length; i++) {
+    const a = S.avatars[i];
+    if (!a || !a.scene) continue;
+    if (a._walkState !== 'walking' || !a._walkTarget) {
+      if (a._wasWalking) { friendSwitchToIdle(a); a._wasWalking = false; }
+      continue;
+    }
+    const model = a.scene;
+    const dx = a._walkTarget.x - model.position.x;
+    const dz = a._walkTarget.z - model.position.z;
+    const dist = Math.hypot(dx, dz);
+    const step = WALK_SPEED * delta;
+    if (dist <= step || dist < 0.05) {
+      model.position.x = a._walkTarget.x;
+      model.position.z = a._walkTarget.z;
+      a._walkTarget = null;
+      a._walkState = 'idle';
+      if (a._approachTargetIndex != null) {
+        const tgt = S.avatars[a._approachTargetIndex];
+        if (tgt && tgt.scene) _faceAvatar(model, tgt.scene);
+        a._approachTargetIndex = null;
+      } else if (a._faceOnArrive) {
+        _faceCamera(model); a._faceOnArrive = false;
+      }
+      friendSwitchToIdle(a); a._wasWalking = false;
+      continue;
+    }
+    const nx = dx / dist, nz = dz / dist;
+    const newX = model.position.x + nx * step;
+    const newZ = model.position.z + nz * step;
+    if (!checkCollision(newX, newZ) && !checkAvatarCollision(i, newX, newZ)) {
+      model.position.x = newX;
+      model.position.z = newZ;
+      model.rotation.y = Math.atan2(nx, nz) + Math.PI;
+      if (!a._wasWalking) { friendSwitchToWalk(a); a._wasWalking = true; }
+    } else {
+      // Blocked — face target if approach mode, stop walking
+      if (a._approachTargetIndex != null) {
+        const tgt = S.avatars[a._approachTargetIndex];
+        if (tgt && tgt.scene) _faceAvatar(model, tgt.scene);
+        a._approachTargetIndex = null;
+      }
+      a._walkTarget = null;
+      a._walkState = 'idle';
+      friendSwitchToIdle(a); a._wasWalking = false;
+    }
+  }
 }

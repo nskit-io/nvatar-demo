@@ -4,9 +4,27 @@ import S from './state.js';
 import { t } from './i18n.js';
 import { updateLoading, hideLoading, waitForRoom } from './scene.js';
 import { loadMixamoAnimations } from './animation.js';
-import { startRoaming } from './roaming.js';
+import { startRoaming, stopAllTimers } from './roaming.js';
 import { startMonologue } from './roaming.js';
 import { connectChat } from './chat.js';
+// import { swapHairFromVRM } from './mesh-swap.js'; // PoC removed
+
+function _disposeModel(obj) {
+  obj.traverse(node => {
+    if (node.isMesh) {
+      if (node.geometry) node.geometry.dispose();
+      if (node.material) {
+        const materials = Array.isArray(node.material) ? node.material : [node.material];
+        materials.forEach(m => {
+          if (m.map) m.map.dispose();
+          if (m.normalMap) m.normalMap.dispose();
+          if (m.emissiveMap) m.emissiveMap.dispose();
+          m.dispose();
+        });
+      }
+    }
+  });
+}
 
 export async function loadVRM(url, index = 0) {
   updateLoading(10, t('loadingAvatar'));
@@ -22,8 +40,16 @@ export async function loadVRM(url, index = 0) {
       if (!vrm) return;
 
       if (S.avatars[index]) {
+        stopAllTimers();
+        _disposeModel(S.avatars[index].scene);
         S.scene.remove(S.avatars[index].scene);
         if (S.avatars[index].bubble) S.scene.remove(S.avatars[index].bubble);
+        if (S.currentMixer) { S.currentMixer.stopAllAction(); S.currentMixer = null; }
+        S.moodActions = {};
+        S.gestureActions = {};
+        S.currentAction = null;
+        S.idleAction = null;
+        S.walkAction = null;
       }
 
       const model = gltf.scene;
@@ -51,6 +77,8 @@ export async function loadVRM(url, index = 0) {
             if (S.paramAvatarId) {
               connectChat(S.paramAvatarId);
             }
+
+            // Hair swap PoC removed — kept in git history + mesh-swap.js for reference
           });
         }).catch(() => {
           model.visible = true;

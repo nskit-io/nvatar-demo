@@ -234,6 +234,14 @@ function animate() {
 
   if (S.currentMixer) { S.currentMixer.update(delta); if (S.avatars[0] && S.avatars[0].vrm) _adjustArmSpread(S.avatars[0].vrm); }
 
+  // Friend avatar per-avatar mixers (+ arm spread)
+  for (let i = 1; i < S.avatars.length; i++) {
+    const a = S.avatars[i];
+    if (!a) continue;
+    if (a._mixer) a._mixer.update(delta);
+    if (a.vrm && a._useMixamo) _adjustArmSpread(a.vrm);
+  }
+
   updateWalk(delta);
 
   S.avatars.forEach((avatar, i) => {

@@ -25,6 +25,7 @@ const GESTURE_PATTERNS = {
 };
 
 export function detectGestureFromText(text) {
+  if (!text) return null;
   for (const [gesture, patterns] of Object.entries(GESTURE_PATTERNS)) {
     for (const p of patterns) {
       if (text.includes(p)) return gesture;
@@ -34,6 +35,7 @@ export function detectGestureFromText(text) {
 }
 
 export function detectMoodFromText(text) {
+  if (!text) return null;
   let best = null;
   let bestCount = 0;
   for (const [mood, patterns] of Object.entries(MOOD_PATTERNS)) {
@@ -99,6 +101,10 @@ export function setMood(mood, holdSec) {
       _moodRevertTimer = null;
     }, hold * 1000);
   }
+}
+
+export function clearMoodTimer() {
+  if (_moodRevertTimer) { clearTimeout(_moodRevertTimer); _moodRevertTimer = null; }
 }
 
 function fadeToIdle() {

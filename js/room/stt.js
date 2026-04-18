@@ -2,7 +2,7 @@
 import { t } from './i18n.js';
 import { addChatMsg, sendChat } from './chat.js';
 
-const WHISPER_URL = 'https://whisper.nskit.io/api/v1/transcribe';
+const WHISPER_URL = window.NVATAR_WHISPER_URL || 'https://whisper.nskit.io/api/v1/transcribe';
 const MAX_RECORD_SEC = 20;
 let micRecorder = null;
 let micChunks = [];

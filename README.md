@@ -1,6 +1,6 @@
 # NVatar — Your AI Avatar Friend That Remembers, Feels, and Speaks
 
-[한국어](README.ko.md) | [日本語](README.ja.md)
+[한국어](README.ko.md) | [日本語](README.ja.md) | [中文](README.zh.md)
 
 > A living AI companion in a 3D virtual room — with voice cloning, emotion tracking, personality evolution, and multilingual conversation.
 
@@ -58,6 +58,20 @@ Not a generic robot voice — a **cloned human voice** that speaks 32+ languages
 ### BehaviorPattern Registry
 NVatar's capabilities are extensible through a **pluggable behavior system**. Each behavior — Normal Chat, Code Assist, Language Tutor, or your own custom pattern — registers as a self-contained plugin with its own prompt style, tool access, and memory track. A **God Mode** meta-layer analyzes incoming messages and routes them to the right pattern without character bias, so the avatar seamlessly switches between casual conversation and specialized tasks.
 
+### Social Ecosystem: Avatars That Know Each Other
+Most AI companions are 1:1 — you talk, it responds, end of story. NVatar goes further: **invite your other avatars into the room and they start forming relationships with each other**.
+
+**Core principle: *One personality, many relationships.***
+
+- Each avatar has a **singular personality** shaped only by conversations with you (the user).
+- Avatar↔avatar dialogues build **relationship intimacy** (`nv_avatar_relationships` table) without polluting personality.
+- When two avatars chat, their memory context is scoped to that specific pair — they recall how many times they've talked, the last topic, the intimacy level.
+- A **Room Manager** orchestrates the scene: periodic dialogue triggers, sticky targets, multi-name parsing ("A야, B야, 안녕" → sequential speech queue), auto-cascade (up to 2 turns) when one avatar addresses another.
+- **Contextual speech levels** — the same avatar speaks to you with your configured politeness (존댓말/반말/하대), but switches to casual peer tone with other avatars. Natural social dynamics.
+- **AFK-safe** — tab-hidden pauses the scheduler; hourly cap prevents runaway dialogue accumulation when you leave the room open (including for future screensaver-style use).
+
+Invite a friend from the **👥 친구** panel, watch them walk in, and the two avatars greet each other within seconds. Address either by name ("루빈아, 비비는 어떤 친구야?") and a chained conversation unfolds — with each participant remembering their side of the story.
+
 ### Structured Search SDK
 When you ask factual questions, the avatar searches the web and delivers results through `NVatarSDK`:
 ```javascript
@@ -85,6 +99,9 @@ For building custom integrations, see [NVatar SDK](https://github.com/nskit-io/n
 | **Anti-Repeat** | Tracks already-discussed topics to keep conversations moving forward |
 | **Behavior Patterns** | Pluggable registry — Normal Chat, Code Assist, custom patterns via SDK |
 | **Franchise Memory** | Domain-specific memory track that preserves avatar identity across tasks |
+| **Social Ecosystem** | Invite other avatars — they form relationships with each other (intimacy-tracked, personality-isolated) |
+| **Room Manager** | Central orchestrator for multi-avatar conversations: dialogue queue, sticky target, auto-cascade |
+| **Room Authoring** | Edit mode: multi-select meshes in the scene → group/name them → save as room config to DB |
 
 ---
 
@@ -105,7 +122,10 @@ For building custom integrations, see [NVatar SDK](https://github.com/nskit-io/n
 | **Move Avatar** | Double-click on the floor |
 | **Change Language** | Side panel → Language selector (clears conversation) |
 | **TTS On/Off** | Side panel → 🔊 toggle |
-| **Furniture** | Side panel → Desk, Shelf, Lamp, Plant |
+| **Invite Friends** | Top bar → 👥 친구 → pick another of your avatars to enter the room |
+| **Address Specific Friend** | Type "루빈아, 안녕" — name prefix routes the message to that friend |
+| **Edit Mode** | Top bar → ✏️ Edit → gizmo-based furniture moving + ✍ Authoring side panel |
+| **Move Panel** | Drag the panel header; double-click to fold |
 | **Search Results** | Badge appears when found → click to read |
 
 ### Tips
@@ -123,23 +143,27 @@ For building custom integrations, see [NVatar SDK](https://github.com/nskit-io/n
 Browser (this demo)              NVatar Server
 ─────────────────                ────────────────────────
 index.html                       REST API
-  → Choose VRM + personality       → Avatar CRUD
+  → Choose VRM + personality       → Avatar CRUD (+ vrm_uid, voice_id)
   → Enter room                     → Language change
 
 room.html                        WebSocket + AI Pipeline
-  → Chat                            → God Mode (message analysis & routing)
-  → TTS                             → BehaviorPattern Registry
-  → STT                               → NormalChat / CodeAssist / custom
-  → Search SDK                      → Gemma 26B (local)
-                                     → ElevenLabs TTS (cloud)
-                                     → CSW WebSearch (cloud)
-                                     → Emotion Engine (9-dim)
-                                     → Memory (Core + User Profile + Franchise)
-                                     → Persona Evolution
+  → Room Manager                    → God Mode (message analysis & routing)
+     · Central scheduler             → BehaviorPattern Registry
+     · Speech queue (serial)           → NormalChat / CodeAssist / custom
+     · Sticky target                 → Gemma 26B (local)
+     · Auto-cascade                  → ElevenLabs TTS (cloud)
+  → Friend Panel                    → CSW WebSearch (cloud)
+     · Invite your avatars          → Emotion Engine (9-dim)
+  → Chat / TTS / STT                → Relationship-scoped Memory
+  → Room Authoring                    · user track (personality)
+  → Search SDK                        · avatar:X track (per-pair intimacy)
+                                     → Persona Evolution (user track only)
 
-avatar-lab.html                  Static Assets
-  → VRM models                    → 30 VRM models
-  → Mixamo FBX                    → 33 FBX animations
+avatar-lab.html                  Static Assets + DB
+  → VRM models                    → 35 VRM models (uid-resolved)
+  → Mixamo FBX                    → Mixamo FBX animations
+                                  → nv_rooms / nv_objects (room registry)
+                                  → nv_avatar_relationships (intimacy)
 ```
 
 ## Tech Stack

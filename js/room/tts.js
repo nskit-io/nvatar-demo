@@ -31,6 +31,15 @@ export function changeVoice(voiceId) {
   TTS_CONFIG.voiceName = name;
   // Persist selection
   try { localStorage.setItem('nvatar_voice_id', voiceId || ''); } catch {}
+  // Persist per-avatar to DB (main avatar)
+  const avatarId = S.currentAvatarId || parseInt(new URLSearchParams(location.search).get('avatar') || '0', 10);
+  if (avatarId) {
+    fetch(`${S.API_BASE}/api/v1/avatars/${avatarId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voice_id: voiceId || '' }),
+    }).catch(() => {});
+  }
   console.log('[TTS] voice changed:', voiceId, name);
 }
 
@@ -48,8 +57,17 @@ export async function loadVoices() {
       opt.textContent = v.display_name;
       sel.appendChild(opt);
     });
-    // Restore last selection from localStorage
-    const saved = localStorage.getItem('nvatar_voice_id');
+    // Restore: prefer avatar's voice_id from DB; fall back to localStorage
+    let saved = null;
+    const avatarId = parseInt(new URLSearchParams(location.search).get('avatar') || '0', 10);
+    if (avatarId) {
+      try {
+        const r = await fetch(`${S.API_BASE}/api/v1/avatars/${avatarId}`);
+        const d = await r.json();
+        if (d?.response?.voice_id) saved = d.response.voice_id;
+      } catch {}
+    }
+    if (!saved) saved = localStorage.getItem('nvatar_voice_id');
     if (saved) {
       const match = [...sel.options].find(o => o.value === saved);
       if (match) {
@@ -58,7 +76,6 @@ export async function loadVoices() {
         TTS_CONFIG.voiceName = match.text;
         console.log('[TTS] Restored voice:', saved);
       } else {
-        // Saved voice not found — clear and use default
         localStorage.removeItem('nvatar_voice_id');
         console.log('[TTS] Saved voice not found, using default');
       }
@@ -84,19 +101,21 @@ export function isTTSPlaying() {
   return ttsPlaying || ttsQueue.length > 0;
 }
 
-export async function speakTTS(text) {
+// text: string OR {text, voiceId} for per-avatar voice override
+export async function speakTTS(text, voiceIdOverride) {
   if (!TTS_CONFIG.enabled || !text || text === '...') return;
-  ttsQueue.push(text);
+  ttsQueue.push({ text, voiceId: voiceIdOverride || null });
   if (!ttsPlaying) processQueue();
 }
 
 async function processQueue() {
   if (ttsQueue.length === 0) { ttsPlaying = false; if (S.hooks.onTTSComplete) S.hooks.onTTSComplete(); return; }
   ttsPlaying = true;
-  const text = ttsQueue.shift();
+  const { text, voiceId } = ttsQueue.shift();
+  const useVoice = voiceId || TTS_CONFIG.voiceId;
   try {
     let ttsUrl = `${S.API_BASE}/api/v1/tts?text=${encodeURIComponent(text)}`;
-    if (TTS_CONFIG.voiceId) ttsUrl += `&voice_id=${encodeURIComponent(TTS_CONFIG.voiceId)}`;
+    if (useVoice) ttsUrl += `&voice_id=${encodeURIComponent(useVoice)}`;
     const res = await _ttsWithFallback(ttsUrl);
     if (!res.ok) { processQueue(); return; }
     const blob = await res.blob();

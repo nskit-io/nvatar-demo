@@ -101,7 +101,7 @@ export function _adjustArmSpread(vrm) {
   if (R) { R.rotation.z += 0.15; R.rotation.x += 0.05; }
 }
 
-function _applyManualIdlePose(vrm) {
+export function applyManualIdlePose(vrm) {
   const h = vrm.humanoid;
   if (!h) return;
   const DEG = Math.PI / 180;
@@ -139,6 +139,8 @@ const GESTURE_FBX = {
 };
 
 export async function loadMixamoAnimations(vrm) {
+  // Capture reference at start — if avatar changes mid-load, bail out
+  const targetAvatar = S.avatars[0];
   try {
     for (const [name, path] of Object.entries(MOOD_FBX)) {
       await loadMixamoAnimation(path, vrm, name);
@@ -150,20 +152,24 @@ export async function loadMixamoAnimations(vrm) {
     console.log(`[Mixamo] All animations loaded (${Object.keys(S.mixamoClips).length} clips)`);
 
     const avatar = S.avatars[0];
-    if (!avatar) return;
+    if (!avatar || avatar !== targetAvatar) {
+      console.warn('[Mixamo] Avatar changed during load, skipping mixer setup');
+      return;
+    }
 
     S.currentMixer = new THREE.AnimationMixer(avatar.scene);
+    const mixer = S.currentMixer;
 
     for (const name of Object.keys(MOOD_FBX)) {
       if (S.mixamoClips[name]) {
-        S.moodActions[name] = S.currentMixer.clipAction(S.mixamoClips[name]);
+        S.moodActions[name] = mixer.clipAction(S.mixamoClips[name]);
         S.moodActions[name].loop = THREE.LoopRepeat;
       }
     }
     for (const name of Object.keys(GESTURE_FBX)) {
       const clipName = 'gesture_' + name;
       if (S.mixamoClips[clipName]) {
-        S.gestureActions[name] = S.currentMixer.clipAction(S.mixamoClips[clipName]);
+        S.gestureActions[name] = mixer.clipAction(S.mixamoClips[clipName]);
         S.gestureActions[name].loop = THREE.LoopOnce;
         S.gestureActions[name].clampWhenFinished = true;
       }
@@ -177,7 +183,7 @@ export async function loadMixamoAnimations(vrm) {
     }
 
     if (S.mixamoClips.walking) {
-      S.walkAction = S.currentMixer.clipAction(S.mixamoClips.walking);
+      S.walkAction = mixer.clipAction(S.mixamoClips.walking);
     }
 
     avatar._useMixamo = true;
@@ -185,7 +191,7 @@ export async function loadMixamoAnimations(vrm) {
   } catch(e) {
     console.error('[Mixamo] Load failed, falling back to manual pose:', e);
     const avatar = S.avatars[0];
-    if (avatar && avatar.vrm) _applyManualIdlePose(avatar.vrm);
+    if (avatar && avatar.vrm) applyManualIdlePose(avatar.vrm);
   }
 }
 
@@ -206,9 +212,17 @@ export function switchToIdle() {
   S.currentAction = targetIdle;
 }
 
+let _gestureFinishListener = null;
+
 export function playGesture(name) {
   const action = S.gestureActions[name];
   if (!action || !S.currentMixer || S.walkState === 'walking') return;
+
+  // Remove stale listener from previous gesture
+  if (_gestureFinishListener) {
+    S.currentMixer.removeEventListener('finished', _gestureFinishListener);
+    _gestureFinishListener = null;
+  }
 
   action.reset().play();
   if (S.currentAction && S.currentAction !== action) {
@@ -216,8 +230,10 @@ export function playGesture(name) {
   }
   S.currentAction = action;
 
-  const onFinish = () => {
+  const onFinish = (e) => {
+    if (e.action !== action) return; // Ignore other actions finishing
     S.currentMixer.removeEventListener('finished', onFinish);
+    _gestureFinishListener = null;
     const returnAction = S.moodActions[S.currentMoodName] || S.idleAction;
     if (returnAction) {
       returnAction.reset().play();
@@ -225,6 +241,7 @@ export function playGesture(name) {
       S.currentAction = returnAction;
     }
   };
+  _gestureFinishListener = onFinish;
   S.currentMixer.addEventListener('finished', onFinish);
 }
 
@@ -242,4 +259,59 @@ export function crossfadeToMood(targetMood) {
   }
   S.currentAction = targetAction;
   S.currentMoodName = targetMood;
+}
+
+// Per-avatar: set up a private mixer + idle/walking actions on the given avatar.
+export async function setupAvatarAnimations(avatar, opts = {}) {
+  if (!avatar || !avatar.vrm) return;
+  const tag = avatar._friendIndex ?? 'm';
+  try {
+    const idleClip = await loadMixamoAnimation(MOOD_FBX.idle, avatar.vrm, `idle__a${tag}`);
+    const walkClip = await loadMixamoAnimation(S.RES_BASE + '/res/fbx/mixamo/Walk_Default.fbx', avatar.vrm, `walk__a${tag}`);
+    const mixer = new THREE.AnimationMixer(avatar.scene);
+    avatar._mixer = mixer;
+    avatar._actions = {};
+    const idleAction = mixer.clipAction(idleClip);
+    idleAction.loop = THREE.LoopRepeat;
+    avatar._actions.idle = idleAction;
+    const walkAction = mixer.clipAction(walkClip);
+    walkAction.loop = THREE.LoopRepeat;
+    avatar._actions.walk = walkAction;
+    idleAction.play();
+    avatar._currentAction = idleAction;
+    avatar._useMixamo = true;
+    console.log(`[AvatarAnim] Per-avatar mixer ready for "${avatar.name}" (idle + walk)`);
+  } catch (e) {
+    console.warn('[AvatarAnim] Per-avatar setup failed, using manual idle pose:', e);
+    applyManualIdlePose(avatar.vrm);
+  }
+}
+
+const FRIEND_CROSSFADE = 0.3;
+
+export function friendSwitchToWalk(avatar) {
+  if (!avatar?._actions?.walk || !avatar._actions?.idle) return;
+  if (avatar._currentAction === avatar._actions.walk) return;
+  const walk = avatar._actions.walk;
+  walk.reset().play();
+  if (avatar._currentAction) walk.crossFadeFrom(avatar._currentAction, FRIEND_CROSSFADE, true);
+  avatar._currentAction = walk;
+}
+
+export function friendSwitchToIdle(avatar) {
+  if (!avatar?._actions?.idle) return;
+  if (avatar._currentAction === avatar._actions.idle) return;
+  const idle = avatar._actions.idle;
+  idle.reset().play();
+  if (avatar._currentAction) idle.crossFadeFrom(avatar._currentAction, FRIEND_CROSSFADE, true);
+  avatar._currentAction = idle;
+}
+
+// Friends get their own mixer updated separately (main avatar's mixer is S.currentMixer).
+export function updateFriendMixers(delta) {
+  if (!S.avatars) return;
+  for (let i = 1; i < S.avatars.length; i++) {
+    const a = S.avatars[i];
+    if (a && a._mixer) a._mixer.update(delta);
+  }
 }
