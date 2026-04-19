@@ -58,6 +58,16 @@ Not a generic robot voice — a **cloned human voice** that speaks 32+ languages
 ### BehaviorPattern Registry
 NVatar's capabilities are extensible through a **pluggable behavior system**. Each behavior — Normal Chat, Code Assist, Language Tutor, or your own custom pattern — registers as a self-contained plugin with its own prompt style, tool access, and memory track. A **God Mode** meta-layer analyzes incoming messages and routes them to the right pattern without character bias, so the avatar seamlessly switches between casual conversation and specialized tasks.
 
+### Autonomous Agency (Avatar OS)
+Your avatar is not a state machine — it has an **agency layer** that decides for itself.
+- **Distributed judgment**: A separate `nvatar-judge` service handles classification; the heavy 26B core model only runs for actual conversation.
+- **Activity Density (T1~T4)**: The more you talk to your avatar, the more alive it is. When you stop visiting, it gradually hibernates — T4 accrues one logic-based memory per day with **zero LLM cost**. Return anytime and it wakes up instantly.
+- **Rest = memory consolidation**: When an avatar rests (you permit it or it gets quiet), it compacts its own memory. A state field is an actual behavior trigger, not just a label.
+- **Source-agnostic state**: Whether a state change comes from your command, the avatar's own decision, or a UI event — one code path, three origins tracked separately.
+- **Trace observability**: Every decision is logged. "Why didn't Vivi respond to me?" has a queryable answer.
+
+Phase 1 shipped **2026-04-20** with 12-hour stress test: 655 iterations, zero errors, 100% step-1 judgment success.
+
 ### Social Ecosystem: Avatars That Know Each Other
 Most AI companions are 1:1 — you talk, it responds, end of story. NVatar goes further: **invite your other avatars into the room and they start forming relationships with each other**.
 
@@ -102,6 +112,7 @@ For building custom integrations, see [NVatar SDK](https://github.com/nskit-io/n
 | **Social Ecosystem** | Invite other avatars — they form relationships with each other (intimacy-tracked, personality-isolated) |
 | **Room Manager** | Central orchestrator for multi-avatar conversations: dialogue queue, sticky target, auto-cascade |
 | **Room Authoring** | Edit mode: multi-select meshes in the scene → group/name them → save as room config to DB |
+| **Avatar OS** | Autonomous agency layer: distributed judgment (judge + core), source-agnostic state, Activity Density 4-tier, rest-triggered compaction, trace observability |
 
 ---
 
