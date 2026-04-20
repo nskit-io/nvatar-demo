@@ -60,8 +60,8 @@ NVatar's capabilities are extensible through a **pluggable behavior system**. Ea
 
 ### Autonomous Agency (Avatar OS)
 Your avatar is not a state machine — it has an **agency layer** that decides for itself.
-- **Distributed judgment**: A separate `nvatar-judge` service handles classification; the heavy 26B core model only runs for actual conversation.
-- **Activity Density (T1~T4)**: The more you talk to your avatar, the more alive it is. When you stop visiting, it gradually hibernates — T4 accrues one logic-based memory per day with **zero LLM cost**. Return anytime and it wakes up instantly.
+- **Distributed judgment**: A separate lightweight judge service handles classification; the heavy 26B core model only runs for actual conversation.
+- **Activity Density (T1~T4)**: The more you talk to your avatar, the more alive it is. When you stop visiting, it gradually hibernates — long-idle tiers accrue one logic-based memory per day with **zero LLM cost**. Return anytime and it wakes up instantly.
 - **Rest = memory consolidation**: When an avatar rests (you permit it or it gets quiet), it compacts its own memory. A state field is an actual behavior trigger, not just a label.
 - **Source-agnostic state**: Whether a state change comes from your command, the avatar's own decision, or a UI event — one code path, three origins tracked separately.
 - **Trace observability**: Every decision is logged. "Why didn't Vivi respond to me?" has a queryable answer.
