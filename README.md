@@ -74,7 +74,7 @@ Most AI companions are 1:1 — you talk, it responds, end of story. NVatar goes 
 **Core principle: *One personality, many relationships.***
 
 - Each avatar has a **singular personality** shaped only by conversations with you (the user).
-- Avatar↔avatar dialogues build **relationship intimacy** (`nv_avatar_relationships` table) without polluting personality.
+- Avatar↔avatar dialogues build **relationship intimacy** (per-pair relationship store) without polluting personality.
 - When two avatars chat, their memory context is scoped to that specific pair — they recall how many times they've talked, the last topic, the intimacy level.
 - A **Room Manager** orchestrates the scene: periodic dialogue triggers, sticky targets, multi-name parsing ("A야, B야, 안녕" → sequential speech queue), auto-cascade (up to 2 turns) when one avatar addresses another.
 - **Contextual speech levels** — the same avatar speaks to you with your configured politeness (존댓말/반말/하대), but switches to casual peer tone with other avatars. Natural social dynamics.
@@ -173,8 +173,8 @@ room.html                        WebSocket + AI Pipeline
 avatar-lab.html                  Static Assets + DB
   → VRM models                    → 35 VRM models (uid-resolved)
   → Mixamo FBX                    → Mixamo FBX animations
-                                  → nv_rooms / nv_objects (room registry)
-                                  → nv_avatar_relationships (intimacy)
+                                  → Room Registry
+                                  → Relationship Store (per-pair intimacy)
 ```
 
 ## Tech Stack
