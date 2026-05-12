@@ -430,7 +430,9 @@ function ensureStyle() {
 
 .nv-row { display: flex; flex-direction: column; gap: 4px; max-width: 100%; position: relative; }
 .nv-row-assistant { align-items: flex-start; padding-right: 32px; padding-left: 4px; }
-.nv-row-assistant.nv-has-portrait { padding-left: 76px; min-height: 60px; }
+/* min-height > portrait (56px) + border + safe pad so the absolutely-positioned
+   portrait can never overflow the row box and collide with the next message. */
+.nv-row-assistant.nv-has-portrait { padding-left: 76px; min-height: 72px; padding-bottom: 4px; }
 .nv-row-user { align-items: flex-end; padding-left: 32px; }
 .nv-row-system { align-items: center; }
 
@@ -448,8 +450,9 @@ function ensureStyle() {
 
 .nv-sys { font-size: 11px; color: #9ca3af; padding: 4px 0; }
 
-.nv-typing { display: none; align-items: center; gap: 4px; padding: 10px 14px; background: #f3f4f6; border-radius: 14px; border-top-left-radius: 4px; align-self: flex-start; margin-left: 68px; }
+.nv-typing { display: none; align-items: center; gap: 4px; padding: 10px 14px; background: #f3f4f6; border-radius: 14px; border-top-left-radius: 4px; align-self: flex-start; margin-left: 4px; }
 .nv-typing.nv-visible { display: inline-flex; }
+.nv-row-user + .nv-typing, .nv-row-assistant + .nv-typing { margin-top: 14px; }
 .nv-typing div { width: 6px; height: 6px; border-radius: 50%; background: #9ca3af; animation: nv-bounce 1.3s infinite; }
 .nv-typing div:nth-child(2) { animation-delay: 0.15s; }
 .nv-typing div:nth-child(3) { animation-delay: 0.3s; }
