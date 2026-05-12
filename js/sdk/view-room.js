@@ -325,6 +325,22 @@ export async function renderRoomView(sdk, ctx) {
     `;
     els.msgs.insertBefore(row, els.typing);
 
+    // For user bubbles, detect line-clamp overflow on next frame and wire up
+    // tap-to-expand. Only marks bubbles that actually overflow — short ones
+    // don't get a 더보기 label.
+    if (role === 'user') {
+      const bubble = row.querySelector('.nv-bubble');
+      requestAnimationFrame(() => {
+        if (bubble.scrollHeight > bubble.clientHeight + 2) {
+          bubble.classList.add('nv-bubble-truncatable');
+          bubble.addEventListener('click', () => {
+            bubble.classList.toggle('nv-bubble-expanded');
+            scrollBottom();
+          });
+        }
+      });
+    }
+
     state.rows.push({ role, content, ts, timeLabel, isProactive: !!proactive, el: row });
     scrollBottom();
   }
@@ -527,7 +543,9 @@ function ensureStyle() {
 .nv-search-count { font-variant-numeric: tabular-nums; }
 
 .nv-msgs-area { flex: 1; position: relative; overflow: hidden; }
-.nv-msgs { position: relative; height: 100%; overflow-y: auto; padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+/* padding-bottom: leaves breathing room between the last message and the
+   input bar even when scrolled fully down. */
+.nv-msgs { position: relative; height: 100%; overflow-y: auto; padding: 14px 14px 64px; display: flex; flex-direction: column; gap: 4px; }
 
 /* Bigger breathing room when speaker switches */
 .nv-row-assistant + .nv-row-user,
@@ -573,7 +591,22 @@ function ensureStyle() {
 .nv-row-user .nv-bubble-wrap { flex-direction: row-reverse; }
 .nv-bubble { padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.55; word-break: break-word; white-space: pre-wrap; max-width: min(78%, 320px); }
 .nv-row-assistant .nv-bubble { background: #f3f4f6; color: #111827; border-top-left-radius: 4px; }
-.nv-row-user .nv-bubble { background: #fde68a; color: #111827; border-top-right-radius: 4px; }
+.nv-row-user .nv-bubble { background: #fde68a; color: #111827; border-top-right-radius: 4px; cursor: pointer; }
+/* Truncate long user bubbles to 4 lines; tap to expand/collapse */
+.nv-row-user .nv-bubble {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  position: relative;
+}
+.nv-row-user .nv-bubble.nv-bubble-expanded { -webkit-line-clamp: unset; }
+.nv-row-user .nv-bubble.nv-bubble-truncatable::after {
+  content: '더보기';
+  display: inline-block; margin-left: 4px;
+  font-size: 11px; color: #92400e; font-weight: 600; opacity: 0.7;
+}
+.nv-row-user .nv-bubble.nv-bubble-expanded.nv-bubble-truncatable::after { content: '접기'; }
 .nv-bubble-lookup { border-left: 3px solid #10b981; }
 .nv-time { font-size: 11px; color: #9ca3af; flex-shrink: 0; }
 .nv-proactive .nv-bubble { background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; }
