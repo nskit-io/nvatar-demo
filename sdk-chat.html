@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ffffff">
+
+<title>NVatar SDK Chat — Demo</title>
+<link rel="icon" href="https://nvatar-res.nskit.io/res/favicon.ico" type="image/x-icon">
+<link rel="apple-touch-icon" href="https://nvatar-res.nskit.io/res/apple-touch-icon.png">
+<meta property="og:title" content="NVatar SDK Chat — Demo">
+<meta property="og:description" content="환경 요소 없는 경량 채팅 SDK 데모. 1:1 대화, MBTI/페르소나, VRM 포트레잇 표정 동기화.">
+<meta property="og:image" content="https://nvatar-res.nskit.io/res/og-image.png">
+<meta property="og:type" content="website">
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { width: 100%; height: 100%; overflow: hidden; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', 'Pretendard', sans-serif;
+  background: #f3f4f6;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Phone-frame shell: fills viewport on mobile, centered card on desktop */
+#sdk-host {
+  position: fixed; inset: 0;
+  width: 100vw; height: 100vh; height: 100dvh;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  body { display: flex; align-items: center; justify-content: center; padding: 24px; background: #0f172a; }
+  #sdk-host {
+    position: relative; inset: auto;
+    width: 100%; max-width: 420px; height: min(900px, 92vh);
+    border-radius: 32px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.4);
+    border: 1px solid #1f2937;
+  }
+}
+
+/* Loading splash (replaced on SDK ready) */
+.sdk-splash {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; color: #6b7280; font-size: 13px;
+}
+.sdk-splash .sp { width: 28px; height: 28px; border: 3px solid #e5e7eb; border-top-color: #4f46e5; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="sdk-host">
+  <div class="sdk-splash">
+    <div class="sp"></div>
+    <div>NVatar SDK 로딩 중…</div>
+  </div>
+</div>
+
+<script type="module">
+// Official endpoints. Override via query params for local dev (?api=, ?res=, ?whisper=).
+const params = new URLSearchParams(location.search);
+const CORE_BASE    = params.get('api')     || 'https://nvatar.nskit.io';      // chat / avatars / messages
+const RES_BASE     = params.get('res')     || 'https://nvatar-res.nskit.io';  // VRM models / thumbnails
+const WHISPER_URL  = params.get('whisper') || 'https://whisper.nskit.io/api/v1/transcribe';
+
+import { NVatarChatSDK } from './js/sdk/index.js';
+
+const sdk = new NVatarChatSDK({
+  container: document.getElementById('sdk-host'),
+  coreBase: CORE_BASE,
+  resBase: RES_BASE,
+  whisperUrl: WHISPER_URL,
+  userId: getOrCreateUserId(),
+  maxSlots: 2,
+  totalSlots: 3,  // 2 active + 1 locked (UI 안내용)
+});
+
+sdk.start().catch(err => {
+  document.getElementById('sdk-host').innerHTML =
+    `<div class="sdk-splash"><div style="color:#ef4444;">시작 실패: ${err.message || err}</div></div>`;
+});
+
+window.sdk = sdk;  // dev console hook
+
+function getOrCreateUserId() {
+  let uid = localStorage.getItem('nvatar.sdk.user_id');
+  if (!uid) {
+    uid = 'demo-' + Math.random().toString(36).slice(2, 10);
+    localStorage.setItem('nvatar.sdk.user_id', uid);
+  }
+  return uid;
+}
+</script>
+
+</body>
+</html>
