@@ -53,8 +53,11 @@ export class Api {
     return true;
   }
 
-  async getMessages(avatarId, limit = 50) {
-    const r = await fetch(`${this.coreBase}/api/v1/avatars/${avatarId}/messages?limit=${limit}`);
+  async getMessages(avatarId, limit = 50, beforeId = null, includeCompacted = false) {
+    const qs = new URLSearchParams({ limit: String(limit) });
+    if (beforeId != null) qs.set('before_id', String(beforeId));
+    if (includeCompacted) qs.set('include_compacted', 'true');
+    const r = await fetch(`${this.coreBase}/api/v1/avatars/${avatarId}/messages?${qs}`);
     const d = await r.json();
     return d.response || [];
   }

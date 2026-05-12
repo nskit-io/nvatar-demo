@@ -19,6 +19,8 @@ const STYLE_ID = 'nv-sdk-room-style';
 const BUBBLE_GAP_MS = 400;
 const DEBOUNCE_MS = 800;
 const WHISPER_MAX_SEC = 20;
+const HISTORY_PAGE_SIZE = 50;
+const SCROLL_TOP_THRESHOLD = 60;  // px from top before triggering older page load
 
 export async function renderRoomView(sdk, ctx) {
   ensureStyle();
@@ -61,6 +63,9 @@ export async function renderRoomView(sdk, ctx) {
     avatar: null,             // resolved avatar record (for stats dialog)
     searches: [],             // bubble_lookup history — in-memory, cleared on route leave
     thinkingRow: null,        // placeholder row owning portrait while avatar "thinks"
+    oldestLoadedId: null,     // cursor for scroll-top infinite history
+    hasMoreHistory: true,     // false when backend returns < page size
+    loadingMore: false,       // in-flight guard
   };
 
   // Portrait click → stats dialog (read-only)
@@ -146,24 +151,29 @@ export async function renderRoomView(sdk, ctx) {
       addSystemMsg('아바타에 모델이 연결되어 있지 않아요');
     }
 
-    // 4) Restore message history. 백엔드는 ORDER BY id ASC (오래된 것 먼저) 로 응답.
+    // 4) Restore message history (first page = newest 50).
+    //    Older pages load on scroll-top via loadMoreHistory().
     try {
-      const history = await sdk.api.getMessages(avatarId, 50);
+      const history = await sdk.api.getMessages(avatarId, HISTORY_PAGE_SIZE);
       console.log('[NVatar] history:', history.length, 'messages');
       if (history.length) {
         history.forEach(m => {
           const role = m.role === 'user' ? 'user' : 'assistant';
-          appendMessage({ role, content: m.content, ts: m.created_at, fromHistory: true, name: avatar.name });
+          appendMessage({ role, content: m.content, ts: m.created_at, fromHistory: true, name: avatar.name, msgId: m.id });
         });
-        // Portrait travel to latest assistant after history paint.
-        // VRM may still be loading; movePortraitToLatest is idempotent and will
-        // re-anchor automatically on subsequent bubbles.
+        state.oldestLoadedId = history[0].id;
+        state.hasMoreHistory = history.length >= HISTORY_PAGE_SIZE;
         movePortraitToLatest();
+      } else {
+        state.hasMoreHistory = false;
       }
     } catch(e) {
       console.error('[NVatar] history load failed:', e);
       addSystemMsg('이전 대화 불러오기 실패: ' + (e.message || e));
     }
+
+    // Scroll-top loader for older messages
+    els.msgs.addEventListener('scroll', onScrollMaybeLoadMore);
 
     // 5) Open WebSocket
     state.sock = sdk.api.openChatSocket(avatarId);
@@ -521,6 +531,113 @@ export async function renderRoomView(sdk, ctx) {
     return true;
   }
 
+  // Scroll-top trigger — pulls the next older page when user nears the top.
+  function onScrollMaybeLoadMore() {
+    if (state.loadingMore || !state.hasMoreHistory || state.oldestLoadedId == null) return;
+    if (els.msgs.scrollTop <= SCROLL_TOP_THRESHOLD) {
+      loadMoreHistory();
+    }
+  }
+
+  async function loadMoreHistory() {
+    state.loadingMore = true;
+    const indicator = document.createElement('div');
+    indicator.className = 'nv-history-loading';
+    indicator.textContent = '이전 대화 불러오는 중…';
+    els.msgs.insertBefore(indicator, els.msgs.firstChild);
+
+    // Capture scroll anchor BEFORE prepending so we can preserve the user's
+    // visual position after layout grows upward.
+    const scrollHeightBefore = els.msgs.scrollHeight;
+    const scrollTopBefore = els.msgs.scrollTop;
+
+    try {
+      // includeCompacted=true so users can walk back to the actual start
+      // of a long conversation. LLM context builders still exclude
+      // compacted by default.
+      const older = await sdk.api.getMessages(avatarId, HISTORY_PAGE_SIZE, state.oldestLoadedId, true);
+      indicator.remove();
+      if (!older.length) {
+        state.hasMoreHistory = false;
+        const tag = document.createElement('div');
+        tag.className = 'nv-history-end';
+        tag.textContent = '대화의 시작입니다';
+        els.msgs.insertBefore(tag, els.msgs.firstChild);
+      } else {
+        // Prepend in chronological order (oldest first). The new earliest
+        // becomes the next cursor; we may still have more if backend filled
+        // a full page.
+        state.oldestLoadedId = older[0].id;
+        state.hasMoreHistory = older.length >= HISTORY_PAGE_SIZE;
+
+        // Reset date-divider tracking so prepended dates render correctly,
+        // then re-emit the current oldest divider after to restore the seam.
+        const seamDateLabel = state.lastDateLabel;
+        state.lastDateLabel = '';
+
+        // Find the first non-spacer, non-divider element to use as insertion
+        // anchor so prepended rows sit above the existing content.
+        const insertBefore = els.msgs.firstChild;
+        for (const m of older) {
+          const role = m.role === 'user' ? 'user' : 'assistant';
+          prependMessage({
+            role, content: m.content, ts: m.created_at,
+            name: state.avatar?.name, msgId: m.id,
+            insertBefore,
+          });
+        }
+        // After prepend, restore previous date-divider label so the seam
+        // re-emits the divider when appropriate
+        state.lastDateLabel = seamDateLabel;
+      }
+
+      // Preserve scroll position: scrollTop += (heightAfter - heightBefore)
+      requestAnimationFrame(() => {
+        const grew = els.msgs.scrollHeight - scrollHeightBefore;
+        els.msgs.scrollTop = scrollTopBefore + grew;
+      });
+    } catch (e) {
+      indicator.remove();
+      console.error('[NVatar] older history load failed:', e);
+      const errEl = document.createElement('div');
+      errEl.className = 'nv-history-end';
+      errEl.style.color = '#ef4444';
+      errEl.textContent = '이전 대화 불러오기 실패';
+      els.msgs.insertBefore(errEl, els.msgs.firstChild);
+    } finally {
+      state.loadingMore = false;
+    }
+  }
+
+  // Prepend a message at the top of the conversation (used by infinite history).
+  // Simpler than appendMessage — no grouping merge with earlier rows (those
+  // are older still and will be prepended in later pages), no portrait travel,
+  // no scrollBottom. Date divider emitted when the page boundary crosses days.
+  function prependMessage({ role, content, ts, name, msgId, insertBefore }) {
+    const date = new Date(ts || Date.now());
+    const dateLabel = formatDateLabel(date);
+    const timeLabel = formatTime(date);
+    if (dateLabel !== state.lastDateLabel) {
+      const div = document.createElement('div');
+      div.className = 'nv-date-divider';
+      div.innerHTML = `<span>${dateLabel}</span>`;
+      els.msgs.insertBefore(div, insertBefore);
+      state.lastDateLabel = dateLabel;
+    }
+    const row = document.createElement('div');
+    row.className = `nv-row nv-row-${role}`;
+    row.innerHTML = `
+      ${role === 'assistant' ? `<div class="nv-msg-name">${escapeHtml(name || '')}</div>` : ''}
+      <div class="nv-bubble-wrap">
+        <div class="nv-bubble">${escapeHtml(content)}</div>
+        <div class="nv-time">${escapeHtml(timeLabel)}</div>
+      </div>
+    `;
+    els.msgs.insertBefore(row, insertBefore);
+    // Unshift to keep state.rows in chronological order
+    state.rows.unshift({ role, content, ts, timeLabel, isProactive: false, el: row });
+  }
+
   // Drop the placeholder without mutating into a bubble (used on error path).
   function clearThinkingPlaceholder() {
     if (!state.thinkingRow) return;
@@ -601,6 +718,7 @@ export async function renderRoomView(sdk, ctx) {
     clearTimeout(state.debounceTimer);
     clearInterval(state.micTimer);
     if (state.media && state.media.state === 'recording') state.media.stop();
+    els.msgs.removeEventListener('scroll', onScrollMaybeLoadMore);
   };
 }
 
@@ -688,6 +806,12 @@ function ensureStyle() {
 .nv-row-user + .nv-row-assistant { margin-top: 24px; }
 .nv-row-action + .nv-row-user,
 .nv-row-user + .nv-row-action { margin-top: 14px; }
+
+.nv-history-loading, .nv-history-end {
+  text-align: center; font-size: 11px; color: #9ca3af;
+  padding: 10px 0; letter-spacing: 0.3px;
+}
+.nv-history-end { padding: 14px 0 6px; color: #d1d5db; font-style: italic; }
 
 .nv-date-divider { display: flex; align-items: center; gap: 12px; margin: 18px 8px; }
 .nv-date-divider::before, .nv-date-divider::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
