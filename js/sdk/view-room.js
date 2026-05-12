@@ -11,6 +11,7 @@
 //  - Whisper STT mic button.
 
 import { MiniPortrait } from './portrait-mini.js';
+import { openStatsDialog } from './view-stats.js';
 
 const STYLE_ID = 'nv-sdk-room-style';
 const BUBBLE_GAP_MS = 400;
@@ -52,7 +53,14 @@ export async function renderRoomView(sdk, ctx) {
     isRecording: false,
     micSec: 0,
     micTimer: null,
+    avatar: null,             // resolved avatar record (for stats dialog)
   };
+
+  // Portrait click → stats dialog (read-only)
+  els.portraitSlot.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (state.avatar) openStatsDialog(root, state.avatar);
+  });
 
   // Back button → list
   root.querySelector('.nv-back').addEventListener('click', () => history.back());
@@ -61,10 +69,20 @@ export async function renderRoomView(sdk, ctx) {
   bootRoom().catch(err => addSystemMsg('초기화 실패: ' + (err.message || err)));
 
   async function bootRoom() {
-    // 1) Fetch avatar (for vrm_uid + name)
-    const all = await sdk.api.listAvatars();
-    const avatar = all.find(a => a.id === avatarId);
+    // 1) Fetch avatar (for vrm_uid + name). Prefer get-by-id to pick up
+    //    emotions/MBTI fields that list endpoint may not include.
+    let avatar;
+    try {
+      const res = await fetch(`${sdk.api.coreBase}/api/v1/avatars/${avatarId}`);
+      const d = await res.json();
+      avatar = d.response;
+    } catch {}
+    if (!avatar) {
+      const all = await sdk.api.listAvatars();
+      avatar = all.find(a => a.id === avatarId);
+    }
     if (!avatar) throw new Error('Avatar not found');
+    state.avatar = avatar;
     root.querySelector('.nv-title').textContent = `${avatar.name}와의 채팅`;
 
     // 2) Portrait widget (created early so it can attach as soon as first bubble arrives)
@@ -143,7 +161,11 @@ export async function renderRoomView(sdk, ctx) {
         hideTyping();
         break;
       case 'emotion_update':
-        if (data.emotions && state.portrait) state.portrait.setEmotion(data.emotions);
+        if (data.emotions) {
+          if (state.portrait) state.portrait.setEmotion(data.emotions);
+          // Keep state.avatar.emotions live so stats dialog opens with fresh data
+          if (state.avatar) state.avatar.emotions = { ...(state.avatar.emotions || {}), ...data.emotions };
+        }
         break;
       case 'proactive':
         // 프로액티브 채팅 — 시간 기반 발화 + client_ready 시 큐 flush.
@@ -465,7 +487,8 @@ function ensureStyle() {
   width: 56px; height: 56px;
   border-radius: 50%;
   overflow: hidden;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
   display: none;
   -webkit-mask-image: radial-gradient(circle at center, black 82%, transparent 100%);
           mask-image: radial-gradient(circle at center, black 82%, transparent 100%);
