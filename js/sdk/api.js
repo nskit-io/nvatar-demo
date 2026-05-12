@@ -59,6 +59,15 @@ export class Api {
     return d.response || [];
   }
 
+  async clearMessages(avatarId) {
+    const r = await fetch(`${this.coreBase}/api/v1/avatars/${avatarId}/messages`, {
+      method: 'DELETE',
+    });
+    const d = await r.json();
+    if (d.code && d.code !== 200) throw new Error(d.message || 'clear failed');
+    return true;
+  }
+
   // --- VRM (res) ---
 
   async listVrmModels() {

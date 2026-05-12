@@ -13,6 +13,7 @@
 import { MiniPortrait } from './portrait-mini.js';
 import { openStatsDialog } from './view-stats.js';
 import { openSearchHistoryDialog } from './view-search-history.js';
+import { showDialog } from './view-list.js';
 
 const STYLE_ID = 'nv-sdk-room-style';
 const BUBBLE_GAP_MS = 400;
@@ -37,6 +38,7 @@ export async function renderRoomView(sdk, ctx) {
     statusDot: root.querySelector('.nv-status'),
     searchBtn: root.querySelector('.nv-search-btn'),
     searchCount: root.querySelector('.nv-search-count'),
+    clearBtn: root.querySelector('.nv-clear-btn'),
   };
 
   // State
@@ -66,16 +68,40 @@ export async function renderRoomView(sdk, ctx) {
     if (state.avatar) openStatsDialog(root, state.avatar);
   });
 
-  // Search history button (next to status dot in header)
+  // Search history button — always visible. Empty state is handled by
+  // the dialog itself ("이번 대화에서는 아직 검색이 없어요.")
   els.searchBtn.addEventListener('click', () => {
     openSearchHistoryDialog(root, state.searches);
   });
 
   function updateSearchBadge() {
     els.searchCount.textContent = state.searches.length;
-    els.searchBtn.style.display = state.searches.length > 0 ? 'inline-flex' : 'none';
+    // Visual cue: dim the count badge when empty
+    els.searchBtn.classList.toggle('nv-search-empty', state.searches.length === 0);
   }
   updateSearchBadge();
+
+  // Conversation reset — wipes server-side history + reloads the room so
+  // the first_meeting greeting fires fresh.
+  els.clearBtn.addEventListener('click', () => {
+    showDialog(root, {
+      title: '대화 초기화',
+      body: `${state.avatar?.name || '이 아바타'}와의 모든 대화 기록을 삭제할까요?\n되돌릴 수 없어요.`,
+      cancel: '취소',
+      confirm: '초기화',
+      confirmDanger: true,
+      onConfirm: async () => {
+        try {
+          await sdk.api.clearMessages(avatarId);
+          // Re-enter the room — Router.cleanup closes WS, MiniPortrait.destroy,
+          // then bootRoom restarts everything including client_ready.
+          sdk.goToRoom(avatarId, state.avatar?.name || '');
+        } catch (e) {
+          showDialog(root, { title: '초기화 실패', body: e.message || String(e), confirm: '확인', onConfirm: () => {} });
+        }
+      },
+    });
+  });
 
   // Back button → list
   root.querySelector('.nv-back').addEventListener('click', () => history.back());
@@ -505,9 +531,12 @@ function renderTemplate(name) {
   <header class="nv-header">
     <button class="nv-back" aria-label="뒤로">‹</button>
     <h1 class="nv-title">${escapeHtml(name)}와의 채팅</h1>
-    <button class="nv-search-btn" aria-label="검색 이력" style="display:none;">
+    <button class="nv-search-btn nv-search-empty" aria-label="검색 이력">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <span class="nv-search-count">0</span>
+    </button>
+    <button class="nv-clear-btn" aria-label="대화 초기화">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
     </button>
     <span class="nv-status" aria-hidden="true"></span>
   </header>
@@ -540,7 +569,12 @@ function ensureStyle() {
 .nv-status.online { background: #10b981; }
 .nv-search-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 14px; background: #f9fafb; color: #4b5563; cursor: pointer; font-size: 11px; font-weight: 600; }
 .nv-search-btn:active { background: #e5e7eb; }
+.nv-search-btn.nv-search-empty { color: #9ca3af; }
+.nv-search-btn.nv-search-empty .nv-search-count { opacity: 0.6; }
 .nv-search-count { font-variant-numeric: tabular-nums; }
+.nv-clear-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent; color: #6b7280; cursor: pointer; }
+.nv-clear-btn:hover { color: #ef4444; background: #fef2f2; }
+.nv-clear-btn:active { background: #fee2e2; }
 
 .nv-msgs-area { flex: 1; position: relative; overflow: hidden; }
 /* padding-bottom: leaves breathing room between the last message and the
