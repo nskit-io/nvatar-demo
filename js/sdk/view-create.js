@@ -80,6 +80,8 @@ export async function openCreateDialog(sdk, root, onCreated) {
     submitBtn.textContent = '생성 중…';
 
     try {
+      const speechLevel = overlay.querySelector('select[name=speech_level]').value || 'polite';
+
       // Step 1: create avatar (tone derived from MBTI dimensions for now)
       const created = await sdk.api.createAvatar({
         name,
@@ -87,7 +89,7 @@ export async function openCreateDialog(sdk, root, onCreated) {
         mbti,
         tone: deriveToneHint(mbti),
         speech_style: '',
-        speech_level: 'polite',
+        speech_level: speechLevel,
         proactive_level: 3,
       });
 
@@ -174,6 +176,17 @@ const TEMPLATE = `
         <option value="">MBTI 선택</option>
       </select>
       <p class="nv-hint">MBTI 의 세부 수치는 랜덤하게 결정됩니다.<br>아바타와 오래 이야기 하면 MBTI 및 성격이 변할 수도 있어요.</p>
+    </div>
+
+    <div class="nv-field">
+      <label><span class="nv-bar"></span>발화 어투</label>
+      <select name="speech_level">
+        <option value="formal">존대 (~습니다)</option>
+        <option value="polite" selected>반존대 (~요)</option>
+        <option value="casual">평대 (~해)</option>
+        <option value="informal">하대 (~다, ~렴)</option>
+      </select>
+      <p class="nv-hint">생성 후에는 변경할 수 없어요. 신중히 골라주세요.</p>
     </div>
 
     <div class="nv-field">

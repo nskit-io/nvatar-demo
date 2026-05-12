@@ -49,8 +49,9 @@ export class MiniPortrait {
     this.vrm = null;
     this.vrmRoot = null;
     this._measured = false;
-    this._camDist = 1.4;
-    this._camYOff = 0.30;
+    // Tuned to match avatar/portrait.js defaults — these work for standard VRM rigs.
+    this._camDist = 1.1;
+    this._camYOff = 0.25;
     this._lookYOff = 0.08;
 
     // Expression blending
@@ -153,8 +154,16 @@ export class MiniPortrait {
         chestBone.getWorldPosition(chestPos);
         const span = headPos.distanceTo(chestPos);
         const scale = span / 0.25;
-        this._camDist = 1.4 * scale;
-        this._camYOff = 0.30 * scale;
+        this._camDist = 1.1 * scale;
+        this._camYOff = 0.25 * scale;
+        this._lookYOff = 0.08 * scale;
+      } else if (this.vrmRoot) {
+        // Bounding-box fallback when neck/chest bones aren't available
+        const box = new THREE.Box3().setFromObject(this.vrmRoot);
+        const height = box.getSize(new THREE.Vector3()).y;
+        const scale = (height || 1.6) / 1.6;
+        this._camDist = 1.1 * scale;
+        this._camYOff = 0.25 * scale;
         this._lookYOff = 0.08 * scale;
       }
     }

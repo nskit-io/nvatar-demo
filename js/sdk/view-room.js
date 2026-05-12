@@ -75,10 +75,15 @@ export async function renderRoomView(sdk, ctx) {
     if (avatar.vrm_uid) {
       try {
         const model = await sdk.api.resolveVrm(avatar.vrm_uid);
+        console.log('[NVatar] loading VRM:', model.url);
         await state.portrait.loadVrm(model.url);
+        console.log('[NVatar] VRM loaded');
       } catch (e) {
-        console.warn('VRM load failed:', e);
+        console.error('[NVatar] VRM load failed:', e);
+        addSystemMsg('아바타 모델 로딩에 실패했어요 (' + (e.message || e) + ')');
       }
+    } else {
+      addSystemMsg('아바타에 모델이 연결되어 있지 않아요');
     }
 
     // 4) Restore message history
@@ -426,7 +431,8 @@ function ensureStyle() {
 .nv-typing div:nth-child(3) { animation-delay: 0.3s; }
 @keyframes nv-bounce { 0%,60%,100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
 
-/* Portrait — absolutely positioned, transitions to latest assistant row */
+/* Portrait — absolutely positioned, transitions to latest assistant row.
+   Dark background so VRM characters (typically light-toned) stand out. */
 .nv-portrait {
   position: absolute; left: 14px; top: 14px;
   width: 56px; height: 56px;
@@ -435,9 +441,10 @@ function ensureStyle() {
   pointer-events: none;
   opacity: 0;
   transition: transform 0.35s cubic-bezier(.5,.1,.25,1), opacity 0.3s ease;
-  -webkit-mask-image: radial-gradient(circle at center, black 62%, transparent 100%);
-          mask-image: radial-gradient(circle at center, black 62%, transparent 100%);
-  background: #f3f4f6;
+  -webkit-mask-image: radial-gradient(circle at center, black 82%, transparent 100%);
+          mask-image: radial-gradient(circle at center, black 82%, transparent 100%);
+  background: radial-gradient(circle at 50% 40%, #2a3447 0%, #0f172a 100%);
+  border: 1px solid rgba(255,255,255,0.08);
 }
 .nv-portrait.nv-visible { opacity: 1; }
 
