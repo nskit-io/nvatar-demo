@@ -9,11 +9,10 @@ const MBTI_LIST = [
 ];
 
 // 노출할 모델은 명시적인 uid 화이트리스트로 제어. 이름 매칭/유추 금지.
-// 비어있으면 백엔드 인덱스 전체에서 thumbnail 가진 것 우선으로 첫 N개 노출.
-// 시연 시 특정 3개로 고정하려면 여기에 uid 직접 박기:
+// 비어있으면 백엔드 인덱스 전체를 노출 (thumbnail 있는 것 우선 정렬).
+// 시연 시 특정 모델만 고정하려면 여기에 uid 직접 박기:
 //   const FEATURED_MODEL_UIDS = ['xxxxxxxx', 'yyyyyyyy', 'zzzzzzzz'];
 const FEATURED_MODEL_UIDS = [];
-const VISIBLE_MODEL_COUNT = 3;
 
 const STYLE_ID = 'nv-sdk-create-style';
 
@@ -117,10 +116,10 @@ async function loadModels(sdk) {
     return FEATURED_MODEL_UIDS.map(uid => byUid.get(uid)).filter(Boolean);
   }
 
-  // 2) 화이트리스트 없으면 백엔드 인덱스 순서 그대로. thumbnail 있는 것 우선.
+  // 2) 화이트리스트 없으면 전체 노출. thumbnail 있는 것 우선, 없는 것은 뒤로.
   const withThumb = all.filter(m => m.thumbnail);
   const withoutThumb = all.filter(m => !m.thumbnail);
-  return [...withThumb, ...withoutThumb].slice(0, VISIBLE_MODEL_COUNT);
+  return [...withThumb, ...withoutThumb];
 }
 
 // Lightweight MBTI → tone hint (백엔드 tone 필드 비어있으면 안 되므로 기본값 제공).
