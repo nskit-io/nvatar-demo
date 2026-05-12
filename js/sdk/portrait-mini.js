@@ -61,6 +61,12 @@ export class MiniPortrait {
     this._targetIntensity = 0;
     this._blendProgress = 1;
 
+    // Idle motion state — gives the model a living feel
+    this._idleClock = Math.random() * 10;            // staggered start
+    this._nextBlinkAt = 2 + Math.random() * 3;        // first blink 2~5s in
+    this._blinkUntil = 0;
+    this._headBaseRot = null;                          // captured on first frame
+
     this._destroyed = false;
     this._lastT = performance.now();
     this._loop = this._loop.bind(this);
@@ -129,14 +135,56 @@ export class MiniPortrait {
     this._lastT = t;
 
     if (this.vrm) {
+      this._idleClock += delta;
+      this._updateIdleMotion(delta);
       this._updateCamera();
       this._updateExpressionBlend(delta);
-      // VRM 자체 업데이트 (lookat 등). lookAt 비활성: chat 룸 portrait 은 정적 카메라.
+      // VRM 자체 업데이트 (springbones, expression flush 등).
       if (typeof this.vrm.update === 'function') this.vrm.update(delta);
       this._render();
     }
 
     requestAnimationFrame(this._loop);
+  }
+
+  // Subtle idle: blink + slow head sway + breathing.
+  // Keeps the portrait feeling alive without distracting from speech.
+  _updateIdleMotion(delta) {
+    const t = this._idleClock;
+
+    // Head sway — gentle yaw/pitch sine, low amplitude
+    const head = this.vrm.humanoid?.getNormalizedBoneNode('head');
+    if (head) {
+      if (!this._headBaseRot) {
+        this._headBaseRot = { x: head.rotation.x, y: head.rotation.y, z: head.rotation.z };
+      }
+      head.rotation.y = this._headBaseRot.y + Math.sin(t * 0.6) * 0.035;
+      head.rotation.x = this._headBaseRot.x + Math.sin(t * 0.4 + 1.3) * 0.020;
+      head.rotation.z = this._headBaseRot.z + Math.sin(t * 0.3 + 2.1) * 0.010;
+    }
+
+    // Breathing — tiny chest scale oscillation
+    const chest = this.vrm.humanoid?.getNormalizedBoneNode('upperChest')
+      || this.vrm.humanoid?.getNormalizedBoneNode('chest')
+      || this.vrm.humanoid?.getNormalizedBoneNode('spine');
+    if (chest) {
+      const breath = 1 + Math.sin(t * 1.6) * 0.012;
+      chest.scale.set(breath, breath, breath);
+    }
+
+    // Blink — quick close/open at random intervals
+    const emap = this.vrm.expressionManager?.expressionMap;
+    if (emap && 'blink' in emap) {
+      if (t >= this._nextBlinkAt && t < this._nextBlinkAt + 0.13) {
+        // closing/open easing across 130ms
+        const local = (t - this._nextBlinkAt) / 0.13;
+        const v = local < 0.5 ? local * 2 : (1 - local) * 2;
+        this.vrm.expressionManager.setValue('blink', Math.min(1, v));
+      } else if (t >= this._nextBlinkAt + 0.13) {
+        this.vrm.expressionManager.setValue('blink', 0);
+        this._nextBlinkAt = t + 2.5 + Math.random() * 3;  // next blink 2.5~5.5s later
+      }
+    }
   }
 
   _updateCamera() {

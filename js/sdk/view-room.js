@@ -212,7 +212,10 @@ export async function renderRoomView(sdk, ctx) {
 
     const row = document.createElement('div');
     row.className = `nv-row nv-row-${role}` + (proactive ? ' nv-proactive' : '');
+    // Name label only renders for the row that currently owns the portrait
+    // (CSS-gated via .nv-has-portrait). Other assistant rows render unlabeled.
     row.innerHTML = `
+      ${role === 'assistant' ? `<div class="nv-msg-name">${escapeHtml(name || '')}</div>` : ''}
       <div class="nv-bubble-wrap">
         <div class="nv-bubble ${lookup ? 'nv-bubble-lookup' : ''}">${escapeHtml(content)}</div>
         <div class="nv-time">${escapeHtml(timeLabel)}</div>
@@ -232,21 +235,19 @@ export async function renderRoomView(sdk, ctx) {
     }
     if (!latest) return;
 
-    // Release portrait slot on previous anchor row
+    // Release previous anchor row (drops padding + name label)
     if (state.portraitAnchor && state.portraitAnchor !== latest.el) {
       state.portraitAnchor.classList.remove('nv-has-portrait');
     }
-
     latest.el.classList.add('nv-has-portrait');
     state.portraitAnchor = latest.el;
 
-    // Portrait lives inside .nv-msgs (scrolls with content) — use offsetTop directly.
-    // RAF wait ensures the row's geometry is settled (padding-left transition just kicked in).
-    requestAnimationFrame(() => {
-      const top = latest.el.offsetTop;
-      els.portraitSlot.style.transform = `translateY(${Math.max(0, top)}px)`;
-      els.portraitSlot.classList.add('nv-visible');
-    });
+    // Detach → attach: move portrait DOM into the latest assistant row.
+    // Canvas keeps its WebGL context across moves, so this is cheap.
+    if (els.portraitSlot.parentElement !== latest.el) {
+      latest.el.insertBefore(els.portraitSlot, latest.el.firstChild);
+    }
+    els.portraitSlot.classList.add('nv-visible');
   }
 
   function addSystemMsg(text) {
@@ -427,13 +428,14 @@ function ensureStyle() {
 .nv-date-divider::before, .nv-date-divider::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
 .nv-date-divider span { font-size: 13px; color: #4b5563; font-weight: 600; }
 
-.nv-row { display: flex; flex-direction: column; gap: 4px; max-width: 100%; }
-.nv-row-assistant { align-items: flex-start; padding-right: 32px; transition: padding-left 0.35s ease; padding-left: 4px; }
-.nv-row-assistant.nv-has-portrait { padding-left: 68px; }
+.nv-row { display: flex; flex-direction: column; gap: 4px; max-width: 100%; position: relative; }
+.nv-row-assistant { align-items: flex-start; padding-right: 32px; padding-left: 4px; }
+.nv-row-assistant.nv-has-portrait { padding-left: 76px; min-height: 60px; }
 .nv-row-user { align-items: flex-end; padding-left: 32px; }
 .nv-row-system { align-items: center; }
 
-.nv-msg-name { font-size: 13px; font-weight: 700; color: #111827; }
+.nv-msg-name { display: none; font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+.nv-row-assistant.nv-has-portrait .nv-msg-name { display: block; }
 
 .nv-bubble-wrap { display: flex; align-items: flex-end; gap: 6px; max-width: 100%; }
 .nv-row-user .nv-bubble-wrap { flex-direction: row-reverse; }
@@ -453,23 +455,21 @@ function ensureStyle() {
 .nv-typing div:nth-child(3) { animation-delay: 0.3s; }
 @keyframes nv-bounce { 0%,60%,100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
 
-/* Portrait — absolutely positioned inside .nv-msgs so it scrolls with content.
-   transform: translateY() anchors it to the latest assistant row's offsetTop.
+/* Portrait — DOM-moved into the assistant row that currently "owns" it.
    Dark background so VRM characters (typically light-toned) stand out. */
 .nv-portrait {
-  position: absolute; left: 0; top: 0;
+  position: absolute; left: 8px; top: 0;
   width: 56px; height: 56px;
   border-radius: 50%;
   overflow: hidden;
   pointer-events: none;
-  opacity: 0;
-  transition: transform 0.35s cubic-bezier(.5,.1,.25,1), opacity 0.3s ease;
+  display: none;
   -webkit-mask-image: radial-gradient(circle at center, black 82%, transparent 100%);
           mask-image: radial-gradient(circle at center, black 82%, transparent 100%);
   background: radial-gradient(circle at 50% 40%, #2a3447 0%, #0f172a 100%);
   border: 1px solid rgba(255,255,255,0.08);
 }
-.nv-portrait.nv-visible { opacity: 1; }
+.nv-portrait.nv-visible { display: block; }
 
 /* Input bar */
 .nv-input-area { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid #e5e7eb; flex-shrink: 0; background: #ffffff; }
