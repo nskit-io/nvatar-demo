@@ -60,6 +60,7 @@ export async function renderRoomView(sdk, ctx) {
     micTimer: null,
     avatar: null,             // resolved avatar record (for stats dialog)
     searches: [],             // bubble_lookup history — in-memory, cleared on route leave
+    thinkingRow: null,        // placeholder row owning portrait while avatar "thinks"
   };
 
   // Portrait click → stats dialog (read-only)
@@ -187,7 +188,9 @@ export async function renderRoomView(sdk, ctx) {
   function handleWsMessage(data, avatarName) {
     switch (data.type) {
       case 'typing':
-        showTyping();
+        // Suppress the separate typing bar when we already have a
+        // placeholder row showing its own thinking dots.
+        if (!state.thinkingRow) showTyping();
         break;
       case 'bubble':
         state.bubbleQueue.push({ type: 'bubble', text: data.text, name: avatarName });
@@ -234,6 +237,7 @@ export async function renderRoomView(sdk, ctx) {
         break;
       case 'error':
         hideTyping();
+        clearThinkingPlaceholder();
         addSystemMsg('오류: ' + data.text);
         els.sendBtn.disabled = false;
         break;
@@ -268,8 +272,16 @@ export async function renderRoomView(sdk, ctx) {
         // the latest *spoken* assistant row, which keeps the avatar's identity
         // signal continuous through the search interaction.
       } else {
-        appendMessage({ role: 'assistant', content: item.text, ts: new Date().toISOString(), name: item.name });
-        movePortraitToLatest();
+        // First assistant bubble after user send → fill the thinking
+        // placeholder in-place (portrait already there).
+        const filled = fillThinkingPlaceholder({
+          content: item.text, name: item.name,
+          lookup: false, ts: new Date().toISOString(),
+        });
+        if (!filled) {
+          appendMessage({ role: 'assistant', content: item.text, ts: new Date().toISOString(), name: item.name });
+          movePortraitToLatest();
+        }
       }
       if (state.bubbleQueue.length > 0) {
         await sleep(BUBBLE_GAP_MS);
@@ -442,8 +454,87 @@ export async function renderRoomView(sdk, ctx) {
     const combined = state.pendingMessages.join('\n');
     state.pendingMessages = [];
     els.sendBtn.disabled = true;
-    showTyping();
+    // Reserve a portrait-owning placeholder row below the user's message.
+    // The prior assistant box loses its portrait + name label and becomes a
+    // plain bubble row, so there's no awkward overlap during the wait.
+    appendThinkingPlaceholder();
     state.sock.send(combined);
+  }
+
+  // Build a placeholder row immediately after a user send — portrait moves
+  // here, thinking dots show inline. When the first assistant bubble arrives,
+  // this row is mutated in-place into a normal bubble row (no DOM churn,
+  // no portrait re-attach animation).
+  function appendThinkingPlaceholder() {
+    // Strip portrait status from the previous owner (becomes a plain row)
+    if (state.portraitAnchor) {
+      state.portraitAnchor.classList.remove('nv-has-portrait');
+    }
+    const row = document.createElement('div');
+    row.className = 'nv-row nv-row-assistant nv-has-portrait nv-row-thinking';
+    row.innerHTML = `
+      <div class="nv-msg-name">${escapeHtml(state.avatar?.name || '')}</div>
+      <div class="nv-thinking-dots" aria-label="생각 중"><div></div><div></div><div></div></div>
+    `;
+    els.msgs.insertBefore(row, els.typing);
+    // Move portrait into placeholder as the row's first child (absolute,
+    // positioned within row.padding-left:76px column).
+    row.insertBefore(els.portraitSlot, row.firstChild);
+    els.portraitSlot.classList.add('nv-visible');
+    state.portraitAnchor = row;
+    state.thinkingRow = row;
+    scrollBottom();
+  }
+
+  // Mutate the placeholder into a real assistant bubble row. Portrait stays
+  // anchored — no extra movePortraitToLatest needed.
+  function fillThinkingPlaceholder({ content, name, lookup, ts }) {
+    const row = state.thinkingRow;
+    if (!row) return false;
+    state.thinkingRow = null;
+
+    const date = new Date(ts || Date.now());
+    const timeLabel = formatTime(date);
+    const dateLabel = formatDateLabel(date);
+    if (dateLabel !== state.lastDateLabel) {
+      const div = document.createElement('div');
+      div.className = 'nv-date-divider';
+      div.innerHTML = `<span>${dateLabel}</span>`;
+      els.msgs.insertBefore(div, row);
+      state.lastDateLabel = dateLabel;
+    }
+
+    const dots = row.querySelector('.nv-thinking-dots');
+    if (dots) dots.remove();
+
+    const wrap = document.createElement('div');
+    wrap.className = 'nv-bubble-wrap';
+    wrap.innerHTML = `
+      <div class="nv-bubble ${lookup ? 'nv-bubble-lookup' : ''}">${escapeHtml(content)}</div>
+      <div class="nv-time">${escapeHtml(timeLabel)}</div>
+    `;
+    row.appendChild(wrap);
+    row.classList.remove('nv-row-thinking');
+
+    state.rows.push({ role: 'assistant', content, ts, timeLabel, isProactive: false, el: row });
+    scrollBottom();
+    return true;
+  }
+
+  // Drop the placeholder without mutating into a bubble (used on error path).
+  function clearThinkingPlaceholder() {
+    if (!state.thinkingRow) return;
+    // Move portrait out before the row dies (it's still our DOM widget).
+    if (state.thinkingRow.contains(els.portraitSlot)) {
+      // Park it next to typing — invisible, ready to re-attach on next bubble
+      els.portraitSlot.classList.remove('nv-visible');
+      els.msgs.insertBefore(els.portraitSlot, els.typing);
+    }
+    state.thinkingRow.remove();
+    state.thinkingRow = null;
+    // Re-anchor portrait to whatever assistant row was visually last
+    state.portraitAnchor = null;
+    movePortraitToLatest();
   }
 
   // --- Mic / Whisper STT ---
@@ -663,6 +754,13 @@ function ensureStyle() {
 .nv-typing { display: none; align-items: center; gap: 4px; padding: 10px 14px; background: #f3f4f6; border-radius: 14px; border-top-left-radius: 4px; align-self: flex-start; margin-left: 4px; }
 .nv-typing.nv-visible { display: inline-flex; }
 .nv-row-user + .nv-typing, .nv-row-assistant + .nv-typing { margin-top: 14px; }
+
+/* Thinking placeholder — sits inside the portrait-owning row so the layout
+   reserves the exact same height a real bubble row would occupy. */
+.nv-thinking-dots { display: inline-flex; align-items: center; gap: 4px; padding: 10px 14px; background: #f3f4f6; border-radius: 14px; border-top-left-radius: 4px; align-self: flex-start; }
+.nv-thinking-dots > div { width: 6px; height: 6px; border-radius: 50%; background: #9ca3af; animation: nv-bounce 1.3s infinite; }
+.nv-thinking-dots > div:nth-child(2) { animation-delay: 0.15s; }
+.nv-thinking-dots > div:nth-child(3) { animation-delay: 0.3s; }
 .nv-typing div { width: 6px; height: 6px; border-radius: 50%; background: #9ca3af; animation: nv-bounce 1.3s infinite; }
 .nv-typing div:nth-child(2) { animation-delay: 0.15s; }
 .nv-typing div:nth-child(3) { animation-delay: 0.3s; }
