@@ -138,6 +138,7 @@ export async function renderRoomView(sdk, ctx) {
         if (data.emotions && state.portrait) state.portrait.setEmotion(data.emotions);
         break;
       case 'proactive':
+        // 프로액티브 채팅 — 시간 기반 발화 + client_ready 시 큐 flush.
         appendMessage({ role: 'assistant', content: data.message, ts: new Date().toISOString(), name: avatarName, proactive: true });
         movePortraitToLatest();
         break;
@@ -146,6 +147,18 @@ export async function renderRoomView(sdk, ctx) {
         addSystemMsg('오류: ' + data.text);
         els.sendBtn.disabled = false;
         break;
+
+      // --- Explicitly ignored (out of scope for chat-only SDK) ---
+      case 'monologue':       // 혼잣말 — 사용자 요구로 SDK 비노출. monologue_request 도 SDK 가 보내지 않음.
+      case 'avatar_return':   // 환경 re-entry 신호 (Avatar OS) — 환경 요소 비활성
+      case 'code_result':     // code-assist 패턴 전용 — 이번 SDK 는 normal 모드만
+      case 'monologue_start':
+      case 'monologue_end':
+        console.debug('[NVatar] ignored event:', data.type);
+        break;
+
+      default:
+        console.debug('[NVatar] unhandled event:', data.type, data);
     }
   }
 
