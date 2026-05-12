@@ -368,7 +368,16 @@ export async function renderRoomView(sdk, ctx) {
     }
 
     state.rows.push({ role, content, ts, timeLabel, isProactive: !!proactive, el: row });
-    scrollBottom();
+    if (role === 'user') {
+      // After the user types, the prior assistant row (often the
+      // portrait-owning one) needs to lift cleanly. block:'end' anchors
+      // this user row at the visible bottom while letting nv-msgs's
+      // padding-bottom keep input-bar breathing space — the prior
+      // assistant box's real measured height pushes it up naturally.
+      requestAnimationFrame(() => row.scrollIntoView({ block: 'end', behavior: 'smooth' }));
+    } else {
+      scrollBottom();
+    }
   }
 
   function movePortraitToLatest() {
@@ -581,9 +590,13 @@ function ensureStyle() {
    input bar even when scrolled fully down. */
 .nv-msgs { position: relative; height: 100%; overflow-y: auto; padding: 14px 14px 64px; display: flex; flex-direction: column; gap: 4px; }
 
-/* Bigger breathing room when speaker switches */
+/* Bigger breathing room when speaker switches.
+   Especially important when the assistant row owns a 56px portrait —
+   without margin, the user bubble visually crowds the portrait box. */
 .nv-row-assistant + .nv-row-user,
-.nv-row-user + .nv-row-assistant { margin-top: 14px; }
+.nv-row-user + .nv-row-assistant { margin-top: 24px; }
+.nv-row-action + .nv-row-user,
+.nv-row-user + .nv-row-action { margin-top: 14px; }
 
 .nv-date-divider { display: flex; align-items: center; gap: 12px; margin: 18px 8px; }
 .nv-date-divider::before, .nv-date-divider::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
