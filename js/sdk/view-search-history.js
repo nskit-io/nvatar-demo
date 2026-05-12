@@ -5,7 +5,7 @@
 
 const STYLE_ID = 'nv-sdk-search-history-style';
 
-export function openSearchHistoryDialog(root, searches) {
+export function openSearchHistoryDialog(root, searches, opts = {}) {
   ensureStyle();
 
   const overlay = document.createElement('div');
@@ -32,7 +32,23 @@ export function openSearchHistoryDialog(root, searches) {
     });
   });
 
-  requestAnimationFrame(() => overlay.classList.add('nv-sh-entered'));
+  requestAnimationFrame(() => {
+    overlay.classList.add('nv-sh-entered');
+    // Optional: open + scroll to a specific entry (when launched from an
+    // action bubble that references one particular lookup result).
+    if (opts.expandIdx != null) {
+      const target = overlay.querySelector(`.nv-sh-item[data-idx="${opts.expandIdx}"]`);
+      if (target) {
+        target.classList.add('nv-sh-open');
+        // Wait one more frame for the entry transition to settle before scroll
+        requestAnimationFrame(() => {
+          target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          target.classList.add('nv-sh-flash');
+          setTimeout(() => target.classList.remove('nv-sh-flash'), 1200);
+        });
+      }
+    }
+  });
 }
 
 function renderTemplate(searches) {
@@ -150,6 +166,12 @@ function ensureStyle() {
 
 .nv-sh-item-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; padding: 0 14px; }
 .nv-sh-item.nv-sh-open .nv-sh-item-body { max-height: 600px; padding: 12px 14px 14px; }
+.nv-sh-item.nv-sh-flash { animation: nvSearchFlash 1.2s ease; }
+@keyframes nvSearchFlash {
+  0%   { box-shadow: 0 0 0 0 rgba(99,102,241,0.5); }
+  20%  { box-shadow: 0 0 0 6px rgba(99,102,241,0.25); }
+  100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); }
+}
 .nv-sh-text { font-size: 13px; color: #374151; line-height: 1.55; white-space: pre-wrap; margin-bottom: 8px; }
 .nv-sh-items { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .nv-sh-items li { font-size: 12px; color: #4b5563; padding: 6px 8px; background: #f9fafb; border-radius: 6px; line-height: 1.4; }

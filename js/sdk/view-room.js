@@ -164,19 +164,29 @@ export async function renderRoomView(sdk, ctx) {
         showTyping();
         break;
       case 'bubble':
-      case 'bubble_lookup':
-        if (data.type === 'bubble_lookup' && data.query) {
-          state.searches.push({
-            query: data.query,
-            text: data.text || '',
-            items: data.items || [],
-            ts: new Date().toISOString(),
-          });
-          updateSearchBadge();
-        }
-        state.bubbleQueue.push({ text: data.text, lookup: data.type === 'bubble_lookup', name: avatarName });
+        state.bubbleQueue.push({ type: 'bubble', text: data.text, name: avatarName });
         if (!state.bubbleProcessing) processBubbleQueue();
         break;
+      case 'bubble_lookup': {
+        const searchIdx = state.searches.length;
+        state.searches.push({
+          query: data.query,
+          text: data.text || '',
+          items: data.items || [],
+          ts: new Date().toISOString(),
+        });
+        updateSearchBadge();
+        // Render as a compact action card (one-line title), not as a chat bubble.
+        // Tapping it opens the search history dialog scrolled+expanded to this entry.
+        state.bubbleQueue.push({
+          type: 'action_search',
+          query: data.query || '검색 결과',
+          searchIdx,
+          name: avatarName,
+        });
+        if (!state.bubbleProcessing) processBubbleQueue();
+        break;
+      }
       case 'lookup_start':
         showTyping();
         addSystemMsg('관련 정보를 찾아보고 있어요…');
@@ -222,13 +232,59 @@ export async function renderRoomView(sdk, ctx) {
       const item = state.bubbleQueue.shift();
       hideTyping();
       els.sendBtn.disabled = false;
-      appendMessage({ role: 'assistant', content: item.text, ts: new Date().toISOString(), name: item.name, lookup: item.lookup });
-      movePortraitToLatest();
+      if (item.type === 'action_search') {
+        appendActionBubble({
+          query: item.query,
+          searchIdx: item.searchIdx,
+          ts: new Date().toISOString(),
+        });
+        // No portrait travel for action bubbles — portrait stays anchored to
+        // the latest *spoken* assistant row, which keeps the avatar's identity
+        // signal continuous through the search interaction.
+      } else {
+        appendMessage({ role: 'assistant', content: item.text, ts: new Date().toISOString(), name: item.name });
+        movePortraitToLatest();
+      }
       if (state.bubbleQueue.length > 0) {
         await sleep(BUBBLE_GAP_MS);
       }
     }
     state.bubbleProcessing = false;
+  }
+
+  function appendActionBubble({ query, searchIdx, ts }) {
+    const date = new Date(ts || Date.now());
+    const dateLabel = formatDateLabel(date);
+    if (dateLabel !== state.lastDateLabel) {
+      const div = document.createElement('div');
+      div.className = 'nv-date-divider';
+      div.innerHTML = `<span>${dateLabel}</span>`;
+      els.msgs.insertBefore(div, els.typing);
+      state.lastDateLabel = dateLabel;
+    }
+    const row = document.createElement('div');
+    row.className = 'nv-row nv-row-action';
+    row.innerHTML = `
+      <button type="button" class="nv-action-card" data-search-idx="${searchIdx}">
+        <span class="nv-action-icon">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <span class="nv-action-body">
+          <span class="nv-action-eyebrow">검색 결과</span>
+          <span class="nv-action-title">${escapeHtml(query)}</span>
+        </span>
+        <span class="nv-action-chev" aria-hidden="true">›</span>
+      </button>
+      <div class="nv-time">${escapeHtml(formatTime(date))}</div>
+    `;
+    row.querySelector('.nv-action-card').addEventListener('click', () => {
+      openSearchHistoryDialog(root, state.searches, { expandIdx: searchIdx });
+    });
+    els.msgs.insertBefore(row, els.typing);
+    // Action rows don't take portrait — push a marker so grouping logic
+    // doesn't fuse a following assistant bubble with whatever preceded.
+    state.rows.push({ role: 'action', el: row, ts, timeLabel: formatTime(date) });
+    scrollBottom();
   }
 
   // --- Message append + grouping + portrait travel ---
@@ -488,6 +544,27 @@ function ensureStyle() {
 .nv-row-assistant.nv-has-portrait { padding-left: 76px; min-height: 72px; padding-bottom: 4px; }
 .nv-row-user { align-items: flex-end; padding-left: 32px; }
 .nv-row-system { align-items: center; }
+.nv-row-action { align-items: flex-start; padding: 4px 4px 4px 4px; }
+
+/* Action card — compact tappable summary linking to the search history dialog */
+.nv-action-card {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; max-width: min(86%, 340px);
+  padding: 10px 12px;
+  background: linear-gradient(180deg, #ffffff, #f9fafb);
+  border: 1px solid #e0e7ff;
+  border-radius: 14px;
+  cursor: pointer; text-align: left;
+  font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+}
+.nv-action-card:hover { background: #eef2ff; border-color: #c7d2fe; }
+.nv-action-card:active { transform: scale(0.99); }
+.nv-action-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #e0e7ff; color: #4f46e5; flex-shrink: 0; }
+.nv-action-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.nv-action-eyebrow { font-size: 11px; font-weight: 600; color: #6366f1; letter-spacing: 0.3px; }
+.nv-action-title { font-size: 13px; font-weight: 600; color: #1f2937; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+.nv-action-chev { color: #9ca3af; font-size: 18px; flex-shrink: 0; }
 
 .nv-msg-name { display: none; font-size: 13px; font-weight: 700; color: #111827; margin-bottom: 4px; }
 .nv-row-assistant.nv-has-portrait .nv-msg-name { display: block; }
