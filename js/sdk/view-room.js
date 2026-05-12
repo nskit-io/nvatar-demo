@@ -86,16 +86,24 @@ export async function renderRoomView(sdk, ctx) {
       addSystemMsg('아바타에 모델이 연결되어 있지 않아요');
     }
 
-    // 4) Restore message history
+    // 4) Restore message history. 백엔드는 ORDER BY id ASC (오래된 것 먼저) 로 응답.
     try {
       const history = await sdk.api.getMessages(avatarId, 50);
+      console.log('[NVatar] history:', history.length, 'messages');
       if (history.length) {
         history.forEach(m => {
           const role = m.role === 'user' ? 'user' : 'assistant';
           appendMessage({ role, content: m.content, ts: m.created_at, fromHistory: true, name: avatar.name });
         });
+        // Portrait travel to latest assistant after history paint.
+        // VRM may still be loading; movePortraitToLatest is idempotent and will
+        // re-anchor automatically on subsequent bubbles.
+        movePortraitToLatest();
       }
-    } catch(e) { /* silent */ }
+    } catch(e) {
+      console.error('[NVatar] history load failed:', e);
+      addSystemMsg('이전 대화 불러오기 실패: ' + (e.message || e));
+    }
 
     // 5) Open WebSocket
     state.sock = sdk.api.openChatSocket(avatarId);
