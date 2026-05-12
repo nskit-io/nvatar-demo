@@ -110,6 +110,13 @@ export class Api {
           ws.send(JSON.stringify({ type: 'message', text }));
         }
       },
+      // Send an arbitrary event (e.g. client_ready, monologue_request).
+      // Required so the backend can trigger first_meeting greeting + proactive queue flush.
+      sendEvent(type, payload = {}) {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type, ...payload }));
+        }
+      },
       onMessage(fn) { handlers.add(fn); return () => handlers.delete(fn); },
       onClose(fn) { ws.addEventListener('close', fn); },
       close() { try { ws.close(); } catch(e) {} },

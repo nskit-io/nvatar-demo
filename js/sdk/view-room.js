@@ -103,6 +103,10 @@ export async function renderRoomView(sdk, ctx) {
       addSystemMsg('연결이 끊겼습니다');
     });
 
+    // 6) Signal client_ready — 백엔드가 첫 인사(호칭 정하기) + 대기 중 proactive 를
+    //    이 신호 후에 발화. 이게 없으면 아바타가 먼저 말 안 함.
+    state.sock.sendEvent('client_ready');
+
     scrollBottom();
   }
 
