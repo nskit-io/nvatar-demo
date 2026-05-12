@@ -12,6 +12,7 @@
 
 import { MiniPortrait } from './portrait-mini.js';
 import { openStatsDialog } from './view-stats.js';
+import { openSearchHistoryDialog } from './view-search-history.js';
 
 const STYLE_ID = 'nv-sdk-room-style';
 const BUBBLE_GAP_MS = 400;
@@ -34,6 +35,8 @@ export async function renderRoomView(sdk, ctx) {
     sendBtn: root.querySelector('.nv-send'),
     micBtn: root.querySelector('.nv-mic'),
     statusDot: root.querySelector('.nv-status'),
+    searchBtn: root.querySelector('.nv-search-btn'),
+    searchCount: root.querySelector('.nv-search-count'),
   };
 
   // State
@@ -54,6 +57,7 @@ export async function renderRoomView(sdk, ctx) {
     micSec: 0,
     micTimer: null,
     avatar: null,             // resolved avatar record (for stats dialog)
+    searches: [],             // bubble_lookup history — in-memory, cleared on route leave
   };
 
   // Portrait click → stats dialog (read-only)
@@ -61,6 +65,17 @@ export async function renderRoomView(sdk, ctx) {
     e.stopPropagation();
     if (state.avatar) openStatsDialog(root, state.avatar);
   });
+
+  // Search history button (next to status dot in header)
+  els.searchBtn.addEventListener('click', () => {
+    openSearchHistoryDialog(root, state.searches);
+  });
+
+  function updateSearchBadge() {
+    els.searchCount.textContent = state.searches.length;
+    els.searchBtn.style.display = state.searches.length > 0 ? 'inline-flex' : 'none';
+  }
+  updateSearchBadge();
 
   // Back button → list
   root.querySelector('.nv-back').addEventListener('click', () => history.back());
@@ -150,6 +165,15 @@ export async function renderRoomView(sdk, ctx) {
         break;
       case 'bubble':
       case 'bubble_lookup':
+        if (data.type === 'bubble_lookup' && data.query) {
+          state.searches.push({
+            query: data.query,
+            text: data.text || '',
+            items: data.items || [],
+            ts: new Date().toISOString(),
+          });
+          updateSearchBadge();
+        }
         state.bubbleQueue.push({ text: data.text, lookup: data.type === 'bubble_lookup', name: avatarName });
         if (!state.bubbleProcessing) processBubbleQueue();
         break;
@@ -409,6 +433,10 @@ function renderTemplate(name) {
   <header class="nv-header">
     <button class="nv-back" aria-label="뒤로">‹</button>
     <h1 class="nv-title">${escapeHtml(name)}와의 채팅</h1>
+    <button class="nv-search-btn" aria-label="검색 이력" style="display:none;">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span class="nv-search-count">0</span>
+    </button>
     <span class="nv-status" aria-hidden="true"></span>
   </header>
   <div class="nv-msgs-area">
@@ -438,6 +466,9 @@ function ensureStyle() {
 .nv-room-screen .nv-back { width: 32px; height: 32px; border: none; background: transparent; font-size: 24px; color: #111827; cursor: pointer; padding: 0; line-height: 1; }
 .nv-status { width: 8px; height: 8px; border-radius: 50%; background: #d1d5db; }
 .nv-status.online { background: #10b981; }
+.nv-search-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 14px; background: #f9fafb; color: #4b5563; cursor: pointer; font-size: 11px; font-weight: 600; }
+.nv-search-btn:active { background: #e5e7eb; }
+.nv-search-count { font-variant-numeric: tabular-nums; }
 
 .nv-msgs-area { flex: 1; position: relative; overflow: hidden; }
 .nv-msgs { position: relative; height: 100%; overflow-y: auto; padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 4px; }
