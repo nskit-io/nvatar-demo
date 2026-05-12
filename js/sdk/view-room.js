@@ -201,22 +201,18 @@ export async function renderRoomView(sdk, ctx) {
       state.lastDateLabel = dateLabel;
     }
 
-    // Grouping: same role + same minute as previous row → previous row's time/name hides
+    // Grouping: same role + same minute as previous row → previous row's time hides.
+    // Name labels are not rendered (portrait is the sole identity signal).
     const prev = state.rows[state.rows.length - 1];
     const sameGroup = prev && prev.role === role && prev.timeLabel === timeLabel && !prev.isProactive;
     if (sameGroup && prev.el) {
-      // hide prev row's time + (for assistant) name; new row will own them
       const prevTime = prev.el.querySelector('.nv-time');
       if (prevTime) prevTime.style.display = 'none';
-      const prevName = prev.el.querySelector('.nv-msg-name');
-      if (prevName) prevName.style.display = 'none';
     }
 
-    const showName = role === 'assistant';
     const row = document.createElement('div');
     row.className = `nv-row nv-row-${role}` + (proactive ? ' nv-proactive' : '');
     row.innerHTML = `
-      ${showName ? `<div class="nv-msg-name">${escapeHtml(name || '')}</div>` : ''}
       <div class="nv-bubble-wrap">
         <div class="nv-bubble ${lookup ? 'nv-bubble-lookup' : ''}">${escapeHtml(content)}</div>
         <div class="nv-time">${escapeHtml(timeLabel)}</div>
@@ -244,12 +240,13 @@ export async function renderRoomView(sdk, ctx) {
     latest.el.classList.add('nv-has-portrait');
     state.portraitAnchor = latest.el;
 
-    // Position portrait absolutely over the row's left margin
-    const slotRect = latest.el.getBoundingClientRect();
-    const areaRect = els.msgs.getBoundingClientRect();
-    const top = slotRect.top - areaRect.top + els.msgs.scrollTop;
-    els.portraitSlot.style.transform = `translateY(${Math.max(0, top)}px)`;
-    els.portraitSlot.classList.add('nv-visible');
+    // Portrait lives inside .nv-msgs (scrolls with content) — use offsetTop directly.
+    // RAF wait ensures the row's geometry is settled (padding-left transition just kicked in).
+    requestAnimationFrame(() => {
+      const top = latest.el.offsetTop;
+      els.portraitSlot.style.transform = `translateY(${Math.max(0, top)}px)`;
+      els.portraitSlot.classList.add('nv-visible');
+    });
   }
 
   function addSystemMsg(text) {
@@ -393,9 +390,9 @@ function renderTemplate(name) {
   </header>
   <div class="nv-msgs-area">
     <div class="nv-msgs">
+      <div class="nv-portrait" aria-hidden="true"></div>
       <div class="nv-typing"><div></div><div></div><div></div></div>
     </div>
-    <div class="nv-portrait" aria-hidden="true"></div>
   </div>
   <footer class="nv-input-area">
     <input class="nv-input" placeholder="여기에 메시지 입력" />
@@ -420,7 +417,11 @@ function ensureStyle() {
 .nv-status.online { background: #10b981; }
 
 .nv-msgs-area { flex: 1; position: relative; overflow: hidden; }
-.nv-msgs { height: 100%; overflow-y: auto; padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.nv-msgs { position: relative; height: 100%; overflow-y: auto; padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+
+/* Bigger breathing room when speaker switches */
+.nv-row-assistant + .nv-row-user,
+.nv-row-user + .nv-row-assistant { margin-top: 14px; }
 
 .nv-date-divider { display: flex; align-items: center; gap: 12px; margin: 18px 8px; }
 .nv-date-divider::before, .nv-date-divider::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
@@ -452,10 +453,11 @@ function ensureStyle() {
 .nv-typing div:nth-child(3) { animation-delay: 0.3s; }
 @keyframes nv-bounce { 0%,60%,100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-4px); opacity: 1; } }
 
-/* Portrait — absolutely positioned, transitions to latest assistant row.
+/* Portrait — absolutely positioned inside .nv-msgs so it scrolls with content.
+   transform: translateY() anchors it to the latest assistant row's offsetTop.
    Dark background so VRM characters (typically light-toned) stand out. */
 .nv-portrait {
-  position: absolute; left: 14px; top: 14px;
+  position: absolute; left: 0; top: 0;
   width: 56px; height: 56px;
   border-radius: 50%;
   overflow: hidden;
