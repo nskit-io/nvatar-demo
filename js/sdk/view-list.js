@@ -302,14 +302,15 @@ function ensureStyle() {
 
 .nv-slot-face {
   width: 100px; height: 100px;
-  border-radius: 22px;
-  background: var(--nv-surface) center/cover no-repeat;
-  border: 1px solid var(--nv-border);
+  border-radius: 50%;
+  background: var(--nv-portrait-bg) center/cover no-repeat;
+  border: 1.5px solid var(--nv-portrait-border);
   display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
 }
-.nv-slot-face-empty { background-color: var(--nv-surface); }
-.nv-slot-face-locked { color: var(--nv-text-faint); background: var(--nv-surface); }
-.nv-slot-face-plus { color: var(--nv-text-muted); background: var(--nv-bg); border-style: dashed; }
+.nv-slot-face-empty { background-color: var(--nv-portrait-bg); }
+.nv-slot-face-locked { color: var(--nv-text-faint); background: var(--nv-surface); border-color: var(--nv-border); }
+.nv-slot-face-plus { color: var(--nv-text-muted); background: var(--nv-bg); border-style: dashed; border-color: var(--nv-border); }
 .nv-slot-name { font-size: 13px; font-weight: 600; color: var(--nv-text); max-width: 100px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
 .nv-slot-locked .nv-slot-name,
 .nv-slot-empty .nv-slot-name { color: var(--nv-text-faint); font-weight: 500; }
@@ -338,10 +339,11 @@ function ensureStyle() {
 .nv-chat-row:hover { background: var(--nv-surface-alt); }
 .nv-chat-thumb {
   width: 52px; height: 52px;
-  border-radius: 16px;
-  background: var(--nv-surface) center/cover no-repeat;
-  border: 1px solid var(--nv-border);
+  border-radius: 50%;
+  background: var(--nv-portrait-bg) center/cover no-repeat;
+  border: 1.5px solid var(--nv-portrait-border);
   flex-shrink: 0;
+  overflow: hidden;
 }
 .nv-chat-body { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .nv-chat-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }

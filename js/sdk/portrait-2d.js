@@ -21,8 +21,9 @@ export class Static2DPortrait {
 
     this.canvas = document.createElement('div');
     this.canvas.className = 'nv-2d-portrait';
+    // 부모 (.nv-portrait / .nv-slot-face / .nv-chat-thumb) 의 border + bg 사용 — 자식은 cover.
     this.canvas.style.cssText =
-      `width:100%;height:100%;border-radius:50%;background:#f3f4f6 center/cover no-repeat;display:block;`;
+      `width:100%;height:100%;border-radius:50%;background-position:center;background-size:cover;background-repeat:no-repeat;display:block;`;
     if (this.src) this.canvas.style.backgroundImage = `url('${this.src}')`;
   }
 

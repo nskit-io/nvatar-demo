@@ -49,7 +49,7 @@ const DEFAULT_BRAND = {
   //   'on-demand' — 미노출 (기본) + "NVatar 캐릭터 추가로 불러오기" 버튼 노출
   showDefaultCharacters: true,
   colors: {
-    primary:    '#3b46c4',     // CTA, user bubble accent, slot border
+    primary:    '#3b46c4',     // CTA, user bubble accent
     accent:     '#ef4444',     // section bar, danger
     background: '#ffffff',
     surface:    '#f3f4f6',     // assistant bubble, slot bg
@@ -58,6 +58,10 @@ const DEFAULT_BRAND = {
     text:       '#111827',
     textMuted:  '#6b7280',
     textFaint:  '#9ca3af',
+    // Portrait (스컬 크롭 둥근 자리) — 슬롯/chat row 의 아바타 자산 frame.
+    // 자산 없을 때 색 bg + border 톤. 이카이스 K 테마 시안: '#0ba5ec' / '#7cd4fd'
+    portraitBorder: '#d1d5db',
+    portraitBg:     '#f3f4f6',
   },
   labels: {
     entity:     '아바타',       // "친구" 등으로 override 가능
@@ -133,6 +137,8 @@ export function applyBrandVars(container, brand) {
   container.style.setProperty('--nv-text',        c.text);
   container.style.setProperty('--nv-text-muted',  c.textMuted);
   container.style.setProperty('--nv-text-faint',  c.textFaint);
+  container.style.setProperty('--nv-portrait-border', c.portraitBorder);
+  container.style.setProperty('--nv-portrait-bg',     c.portraitBg);
   if (brand.font && brand.font !== 'inherit') {
     container.style.setProperty('--nv-font', brand.font);
   }
