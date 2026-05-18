@@ -35,14 +35,20 @@ export async function openCreateDialog(sdk, root, onCreated) {
     mbtiSel.appendChild(opt);
   });
 
-  // Load character sources — franchise (brand.characters) + (옵션) NVatar default VRM.
-  const modelsGrid  = overlay.querySelector('.nv-models');
-  const extrasBtn   = overlay.querySelector('.nv-load-extras');
-  const characters  = await loadCharacters(sdk).catch(() => []);
-  const charByUid   = new Map();   // id → spec (preset lookup 위해)
+  // Character sources — 2 섹션 분리:
+  //   franchiseGrid = brand.characters (호스트 캐릭터)
+  //   nvatarGrid    = NVatar default VRM (showDefaultCharacters 모드에 따라 자동/on-demand)
+  const franchiseGrid = overlay.querySelector('.nv-models-franchise');
+  const nvatarSection = overlay.querySelector('.nv-models-section-nvatar');
+  const nvatarGrid    = overlay.querySelector('.nv-models-nvatar');
+  const extrasBtn     = overlay.querySelector('.nv-load-extras');
+  const labels = sdk.brand?.labels || {};
+  overlay.querySelector('.nv-models-section-title-franchise').textContent = labels.charactersSection || '캐릭터';
+  overlay.querySelector('.nv-models-section-title-nvatar').textContent = labels.nvatarCharactersSection || 'NVatar 캐릭터';
+  const charByUid = new Map();
   let selectedCharId = null;
 
-  function appendCharacter(c) {
+  function appendCharacter(c, gridEl) {
     charByUid.set(c.id, c);
     const cell = document.createElement('div');
     cell.className = 'nv-model';
@@ -55,42 +61,61 @@ export async function openCreateDialog(sdk, root, onCreated) {
       <div class="nv-model-name">${escapeHtml(c.name || '')}</div>
     `;
     cell.addEventListener('click', () => {
-      modelsGrid.querySelectorAll('.nv-model').forEach(el => el.classList.remove('selected'));
+      overlay.querySelectorAll('.nv-model').forEach(el => el.classList.remove('selected'));
       cell.classList.add('selected');
       selectedCharId = c.id;
       applyPreset(overlay, c);
     });
-    modelsGrid.appendChild(cell);
+    gridEl.appendChild(cell);
     return cell;
   }
 
-  if (!characters.length) {
-    modelsGrid.innerHTML = `<div style="grid-column:1/-1;font-size:12px;color:#9ca3af;text-align:center;padding:12px;">사용 가능한 캐릭터가 없습니다.</div>`;
+  // 1) 프랜차이즈 섹션 채우기
+  const franchiseChars = sdk.brand?.characters || [];
+  if (franchiseChars.length) {
+    franchiseChars.forEach(c => appendCharacter(c, franchiseGrid));
   } else {
-    characters.forEach(c => appendCharacter(c));
-    modelsGrid.firstElementChild.click();
+    // 프랜차이즈 없으면 섹션 헤더 숨김
+    overlay.querySelector('.nv-models-section-franchise')?.classList.add('nv-section-hidden');
   }
 
-  // "NVatar 캐릭터 추가로 불러오기" 버튼 — 'on-demand' 모드일 때만 노출.
-  if (extrasBtn && sdk.brand?.showDefaultCharacters === 'on-demand') {
+  // 2) NVatar 섹션 — 모드별 분기
+  const mode = sdk.brand?.showDefaultCharacters;
+  async function populateNvatarSection() {
+    const vrmDefaults = await fetchVrmDefaults(sdk);
+    const dedup = vrmDefaults.filter(e => !charByUid.has(e.id));
+    if (!dedup.length) return 0;
+    dedup.forEach(c => appendCharacter(c, nvatarGrid));
+    nvatarSection.style.display = 'block';
+    return dedup.length;
+  }
+
+  if (mode === true || mode === undefined) {
+    // 자동 머지 — NVatar 섹션 즉시 채우기
+    await populateNvatarSection().catch(() => {});
+  } else if (mode === 'on-demand') {
+    // 버튼 노출 — 클릭 시 fetch + 섹션 expand
     extrasBtn.style.display = 'inline-flex';
     extrasBtn.addEventListener('click', async () => {
       extrasBtn.disabled = true;
       extrasBtn.textContent = '불러오는 중…';
       try {
-        const extras = await fetchVrmDefaults(sdk);
-        const dedup = extras.filter(e => !charByUid.has(e.id));
-        if (!dedup.length) {
-          extrasBtn.textContent = '추가할 캐릭터가 없습니다';
-          return;
-        }
-        dedup.forEach(c => appendCharacter(c));
+        const added = await populateNvatarSection();
+        if (added === 0) { extrasBtn.textContent = '추가할 캐릭터가 없습니다'; return; }
         extrasBtn.style.display = 'none';
       } catch (e) {
         extrasBtn.disabled = false;
         extrasBtn.textContent = '다시 시도';
       }
     });
+  }
+  // mode === false 면 NVatar 섹션 미노출 + 버튼도 X
+
+  // 첫 캐릭터 자동 선택 (프랜차이즈 우선, 없으면 NVatar)
+  const firstCell = overlay.querySelector('.nv-models .nv-model');
+  if (firstCell) firstCell.click();
+  else {
+    franchiseGrid.innerHTML = `<div style="grid-column:1/-1;font-size:12px;color:#9ca3af;text-align:center;padding:12px;">사용 가능한 캐릭터가 없습니다.</div>`;
   }
 
   const close = () => overlay.remove();
@@ -288,7 +313,17 @@ const TEMPLATE = `
 
     <div class="nv-field">
       <label><span class="nv-bar"></span>아바타 모델 선택</label>
-      <div class="nv-models"></div>
+
+      <div class="nv-models-section nv-models-section-franchise">
+        <h4 class="nv-models-section-title nv-models-section-title-franchise"></h4>
+        <div class="nv-models nv-models-franchise"></div>
+      </div>
+
+      <div class="nv-models-section nv-models-section-nvatar" style="display:none;">
+        <h4 class="nv-models-section-title nv-models-section-title-nvatar"></h4>
+        <div class="nv-models nv-models-nvatar"></div>
+      </div>
+
       <button type="button" class="nv-load-extras" style="display:none;">＋ NVatar 캐릭터 추가로 불러오기</button>
       <p class="nv-preset-notice" style="display:none;"></p>
     </div>
@@ -323,6 +358,32 @@ function ensureStyle() {
 .nv-field textarea { resize: vertical; min-height: 60px; }
 .nv-hint { font-size: 11px; color: #9ca3af; margin-top: 6px; line-height: 1.5; }
 
+/* Select 의 down-caret — native UI 가려져 안 보이는 경우 대비 inline SVG 박음. */
+.nv-field select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 38px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px;
+  cursor: pointer;
+}
+.nv-field select:disabled {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d1d5db' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+}
+
+/* Models — 섹션 분리 */
+.nv-models-section { margin-top: 4px; }
+.nv-models-section + .nv-models-section { margin-top: 18px; }
+.nv-models-section-title {
+  font-size: 12px; font-weight: 700; color: #6b7280;
+  letter-spacing: 0.3px;
+  margin: 0 0 10px 2px;
+  text-transform: uppercase;
+}
+.nv-section-hidden { display: none !important; }
 .nv-models { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .nv-model { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; padding: 8px 4px; border-radius: 10px; }
 .nv-model-thumb { width: 64px; height: 64px; border-radius: 50%; border: 1px solid #d1d5db; background: #f3f4f6 center/cover no-repeat; display: flex; align-items: center; justify-content: center; }

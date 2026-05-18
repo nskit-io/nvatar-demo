@@ -64,6 +64,8 @@ const DEFAULT_BRAND = {
     empty:      '아직 만들어진 아바타가 없어요.\n아래에서 첫 아바타를 만들어보세요.',
     slotsLockedTitle: '슬롯이 가득 찼어요',
     slotsLockedBody:  '추가 슬롯은 구매 후 진행 가능합니다.\n슬롯 구매는 서비스 준비중입니다.',
+    charactersSection:    '캐릭터',        // 프랜차이즈 캐릭터 섹션 헤더 (이카이스 = "He & She 캐릭터")
+    nvatarCharactersSection: 'NVatar 캐릭터',  // NVatar default VRM 섹션 헤더
   },
   font: 'inherit',
 };
