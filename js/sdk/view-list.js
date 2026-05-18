@@ -36,10 +36,15 @@ export async function renderListView(sdk, ctx) {
     try {
       const [avatars, vrmModels] = await Promise.all([
         sdk.api.listAvatars(),
-        sdk.api.listVrmModels().catch(() => []),
+        sdk.api.listCharacters().catch(() => []),   // 전체 (franchise + NVatar)
       ]);
       avatarsCache = avatars;
-      thumbByUid = new Map(vrmModels.filter(m => m.thumbnail).map(m => [m.uid, m.thumbnail]));
+      // portrait (얼굴) 우선 — 2D 캐릭터의 face crop. fallback thumbnail (VRM 의 정사각 미리보기).
+      thumbByUid = new Map(
+        vrmModels
+          .filter(m => m.portrait || m.thumbnail)
+          .map(m => [m.uid, m.portrait || m.thumbnail])
+      );
       renderSlots(avatars);
       renderChats(avatars);
       avatars.forEach(a => hydratePreview(a));
