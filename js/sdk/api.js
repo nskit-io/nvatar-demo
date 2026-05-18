@@ -63,10 +63,11 @@ export class Api {
   }
 
   async getMessages(avatarId, limit = 50, beforeId = null, includeCompacted = false) {
-    const qs = new URLSearchParams({ limit: String(limit) });
+    const qs = new URLSearchParams({ limit: String(limit), user_id: this.userId });
     if (beforeId != null) qs.set('before_id', String(beforeId));
     if (includeCompacted) qs.set('include_compacted', 'true');
     const r = await fetch(`${this.coreBase}/api/v1/avatars/${avatarId}/messages?${qs}`);
+    if (r.status === 403) return [];
     const d = await r.json();
     return d.response || [];
   }

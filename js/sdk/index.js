@@ -92,7 +92,7 @@ export class NVatarChatSDK {
     this.mode = this._resolveMode();
     this._buildShell(this.mode);
     this._wireRouter();
-    this._bootRoute();
+    await this._bootRoute();
 
     window.addEventListener('hashchange', this._onHashChange);
     if (this.layout === 'auto') {
@@ -275,18 +275,37 @@ export class NVatarChatSDK {
     }
   }
 
-  _bootRoute() {
+  async _bootRoute() {
     const initial = this._parseHash();
+    // hash 잔재 가드 — `#/room/{id}` 의 id 가 현재 사용자의 friend 가 아니면 list 로 fallback.
+    // 다른 사용자 (게스트/이전 세션) 에서 만든 친구 id 가 URL 에 남아있어 그대로 room 에 진입되는
+    // 보안 자리 차단.
+    if (initial?.name === 'room' && initial.params?.avatarId) {
+      const ok = await this._isOwnedAvatar(initial.params.avatarId);
+      if (!ok) {
+        console.warn('[NVatar] hash room ignored — not owned by current user:', initial.params.avatarId);
+        location.hash = '#/list';
+        if (this.mode === 'mobile') this.router.go('list');
+        else this.router.go('list');
+        return;
+      }
+    }
     if (this.mode === 'mobile') {
       this.router.go(initial?.name || 'list', initial?.params || {});
     } else {
-      // Desktop/wide: list 는 이미 영구 마운트. room 은 hash 따라 또는 empty.
       if (initial?.name === 'room' && initial.params?.avatarId) {
         this.goToRoom(initial.params.avatarId, initial.params.avatarName);
       } else {
-        this.router.go('list');   // room pane 클리어 + empty placeholder
+        this.router.go('list');
       }
     }
+  }
+
+  async _isOwnedAvatar(avatarId) {
+    try {
+      const avatars = await this.api.listAvatars();
+      return avatars.some(a => Number(a.id) === Number(avatarId));
+    } catch (e) { return false; }
   }
 
   _maybeRelayout() {
@@ -307,9 +326,18 @@ export class NVatarChatSDK {
     }
   }
 
-  _onHashChange = () => {
+  _onHashChange = async () => {
     const route = this._parseHash();
     if (!route) return;
+    // hash 가 room 이면 ownership 검증 — 다른 사용자/세션의 잔재 차단
+    if (route.name === 'room' && route.params?.avatarId) {
+      const ok = await this._isOwnedAvatar(route.params.avatarId);
+      if (!ok) {
+        console.warn('[NVatar] hashchange room ignored — not owned:', route.params.avatarId);
+        location.hash = '#/list';
+        return;
+      }
+    }
     if (this.mode === 'mobile') {
       this.router.go(route.name, route.params, { fromHash: true });
     } else if (route.name === 'room' && route.params?.avatarId) {
