@@ -229,12 +229,19 @@ export async function renderRoomView(sdk, ctx) {
         break;
       case 'bubble_lookup': {
         const searchIdx = state.searches.length;
-        state.searches.push({
+        const entry = {
           query: data.query,
           text: data.text || '',
           items: data.items || [],
-          ts: new Date().toISOString(),
-        });
+          results: data.items || [],   // aux/overlay 패널이 참조하는 키
+          ts: Date.now(),
+        };
+        state.searches.push(entry);
+        // SDK level store 에도 push — aux 패널 / overlay 즉시 갱신.
+        try {
+          sdk.searchHistory.add(avatarId, entry);
+          if (typeof sdk.notifySearchUpdated === 'function') sdk.notifySearchUpdated(avatarId);
+        } catch (e) { console.error(e); }
         updateSearchBadge();
         // Render as a compact action card (one-line title), not as a chat bubble.
         // Tapping it opens the search history dialog scrolled+expanded to this entry.

@@ -22,6 +22,7 @@ import { renderListView } from './view-list.js';
 import { renderRoomView } from './view-room.js';
 import { NoopActionProvider } from './action-provider.js';
 import { resolveBrand, applyBrandVars } from './brand.js';
+import { SearchHistoryStore, renderSearchHistoryPanel } from './search-history.js';
 
 const BP_DESKTOP = 900;
 const BP_WIDE    = 1400;
@@ -48,8 +49,15 @@ export class NVatarChatSDK {
     this.brand = resolveBrand(opts.brand);
     this.layout = opts.layout || 'auto';   // 'auto' | 'mobile' | 'desktop' | 'wide'
     this.renderAux = typeof opts.renderAux === 'function' ? opts.renderAux : null;
-    // 호스트가 박으면 list 헤더 우측에 close (X) 버튼 노출 + 클릭 시 콜백 (PAGE.hidePage 등).
     this.onClose = typeof opts.onClose === 'function' ? opts.onClose : null;
+    // 검색 기록 영구화 — true 면 localStorage 백업. default 휘발성 (탭 닫으면 사라짐).
+    this.searchHistory = new SearchHistoryStore({
+      userId: this.userId,
+      persist: opts.persistSearchHistory === true,
+    });
+    this._currentAvatarId = null;
+    this._currentAvatarName = null;
+    this._searchOverlay = null;
 
     this.mode = null;          // resolved mode ('mobile' | 'desktop' | 'wide')
     this.shellEl = null;       // wrapper inside container
@@ -92,16 +100,29 @@ export class NVatarChatSDK {
 
   goToList() { this.router.go('list'); }
   goToRoom(avatarId, avatarName) {
+    this._currentAvatarId = avatarId;
+    this._currentAvatarName = avatarName;
     this.router.go('room', { avatarId, avatarName });
-    // wide 모드: aux 영역에 컨텍스트 갱신
-    if (this.mode === 'wide' && this.panes.aux && this.renderAux) {
-      try { this.renderAux(this.panes.aux, { avatarId, avatarName, sdk: this }); } catch (e) { console.error(e); }
+    // wide 모드: aux 영역 갱신 (검색 기록 또는 호스트 콜백)
+    if (this.mode === 'wide' && this.panes.aux) {
+      this._renderAuxContent(this.panes.aux, avatarId);
     }
-    // desktop/wide 에선 list pane 의 active highlight 갱신 (CSS selector)
+    // desktop/wide 에선 list pane 의 active highlight 갱신
     if (this.mode !== 'mobile' && this.panes.list) {
       this.panes.list.querySelectorAll('.nv-chat-row.is-active').forEach(r => r.classList.remove('is-active'));
       const row = this.panes.list.querySelector(`.nv-chat-row[data-avatar-id="${avatarId}"]`);
       if (row) row.classList.add('is-active');
+    }
+  }
+
+  /** view-room 이 새 검색 결과 push 시 호출. aux/overlay 가 띄워져있으면 즉시 갱신. */
+  notifySearchUpdated(avatarId) {
+    if (this.mode === 'wide' && this.panes.aux) {
+      this._renderAuxContent(this.panes.aux, this._currentAvatarId);
+    }
+    if (this._searchOverlay) {
+      const panel = this._searchOverlay.querySelector('.nv-sdk-search-panel');
+      if (panel) this._renderAuxContent(panel, this._currentAvatarId);
     }
   }
 
@@ -122,10 +143,20 @@ export class NVatarChatSDK {
     this.container.classList.remove('nv-mode-mobile', 'nv-mode-desktop', 'nv-mode-wide');
     this.container.classList.add(`nv-mode-${mode}`);
 
+    const root = document.createElement('div');
+    root.className = `nv-sdk-frame nv-sdk-frame-${mode}`;
+    this.container.appendChild(root);
+    this.shellEl = root;
+
+    // Header — back/title/search (search btn 은 wide 가 아닐 때만 노출)
+    const header = this._buildHeader(mode);
+    root.appendChild(header);
+    this.headerEl = header;
+
+    // Body — 3-pane shell
     const shell = document.createElement('div');
     shell.className = `nv-shell nv-shell-${mode}`;
-    this.container.appendChild(shell);
-    this.shellEl = shell;
+    root.appendChild(shell);
 
     if (mode === 'mobile') {
       const main = document.createElement('div');
@@ -146,11 +177,60 @@ export class NVatarChatSDK {
         aux.innerHTML = this._defaultAuxPlaceholder();
         shell.appendChild(aux);
         this.panes.aux = aux;
-        if (this.renderAux) {
-          try { this.renderAux(aux, { sdk: this }); } catch (e) { console.error(e); }
-        }
+        this._renderAuxContent(aux, null);
       }
     }
+  }
+
+  _buildHeader(mode) {
+    const header = document.createElement('header');
+    header.className = 'nv-sdk-header';
+    const backHtml = this.onClose
+      ? `<button class="nv-sdk-back" aria-label="닫기" type="button">${BACK_SVG}</button>`
+      : `<span class="nv-sdk-back-spacer"></span>`;
+    const titleHtml = `<h1 class="nv-sdk-title">${escapeText(this.brand.title)}</h1>`;
+    // Search 버튼 — wide 가 아닐 때 (aux 영역 없을 때) 헤더에 박혀서 overlay 진입점.
+    const searchHtml = mode === 'wide'
+      ? `<span class="nv-sdk-search-spacer"></span>`
+      : `<button class="nv-sdk-search" aria-label="검색 기록" type="button">${SEARCH_SVG}</button>`;
+    header.innerHTML = backHtml + titleHtml + searchHtml;
+
+    if (this.onClose) {
+      header.querySelector('.nv-sdk-back').addEventListener('click', () => {
+        try { this.onClose(); } catch (e) { console.error(e); }
+      });
+    }
+    const searchBtn = header.querySelector('.nv-sdk-search');
+    if (searchBtn) {
+      searchBtn.addEventListener('click', () => this._openSearchOverlay());
+    }
+    return header;
+  }
+
+  /** Wide 모드 aux 영역 또는 search overlay 의 콘텐츠 렌더.
+   *  호스트가 renderAux 박으면 그쪽 우선, 없으면 default = 검색 기록 아코디언. */
+  _renderAuxContent(el, activeAvatarId) {
+    if (this.renderAux) {
+      try { this.renderAux(el, { sdk: this, avatarId: activeAvatarId, avatarName: this._currentAvatarName }); }
+      catch (e) { console.error(e); }
+      return;
+    }
+    renderSearchHistoryPanel(el, this, activeAvatarId);
+  }
+
+  _openSearchOverlay() {
+    if (this._searchOverlay) { this._searchOverlay.remove(); this._searchOverlay = null; return; }
+    const overlay = document.createElement('div');
+    overlay.className = 'nv-sdk-search-overlay';
+    overlay.innerHTML = `<div class="nv-sdk-search-panel"></div>`;
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) { overlay.remove(); this._searchOverlay = null; }
+    });
+    this.shellEl.appendChild(overlay);
+    this._searchOverlay = overlay;
+    const panel = overlay.querySelector('.nv-sdk-search-panel');
+    const activeId = this._currentAvatarId || null;
+    this._renderAuxContent(panel, activeId);
   }
 
   _wireRouter() {
@@ -232,11 +312,64 @@ function debounce(fn, ms) {
   };
 }
 
+function escapeText(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+const BACK_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>`;
+const SEARCH_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+
 function ensureShellStyle() {
   if (document.getElementById(SHELL_STYLE_ID)) return;
   const css = `
 .nv-sdk-root { width: 100%; height: 100%; position: relative; overflow: hidden; background: var(--nv-bg); }
-.nv-shell { width: 100%; height: 100%; display: flex; }
+.nv-sdk-frame { width: 100%; height: 100%; display: flex; flex-direction: column; }
+
+/* SDK header (전체 layout 상단) */
+.nv-sdk-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--nv-border);
+  flex-shrink: 0;
+  background: var(--nv-bg);
+}
+.nv-sdk-back, .nv-sdk-search {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  background: transparent; border: none;
+  color: var(--nv-text); cursor: pointer;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.nv-sdk-back:hover, .nv-sdk-search:hover { background: var(--nv-surface); }
+.nv-sdk-back:active, .nv-sdk-search:active { background: var(--nv-border); }
+.nv-sdk-back-spacer, .nv-sdk-search-spacer { width: 36px; height: 36px; flex-shrink: 0; }
+.nv-sdk-title {
+  flex: 1; min-width: 0;
+  font-size: 16px; font-weight: 700;
+  color: var(--nv-text);
+  letter-spacing: -0.2px;
+  text-align: center;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+
+/* Search overlay (mobile/desktop 모드에서 검색 버튼 클릭 시 띄움) */
+.nv-sdk-search-overlay {
+  position: absolute; inset: 0;
+  background: rgba(15,23,42,0.5);
+  z-index: 250;
+  display: flex; align-items: stretch; justify-content: flex-end;
+}
+.nv-sdk-search-panel {
+  width: 100%; max-width: 380px;
+  background: var(--nv-bg);
+  height: 100%;
+  overflow-y: auto;
+  box-shadow: -8px 0 30px rgba(0,0,0,0.2);
+}
+
+/* shell body (헤더 아래) */
+.nv-shell { flex: 1; min-height: 0; display: flex; }
 
 /* Mobile — single column */
 .nv-shell-mobile .nv-pane-main { flex: 1; height: 100%; position: relative; overflow: hidden; }
