@@ -40,6 +40,12 @@ export class Router {
   go(name, params = {}, opts = {}) {
     if (!this.routes[name]) throw new Error('Unknown route: ' + name);
 
+    // Idempotent — 같은 route 재호출 (hashchange race 등) 시 cleanup+remount 회피
+    if (this.current && this.current.name === name &&
+        JSON.stringify(this.current.params) === JSON.stringify(params)) {
+      return;
+    }
+
     // Sync hash unless triggered by hashchange
     if (!opts.fromHash) {
       const hash = this._encodeHash(name, params);
