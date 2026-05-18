@@ -103,6 +103,7 @@ export class NVatarChatSDK {
     this._currentAvatarId = avatarId;
     this._currentAvatarName = avatarName;
     this.router.go('room', { avatarId, avatarName });
+    this._updateSearchBadge();
     // wide 모드: aux 영역 갱신 (검색 기록 또는 호스트 콜백)
     if (this.mode === 'wide' && this.panes.aux) {
       this._renderAuxContent(this.panes.aux, avatarId);
@@ -115,14 +116,30 @@ export class NVatarChatSDK {
     }
   }
 
-  /** view-room 이 새 검색 결과 push 시 호출. aux/overlay 가 띄워져있으면 즉시 갱신. */
+  /** view-room 이 새 검색 결과 push 시 호출. aux/overlay/헤더 count 즉시 갱신. */
   notifySearchUpdated(avatarId) {
+    void avatarId;
+    this._updateSearchBadge();
     if (this.mode === 'wide' && this.panes.aux) {
       this._renderAuxContent(this.panes.aux, this._currentAvatarId);
     }
     if (this._searchOverlay) {
       const panel = this._searchOverlay.querySelector('.nv-sdk-search-panel');
       if (panel) this._renderAuxContent(panel, this._currentAvatarId);
+    }
+  }
+
+  _updateSearchBadge() {
+    if (!this.headerEl) return;
+    const badge = this.headerEl.querySelector('.nv-sdk-search-count');
+    if (!badge) return;
+    const id = this._currentAvatarId;
+    const count = id ? this.searchHistory.list(id).length : 0;
+    if (count > 0) {
+      badge.textContent = count > 99 ? '99+' : String(count);
+      badge.style.display = 'inline-flex';
+    } else {
+      badge.style.display = 'none';
     }
   }
 
@@ -190,9 +207,13 @@ export class NVatarChatSDK {
       : `<span class="nv-sdk-back-spacer"></span>`;
     const titleHtml = `<h1 class="nv-sdk-title">${escapeText(this.brand.title)}</h1>`;
     // Search 버튼 — wide 가 아닐 때 (aux 영역 없을 때) 헤더에 박혀서 overlay 진입점.
+    // 우측 상단 count badge — 현재 친구의 검색 기록 건수 (RAG 결과). 0 이면 숨김.
     const searchHtml = mode === 'wide'
       ? `<span class="nv-sdk-search-spacer"></span>`
-      : `<button class="nv-sdk-search" aria-label="검색 기록" type="button">${SEARCH_SVG}</button>`;
+      : `<button class="nv-sdk-search" aria-label="검색 기록" type="button">
+           ${SEARCH_SVG}
+           <span class="nv-sdk-search-count" style="display:none;">0</span>
+         </button>`;
     header.innerHTML = backHtml + titleHtml + searchHtml;
 
     if (this.onClose) {
@@ -340,9 +361,23 @@ function ensureShellStyle() {
   color: var(--nv-text); cursor: pointer;
   border-radius: 10px;
   flex-shrink: 0;
+  position: relative;
 }
 .nv-sdk-back:hover, .nv-sdk-search:hover { background: var(--nv-surface); }
 .nv-sdk-back:active, .nv-sdk-search:active { background: var(--nv-border); }
+.nv-sdk-search-count {
+  position: absolute;
+  top: 2px; right: 2px;
+  min-width: 16px; height: 16px;
+  padding: 0 5px;
+  background: var(--nv-primary);
+  color: #fff;
+  font-size: 10px; font-weight: 700;
+  border-radius: 8px;
+  line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
 .nv-sdk-back-spacer, .nv-sdk-search-spacer { width: 36px; height: 36px; flex-shrink: 0; }
 .nv-sdk-title {
   flex: 1; min-width: 0;
