@@ -13,10 +13,10 @@
 //   p.setEmotion({ joy: 70, sadness: 10 });
 //   p.destroy();
 
-// esm.sh — bare specifier ('three' 등) 자동 absolute URL rewrite.
-// 호스트 페이지에 importmap 박을 부담 없음. SDK self-contained.
-import * as THREE from 'https://esm.sh/three@0.160.0';
-import { GLTFLoader } from 'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+// bare specifier — portrait.js factory 가 진입 시 importmap inject (single 'three'
+// instance 보장). multiple instance 문제 (A.onBuild not function) 차단.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mapEmotionToExpression } from './emotion-map.js';
 
 const BLEND_SPEED = 4.0;  // expression blend per second
@@ -89,8 +89,9 @@ export class MiniPortrait {
 
   async loadVrm(url) {
     if (!url) return;
-    // three-vrm 도 esm.sh 통일 — 자체 'three' sub-import 자동 rewrite
-    const vrmModule = await import('https://esm.sh/@pixiv/three-vrm@3.3.3');
+    // three-vrm — importmap 의 'three' resolve 통해 single instance 공유.
+    // jsdelivr URL 박되 sub-import 가 bare 'three' 박혀있어 importmap 사용.
+    const vrmModule = await import('https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.3.3/lib/three-vrm.module.min.js');
     const { VRMLoaderPlugin } = vrmModule;
 
     const loader = new GLTFLoader();

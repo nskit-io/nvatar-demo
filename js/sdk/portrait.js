@@ -13,9 +13,29 @@
 export async function createPortrait(opts) {
   const kind = opts?.kind === 'vrm' ? 'vrm' : '2d';
   if (kind === 'vrm') {
+    // 호스트 importmap 자리 박혀있지 않을 시 SDK 가 자체 inject (single 'three' source).
+    // portrait-mini.js 와 three-vrm 의 sub-import 가 같은 esm.sh URL 으로 resolve → dedupe.
+    ensureThreeImportMap();
     const mod = await import('./portrait-mini.js');
     return new mod.MiniPortrait(opts);
   }
   const mod = await import('./portrait-2d.js');
   return new mod.Static2DPortrait(opts);
+}
+
+function ensureThreeImportMap() {
+  if (document.getElementById('nv-three-importmap')) return;
+  // 이미 'three' resolved 됐는지 — script[type=importmap] 외 module 의 import 가
+  // 한번 박힌 후 importmap 박으면 효과 X. SDK 의 모든 module 호출이 SDK_BASE 의
+  // dynamic import 라 진입 직전 박으면 안전 (modern browser 의 multiple importmap 지원).
+  const script = document.createElement('script');
+  script.type = 'importmap';
+  script.id = 'nv-three-importmap';
+  script.textContent = JSON.stringify({
+    imports: {
+      'three': 'https://esm.sh/three@0.160.0',
+      'three/addons/': 'https://esm.sh/three@0.160.0/examples/jsm/',
+    },
+  });
+  document.head.appendChild(script);
 }
