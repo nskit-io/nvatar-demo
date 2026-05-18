@@ -21,7 +21,7 @@ import { Router } from './router.js';
 import { renderListView } from './view-list.js';
 import { renderRoomView } from './view-room.js';
 import { NoopActionProvider } from './action-provider.js';
-import { resolveBrand, applyBrandVars } from './brand.js';
+import { resolveBrand, applyBrandVars, toSyncPayload } from './brand.js';
 import { SearchHistoryStore, renderSearchHistoryPanel } from './search-history.js';
 
 const BP_DESKTOP = 900;
@@ -75,6 +75,19 @@ export class NVatarChatSDK {
     this.container.innerHTML = '';
     this.container.classList.add('nv-sdk-root');
     applyBrandVars(this.container, this.brand);
+
+    // 프랜차이즈 캐릭터 sync — backend (nv_vrm_models) 에 upsert.
+    // brand.franchiseCode 박혀있을 때만. 실패해도 SDK 진입은 진행 (resilient).
+    if (this.brand.franchiseCode && this.brand.characters.length) {
+      try {
+        await this.api.syncFranchiseCharacters(
+          this.brand.franchiseCode,
+          toSyncPayload(this.brand.characters),
+        );
+      } catch (e) {
+        console.warn('[NVatar] franchise sync failed:', e.message || e);
+      }
+    }
 
     this.mode = this._resolveMode();
     this._buildShell(this.mode);

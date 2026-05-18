@@ -88,6 +88,36 @@ export class Api {
     return (d.models || []).map(m => this._absolutizeModel(m));
   }
 
+  /** franchise:
+   *  null/omit  → 전체 (NVatar 기본 + 모든 프랜차이즈)
+   *  'none'     → NVatar 기본 (franchise_code IS NULL) 만
+   *  'ekys'     → 해당 프랜차이즈만
+   */
+  async listCharacters(franchise) {
+    const qs = new URLSearchParams({ active_only: 'true' });
+    if (franchise) qs.set('franchise', franchise);
+    const r = await fetch(`${this.resBase}/api/v1/vrm/models?${qs}`);
+    const d = await r.json();
+    return (d.models || []).map(m => this._absolutizeModel(m));
+  }
+
+  /** 프랜차이즈 캐릭터 일괄 upsert. SDK init 시 자동 호출 (brand.franchiseCode 박혀있을 때).
+   *  payload = [{ char_code, kind, name, thumbnail, portrait, vrm_url, preset }]
+   */
+  async syncFranchiseCharacters(franchiseCode, characters) {
+    const r = await fetch(
+      `${this.resBase}/api/v1/vrm/franchise/${encodeURIComponent(franchiseCode)}/characters`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ characters }),
+      },
+    );
+    const d = await r.json();
+    if (d.code && d.code !== 200) throw new Error(d.message || d.detail || 'sync failed');
+    return (d.characters || []).map(m => this._absolutizeModel(m));
+  }
+
   async resolveVrm(uid) {
     const r = await fetch(`${this.resBase}/api/v1/vrm/resolve/${uid}`);
     const d = await r.json();
@@ -101,7 +131,7 @@ export class Api {
       if (/^https?:/i.test(u)) return u;
       return this.resBase + (u.startsWith('/') ? '' : '/') + u;
     };
-    return { ...m, thumbnail: abs(m.thumbnail), url: abs(m.url) };
+    return { ...m, thumbnail: abs(m.thumbnail), portrait: abs(m.portrait), url: abs(m.url) };
   }
 
   // --- Chat WebSocket (core) ---

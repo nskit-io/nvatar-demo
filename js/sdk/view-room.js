@@ -14,7 +14,6 @@ import { createPortrait } from './portrait.js';
 import { openStatsDialog } from './view-stats.js';
 import { openSearchHistoryDialog } from './view-search-history.js';
 import { showDialog } from './view-list.js';
-import { findCharacter } from './brand.js';
 
 const STYLE_ID = 'nv-sdk-room-style';
 const BUBBLE_GAP_MS = 400;
@@ -138,38 +137,29 @@ export async function renderRoomView(sdk, ctx) {
     state.avatar = avatar;
     root.querySelector('.nv-title').textContent = `${avatar.name}와의 채팅`;
 
-    // 2) Portrait widget — character source 분기:
-    //    a) brand.characters 에 매칭 = 프랜차이즈 (kind 명시: vrm 또는 2d)
-    //    b) 아니면 res 서버 VRM 으로 resolve (legacy / NVatar default)
-    const franchiseChar = findCharacter(sdk.brand, avatar.vrm_uid);
-    if (franchiseChar) {
-      state.portrait = await createPortrait({
-        kind: franchiseChar.kind,
-        size: 56,
-        src: franchiseChar.portrait,
-        emotionVariants: franchiseChar.emotionVariants,
-      });
-      els.portraitSlot.appendChild(state.portrait.canvas);
-      if (franchiseChar.kind === 'vrm' && franchiseChar.vrmUrl) {
-        try { await state.portrait.loadVrm(franchiseChar.vrmUrl); }
-        catch (e) { console.error('[NVatar] franchise VRM load failed:', e); }
+    // 2) Portrait widget — backend 의 resolveVrm 응답 kind 으로 분기.
+    //    kind='vrm' → MiniPortrait (three.js + VRM load)
+    //    kind='2d'  → Static2DPortrait (portrait_url 정적 표시)
+    let model = null;
+    if (avatar.vrm_uid) {
+      try { model = await sdk.api.resolveVrm(avatar.vrm_uid); }
+      catch (e) { console.error('[NVatar] character resolve failed:', e); }
+    }
+    const kind = (model && model.kind) || 'vrm';
+    state.portrait = await createPortrait({
+      kind,
+      size: 56,
+      src: model ? (model.portrait || model.thumbnail) : null,
+    });
+    els.portraitSlot.appendChild(state.portrait.canvas);
+    if (kind === 'vrm' && model && model.url) {
+      try { await state.portrait.loadVrm(model.url); }
+      catch (e) {
+        console.error('[NVatar] VRM load failed:', e);
+        addSystemMsg('아바타 모델 로딩에 실패했어요 (' + (e.message || e) + ')');
       }
-    } else {
-      state.portrait = await createPortrait({ kind: 'vrm', size: 56 });
-      els.portraitSlot.appendChild(state.portrait.canvas);
-      if (avatar.vrm_uid) {
-        try {
-          const model = await sdk.api.resolveVrm(avatar.vrm_uid);
-          console.log('[NVatar] loading VRM:', model.url);
-          await state.portrait.loadVrm(model.url);
-          console.log('[NVatar] VRM loaded');
-        } catch (e) {
-          console.error('[NVatar] VRM load failed:', e);
-          addSystemMsg('아바타 모델 로딩에 실패했어요 (' + (e.message || e) + ')');
-        }
-      } else {
-        addSystemMsg('아바타에 모델이 연결되어 있지 않아요');
-      }
+    } else if (!model && !avatar.vrm_uid) {
+      addSystemMsg('아바타에 모델이 연결되어 있지 않아요');
     }
 
     // 4) Restore message history (first page = newest 50).

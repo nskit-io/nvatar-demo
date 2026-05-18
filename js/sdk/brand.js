@@ -41,7 +41,8 @@ export function normalizeCharacter(c) {
 const DEFAULT_BRAND = {
   title: 'NVatar 채팅',
   logo: null,                  // string (URL) | string (raw SVG markup) | null
-  characters: [],              // 프랜차이즈 추가 캐릭터. 엔바타 default VRM 은 별도 머지됨.
+  franchiseCode: null,         // 'ekys' 등. 박혀있으면 characters 가 backend 에 자동 sync
+  characters: [],              // 프랜차이즈 추가 캐릭터. backend (nv_vrm_models) 에 upsert.
   // showDefaultCharacters:
   //   true        — 자동 머지 (생성 다이얼로그에 NVatar VRM 즉시 노출)
   //   false       — 미노출 + 추가 버튼도 X (프랜차이즈 only 강제)
@@ -80,6 +81,7 @@ export function resolveBrand(input) {
   return {
     title:  b.title  || DEFAULT_BRAND.title,
     logo:   b.logo   || DEFAULT_BRAND.logo,
+    franchiseCode: b.franchiseCode || null,
     characters: chars,
     showDefaultCharacters: b.showDefaultCharacters !== false,
     colors: { ...DEFAULT_BRAND.colors, ...(b.colors || {}) },
@@ -89,6 +91,25 @@ export function resolveBrand(input) {
     },
     font: b.font || DEFAULT_BRAND.font,
   };
+}
+
+/** Brand.characters spec → backend sync payload 변환. */
+export function toSyncPayload(characters) {
+  return characters.map(c => ({
+    char_code: c.id,
+    kind: c.kind,
+    name: c.name,
+    thumbnail: c.thumb || c.portrait || null,
+    portrait:  c.portrait || c.thumb || null,
+    vrm_url:   c.vrmUrl || null,
+    preset: c.preset ? {
+      role:         c.preset.role || null,
+      persona:      c.preset.persona || null,
+      mbti:         c.preset.mbti || null,
+      speech_level: c.preset.speechLevel || null,
+      tone:         c.preset.tone || null,
+    } : null,
+  }));
 }
 
 /** Look up a character spec by id (for portrait factory / room view). */

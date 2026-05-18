@@ -70,12 +70,11 @@ export async function openCreateDialog(sdk, root, onCreated) {
     return cell;
   }
 
-  // 1) 프랜차이즈 섹션 채우기
-  const franchiseChars = sdk.brand?.characters || [];
+  // 1) 프랜차이즈 섹션 — backend 에서 fetch (start() 의 sync 결과)
+  const franchiseChars = await loadFranchiseCharacters(sdk);
   if (franchiseChars.length) {
     franchiseChars.forEach(c => appendCharacter(c, franchiseGrid));
   } else {
-    // 프랜차이즈 없으면 섹션 헤더 숨김
     overlay.querySelector('.nv-models-section-franchise')?.classList.add('nv-section-hidden');
   }
 
@@ -167,39 +166,47 @@ export async function openCreateDialog(sdk, root, onCreated) {
 }
 
 /**
- * Character source — 프랜차이즈 (brand.characters) + NVatar default VRM.
+ * Character source — backend nv_vrm_models 가 단일 source.
+ *   loadFranchiseCharacters(sdk) → backend 의 franchise_code 매칭 row
+ *   fetchVrmDefaults(sdk)        → backend 의 franchise_code IS NULL row (NVatar 기본)
  *
- * showDefaultCharacters 모드:
- *   true        — 자동 머지 (기존 동작, default)
- *   false       — 프랜차이즈 only (default 추가 X)
- *   'on-demand' — 프랜차이즈 + "NVatar 캐릭터 추가" 버튼 (사용자 클릭 시 fetch)
+ * brand.characters 는 sync payload 용 — SDK start() 시 backend 에 upsert 후 backend list 신뢰.
  */
-async function loadCharacters(sdk) {
-  const franchise = (sdk.brand?.characters || []);
-  const mode = sdk.brand?.showDefaultCharacters;
-  if (mode === true || mode === undefined) {
-    const vrmDefaults = await fetchVrmDefaults(sdk);
-    return [...franchise, ...vrmDefaults];
-  }
-  // 'on-demand' 또는 false — 프랜차이즈 only (default 는 버튼으로 별도 로드).
-  return franchise;
+async function loadFranchiseCharacters(sdk) {
+  const code = sdk.brand?.franchiseCode;
+  if (!code) return [];
+  try {
+    const list = await sdk.api.listCharacters(code);
+    return list.map(toCharSpec);
+  } catch (e) { return []; }
 }
 
 async function fetchVrmDefaults(sdk) {
   try {
-    const all = await sdk.api.listVrmModels();
+    const all = await sdk.api.listCharacters('none');
     const filtered = FEATURED_MODEL_UIDS.length
       ? FEATURED_MODEL_UIDS.map(uid => all.find(m => m.uid === uid)).filter(Boolean)
       : [...all.filter(m => m.thumbnail), ...all.filter(m => !m.thumbnail)];
-    return filtered.map(m => ({
-      id: m.uid,
-      kind: 'vrm',
-      name: m.name || '',
-      thumb: m.thumbnail || null,
-      portrait: m.thumbnail || null,
-      vrmUrl: m.url,
-    }));
+    return filtered.map(toCharSpec);
   } catch (e) { return []; }
+}
+
+function toCharSpec(m) {
+  return {
+    id: m.uid,
+    kind: m.kind || 'vrm',
+    name: m.name || '',
+    thumb: m.thumbnail || null,
+    portrait: m.portrait || m.thumbnail || null,
+    vrmUrl: m.url,
+    preset: m.preset ? {
+      role: m.preset.role || null,
+      persona: m.preset.persona || null,
+      mbti: m.preset.mbti || null,
+      speechLevel: m.preset.speech_level || 'polite',
+      tone: m.preset.tone || null,
+    } : null,
+  };
 }
 
 /**
