@@ -23,10 +23,14 @@ export async function renderListView(sdk, ctx) {
   const root = ctx.root;
   const brand = sdk.brand;
   const labels = brand.labels;
-  root.innerHTML = renderTemplate(brand, sdk.totalSlots);
+  root.innerHTML = renderTemplate(brand, sdk.totalSlots, !!sdk.onClose);
 
   const slotsEl = root.querySelector('.nv-slots');
   const listEl = root.querySelector('.nv-chats');
+  const closeBtn = root.querySelector('.nv-list-close');
+  if (closeBtn && sdk.onClose) {
+    closeBtn.addEventListener('click', () => { try { sdk.onClose(); } catch (e) { console.error(e); } });
+  }
 
   let avatarsCache = [];
   let thumbByUid = new Map();
@@ -243,12 +247,16 @@ const PLUS_SVG = `<svg viewBox="0 0 24 24" width="28" height="28" fill="none" st
 
 // --- Template ---
 
-function renderTemplate(brand, totalSlots) {
+function renderTemplate(brand, totalSlots, withClose) {
   void totalSlots;  // slots rendered dynamically
+  const closeBtn = withClose
+    ? `<button class="nv-list-close" aria-label="닫기" type="button">${CLOSE_SVG}</button>`
+    : '';
   return `
 <div class="nv-screen nv-list-screen">
   <header class="nv-list-header">
     ${renderBrandHeader(brand)}
+    ${closeBtn}
   </header>
   <main class="nv-list-main">
     <section class="nv-slots-section">
@@ -261,6 +269,9 @@ function renderTemplate(brand, totalSlots) {
   </main>
 </div>`;
 }
+
+const CLOSE_SVG = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 
 // --- Styles (uses CSS variables injected by applyBrandVars) ---
 
@@ -287,7 +298,17 @@ function ensureStyle() {
   border-radius: 8px; overflow: hidden;
 }
 .nv-brand-logo img, .nv-brand-logo svg { width: 100%; height: 100%; object-fit: cover; display: block; }
-.nv-brand-title { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; }
+.nv-brand-title { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; flex: 1; min-width: 0; }
+.nv-list-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  background: transparent; border: none;
+  color: var(--nv-text-muted); cursor: pointer;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.nv-list-close:hover { background: var(--nv-surface); color: var(--nv-text); }
+.nv-list-close:active { background: var(--nv-border); }
 
 .nv-list-main { flex: 1; overflow-y: auto; padding: 8px 16px 32px; }
 

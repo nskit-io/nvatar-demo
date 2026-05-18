@@ -48,6 +48,8 @@ export class NVatarChatSDK {
     this.brand = resolveBrand(opts.brand);
     this.layout = opts.layout || 'auto';   // 'auto' | 'mobile' | 'desktop' | 'wide'
     this.renderAux = typeof opts.renderAux === 'function' ? opts.renderAux : null;
+    // 호스트가 박으면 list 헤더 우측에 close (X) 버튼 노출 + 클릭 시 콜백 (PAGE.hidePage 등).
+    this.onClose = typeof opts.onClose === 'function' ? opts.onClose : null;
 
     this.mode = null;          // resolved mode ('mobile' | 'desktop' | 'wide')
     this.shellEl = null;       // wrapper inside container

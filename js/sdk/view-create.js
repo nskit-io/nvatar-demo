@@ -35,33 +35,62 @@ export async function openCreateDialog(sdk, root, onCreated) {
     mbtiSel.appendChild(opt);
   });
 
-  // Load character sources — franchise (brand.characters) + NVatar default VRM 머지.
-  const modelsGrid = overlay.querySelector('.nv-models');
-  const characters = await loadCharacters(sdk).catch(() => []);
+  // Load character sources — franchise (brand.characters) + (옵션) NVatar default VRM.
+  const modelsGrid  = overlay.querySelector('.nv-models');
+  const extrasBtn   = overlay.querySelector('.nv-load-extras');
+  const characters  = await loadCharacters(sdk).catch(() => []);
+  const charByUid   = new Map();   // id → spec (preset lookup 위해)
   let selectedCharId = null;
+
+  function appendCharacter(c) {
+    charByUid.set(c.id, c);
+    const cell = document.createElement('div');
+    cell.className = 'nv-model';
+    cell.dataset.uid = c.id;
+    const hasThumb = !!c.thumb;
+    cell.innerHTML = `
+      <div class="nv-model-thumb ${hasThumb ? '' : 'nv-model-thumb-empty'}" ${hasThumb ? `style="background-image:url('${c.thumb}')"` : ''}>
+        ${hasThumb ? '' : '<span>No image</span>'}
+      </div>
+      <div class="nv-model-name">${escapeHtml(c.name || '')}</div>
+    `;
+    cell.addEventListener('click', () => {
+      modelsGrid.querySelectorAll('.nv-model').forEach(el => el.classList.remove('selected'));
+      cell.classList.add('selected');
+      selectedCharId = c.id;
+      applyPreset(overlay, c);
+    });
+    modelsGrid.appendChild(cell);
+    return cell;
+  }
+
   if (!characters.length) {
     modelsGrid.innerHTML = `<div style="grid-column:1/-1;font-size:12px;color:#9ca3af;text-align:center;padding:12px;">사용 가능한 캐릭터가 없습니다.</div>`;
   } else {
-    characters.forEach((c) => {
-      const cell = document.createElement('div');
-      cell.className = 'nv-model';
-      cell.dataset.uid = c.id;
-      const hasThumb = !!c.thumb;
-      cell.innerHTML = `
-        <div class="nv-model-thumb ${hasThumb ? '' : 'nv-model-thumb-empty'}" ${hasThumb ? `style="background-image:url('${c.thumb}')"` : ''}>
-          ${hasThumb ? '' : '<span>No image</span>'}
-        </div>
-        <div class="nv-model-name">${escapeHtml(c.name || '')}</div>
-      `;
-      cell.addEventListener('click', () => {
-        modelsGrid.querySelectorAll('.nv-model').forEach(el => el.classList.remove('selected'));
-        cell.classList.add('selected');
-        selectedCharId = c.id;
-        applyPreset(overlay, c);
-      });
-      modelsGrid.appendChild(cell);
-    });
+    characters.forEach(c => appendCharacter(c));
     modelsGrid.firstElementChild.click();
+  }
+
+  // "NVatar 캐릭터 추가로 불러오기" 버튼 — 'on-demand' 모드일 때만 노출.
+  if (extrasBtn && sdk.brand?.showDefaultCharacters === 'on-demand') {
+    extrasBtn.style.display = 'inline-flex';
+    extrasBtn.addEventListener('click', async () => {
+      extrasBtn.disabled = true;
+      extrasBtn.textContent = '불러오는 중…';
+      try {
+        const extras = await fetchVrmDefaults(sdk);
+        const dedup = extras.filter(e => !charByUid.has(e.id));
+        if (!dedup.length) {
+          extrasBtn.textContent = '추가할 캐릭터가 없습니다';
+          return;
+        }
+        dedup.forEach(c => appendCharacter(c));
+        extrasBtn.style.display = 'none';
+      } catch (e) {
+        extrasBtn.disabled = false;
+        extrasBtn.textContent = '다시 시도';
+      }
+    });
   }
 
   const close = () => overlay.remove();
@@ -113,41 +142,47 @@ export async function openCreateDialog(sdk, root, onCreated) {
 }
 
 /**
- * Character source 머지 — 프랜차이즈 우선, 그 다음 NVatar default VRM.
- * 반환: 공통 character spec ({ id, kind, name, thumb, portrait, vrmUrl? })
+ * Character source — 프랜차이즈 (brand.characters) + NVatar default VRM.
+ *
+ * showDefaultCharacters 모드:
+ *   true        — 자동 머지 (기존 동작, default)
+ *   false       — 프랜차이즈 only (default 추가 X)
+ *   'on-demand' — 프랜차이즈 + "NVatar 캐릭터 추가" 버튼 (사용자 클릭 시 fetch)
  */
 async function loadCharacters(sdk) {
   const franchise = (sdk.brand?.characters || []);
-  const showDefault = sdk.brand?.showDefaultCharacters !== false;
-
-  let vrmDefaults = [];
-  if (showDefault) {
-    try {
-      const all = await sdk.api.listVrmModels();
-      const filtered = FEATURED_MODEL_UIDS.length
-        ? FEATURED_MODEL_UIDS.map(uid => all.find(m => m.uid === uid)).filter(Boolean)
-        : [...all.filter(m => m.thumbnail), ...all.filter(m => !m.thumbnail)];
-      vrmDefaults = filtered.map(m => ({
-        id: m.uid,
-        kind: 'vrm',
-        name: m.name || '',
-        thumb: m.thumbnail || null,
-        portrait: m.thumbnail || null,
-        vrmUrl: m.url,
-      }));
-    } catch (e) { /* res 서버 불가 — franchise only */ }
+  const mode = sdk.brand?.showDefaultCharacters;
+  if (mode === true || mode === undefined) {
+    const vrmDefaults = await fetchVrmDefaults(sdk);
+    return [...franchise, ...vrmDefaults];
   }
+  // 'on-demand' 또는 false — 프랜차이즈 only (default 는 버튼으로 별도 로드).
+  return franchise;
+}
 
-  // 프랜차이즈 우선 노출 (호스트가 자기 캐릭터 먼저 보이게).
-  return [...franchise, ...vrmDefaults];
+async function fetchVrmDefaults(sdk) {
+  try {
+    const all = await sdk.api.listVrmModels();
+    const filtered = FEATURED_MODEL_UIDS.length
+      ? FEATURED_MODEL_UIDS.map(uid => all.find(m => m.uid === uid)).filter(Boolean)
+      : [...all.filter(m => m.thumbnail), ...all.filter(m => !m.thumbnail)];
+    return filtered.map(m => ({
+      id: m.uid,
+      kind: 'vrm',
+      name: m.name || '',
+      thumb: m.thumbnail || null,
+      portrait: m.thumbnail || null,
+      vrmUrl: m.url,
+    }));
+  } catch (e) { return []; }
 }
 
 /**
- * 캐릭터 선택 시 preset 적용 — 페르소나/MBTI/어투 자동 채움 + readonly lock.
- * preset 없으면 (NVatar default VRM 등) 입력 자유.
+ * 캐릭터 선택 시 preset 적용 — 페르소나 prefill (자유 편집), MBTI/어투 lock.
  *
- * Lock 의도: 프랜차이즈 캐릭터는 컨셉이 박힌 IP — 사용자가 페르소나 자유 편집하면
- * 정체성이 흐려짐. 친구 이름만 사용자 자유.
+ * 의도: 프랜차이즈 캐릭터는 컨셉이 박힌 IP — MBTI/어투는 정체성이라 보호.
+ *       다만 페르소나(특징) 는 사용자가 추가 가능 (preset 기본 + 자유 보강).
+ *       preset 없으면 (NVatar default VRM 등) 전부 자유.
  */
 function applyPreset(overlay, character) {
   const personaEl = overlay.querySelector('textarea[name=persona]');
@@ -156,12 +191,15 @@ function applyPreset(overlay, character) {
   const noticeEl  = overlay.querySelector('.nv-preset-notice');
   const preset    = character.preset;
 
+  // 페르소나 자유 편집 항상 허용 (preset 있어도 readonly X).
+  personaEl.removeAttribute('readonly');
+  personaEl.classList.remove('nv-locked');
+
   if (preset) {
     if (preset.persona) personaEl.value = preset.persona;
     if (preset.mbti) {
       mbtiEl.value = preset.mbti;
       if (mbtiEl.value !== preset.mbti) {
-        // 옵션이 없으면 추가
         const opt = document.createElement('option');
         opt.value = preset.mbti; opt.textContent = preset.mbti;
         mbtiEl.appendChild(opt);
@@ -169,19 +207,14 @@ function applyPreset(overlay, character) {
       }
     }
     if (preset.speechLevel) speechEl.value = preset.speechLevel;
-    personaEl.setAttribute('readonly', 'readonly');
-    personaEl.classList.add('nv-locked');
+    // MBTI / 어투만 lock — 캐릭터 정체성 보호.
     mbtiEl.disabled = true;
     speechEl.disabled = true;
     if (noticeEl) {
       noticeEl.style.display = 'block';
-      noticeEl.textContent = preset.role
-        ? `${character.name} · ${preset.role} — 페르소나/성향이 캐릭터에 박혀있어요.`
-        : `${character.name} 의 페르소나/성향이 박혀있어요.`;
+      noticeEl.textContent = '페르소나/성향이 미리 설정되어 있어요. 기본 설정 외에도 자유롭게 특징을 추가할 수 있습니다.';
     }
   } else {
-    personaEl.removeAttribute('readonly');
-    personaEl.classList.remove('nv-locked');
     mbtiEl.disabled = false;
     speechEl.disabled = false;
     if (noticeEl) noticeEl.style.display = 'none';
@@ -256,6 +289,7 @@ const TEMPLATE = `
     <div class="nv-field">
       <label><span class="nv-bar"></span>아바타 모델 선택</label>
       <div class="nv-models"></div>
+      <button type="button" class="nv-load-extras" style="display:none;">＋ NVatar 캐릭터 추가로 불러오기</button>
       <p class="nv-preset-notice" style="display:none;"></p>
     </div>
   </div>
@@ -307,6 +341,10 @@ function ensureStyle() {
 .nv-preset-notice { margin-top: 10px; padding: 8px 12px; background: #eff6ff; color: #1e40af; font-size: 11.5px; border-radius: 8px; line-height: 1.5; }
 textarea.nv-locked { background: #f9fafb; color: #6b7280; cursor: not-allowed; }
 .nv-field select:disabled { background: #f9fafb; color: #6b7280; cursor: not-allowed; }
+
+.nv-load-extras { display: inline-flex; align-items: center; justify-content: center; margin-top: 12px; padding: 10px 14px; border: 1px dashed #c7d2fe; border-radius: 10px; background: #fff; color: #4f46e5; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; }
+.nv-load-extras:hover { background: #eef2ff; }
+.nv-load-extras:disabled { opacity: 0.6; cursor: not-allowed; }
 `;
   const s = document.createElement('style');
   s.id = STYLE_ID;

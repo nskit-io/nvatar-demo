@@ -42,7 +42,11 @@ const DEFAULT_BRAND = {
   title: 'NVatar 채팅',
   logo: null,                  // string (URL) | string (raw SVG markup) | null
   characters: [],              // 프랜차이즈 추가 캐릭터. 엔바타 default VRM 은 별도 머지됨.
-  showDefaultCharacters: true, // false 면 listVrmModels 결과 노출 X (프랜차이즈 only)
+  // showDefaultCharacters:
+  //   true        — 자동 머지 (생성 다이얼로그에 NVatar VRM 즉시 노출)
+  //   false       — 미노출 + 추가 버튼도 X (프랜차이즈 only 강제)
+  //   'on-demand' — 미노출 (기본) + "NVatar 캐릭터 추가로 불러오기" 버튼 노출
+  showDefaultCharacters: true,
   colors: {
     primary:    '#3b46c4',     // CTA, user bubble accent, slot border
     accent:     '#ef4444',     // section bar, danger
