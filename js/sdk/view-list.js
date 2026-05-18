@@ -41,11 +41,14 @@ export async function renderListView(sdk, ctx) {
       avatarsCache = avatars;
       sdk.registerAvatars(avatars);   // SDK 내부 uid → id mapping (URL token 시스템의 single source)
       // portrait (얼굴) 우선 — 2D 캐릭터의 face crop. fallback thumbnail.
-      thumbByUid = new Map(
-        vrmModels
-          .filter(m => m.portrait || m.thumbnail)
-          .map(m => [m.uid, m.portrait || m.thumbnail])
-      );
+      // uid + char_code 둘 다 키로 박음 — 옛 친구 (nv_avatars.vrm_uid='wren' 등) 호환.
+      thumbByUid = new Map();
+      vrmModels.forEach(m => {
+        const url = m.portrait || m.thumbnail;
+        if (!url) return;
+        if (m.uid) thumbByUid.set(m.uid, url);
+        if (m.char_code) thumbByUid.set(m.char_code, url);
+      });
       renderSlots(avatars);
       renderChats(avatars);
       avatars.forEach(a => hydratePreview(a));
