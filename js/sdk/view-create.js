@@ -1,5 +1,8 @@
 // NVatar SDK Chat — Create Avatar dialog.
-// Name (immutable) + persona (comma-separated) + MBTI dropdown + VRM model selection.
+// Name (immutable) + persona (comma-separated) + MBTI dropdown + Character source.
+//
+// Character source = NVatar 기본 VRM (res 서버) + 프랜차이즈 추가 (brand.characters).
+// 선택 결과는 nv_avatars.vrm_uid 자리에 박힘 (8자 식별자).
 
 const MBTI_LIST = [
   'INTJ','INTP','ENTJ','ENTP',
@@ -32,32 +35,32 @@ export async function openCreateDialog(sdk, root, onCreated) {
     mbtiSel.appendChild(opt);
   });
 
-  // Load VRM models
+  // Load character sources — franchise (brand.characters) + NVatar default VRM 머지.
   const modelsGrid = overlay.querySelector('.nv-models');
-  const models = await loadModels(sdk).catch(() => []);
-  let selectedVrmUid = null;
-  if (!models.length) {
-    modelsGrid.innerHTML = `<div style="grid-column:1/-1;font-size:12px;color:#9ca3af;text-align:center;padding:12px;">사용 가능한 모델이 없습니다.</div>`;
+  const characters = await loadCharacters(sdk).catch(() => []);
+  let selectedCharId = null;
+  if (!characters.length) {
+    modelsGrid.innerHTML = `<div style="grid-column:1/-1;font-size:12px;color:#9ca3af;text-align:center;padding:12px;">사용 가능한 캐릭터가 없습니다.</div>`;
   } else {
-    models.forEach((m, idx) => {
+    characters.forEach((c) => {
       const cell = document.createElement('div');
       cell.className = 'nv-model';
-      cell.dataset.uid = m.uid;
-      const hasThumb = !!m.thumbnail;
+      cell.dataset.uid = c.id;
+      const hasThumb = !!c.thumb;
       cell.innerHTML = `
-        <div class="nv-model-thumb ${hasThumb ? '' : 'nv-model-thumb-empty'}" ${hasThumb ? `style="background-image:url('${m.thumbnail}')"` : ''}>
+        <div class="nv-model-thumb ${hasThumb ? '' : 'nv-model-thumb-empty'}" ${hasThumb ? `style="background-image:url('${c.thumb}')"` : ''}>
           ${hasThumb ? '' : '<span>No image</span>'}
         </div>
-        <div class="nv-model-name">${escapeHtml(m.name || '')}</div>
+        <div class="nv-model-name">${escapeHtml(c.name || '')}</div>
       `;
       cell.addEventListener('click', () => {
-        modelsGrid.querySelectorAll('.nv-model').forEach(c => c.classList.remove('selected'));
+        modelsGrid.querySelectorAll('.nv-model').forEach(el => el.classList.remove('selected'));
         cell.classList.add('selected');
-        selectedVrmUid = m.uid;
+        selectedCharId = c.id;
+        applyPreset(overlay, c);
       });
       modelsGrid.appendChild(cell);
     });
-    // Auto-select first
     modelsGrid.firstElementChild.click();
   }
 
@@ -93,9 +96,10 @@ export async function openCreateDialog(sdk, root, onCreated) {
         proactive_level: 3,
       });
 
-      // Step 2: attach VRM model (PATCH)
-      if (selectedVrmUid) {
-        await sdk.api.patchAvatar(created.id, { vrm_uid: selectedVrmUid });
+      // Step 2: attach character (PATCH) — backend 컬럼 이름은 vrm_uid 이지만
+      // 8자 식별자를 받는 자리. VRM uid 또는 프랜차이즈 character id 둘 다 OK.
+      if (selectedCharId) {
+        await sdk.api.patchAvatar(created.id, { vrm_uid: selectedCharId });
       }
 
       close();
@@ -108,20 +112,80 @@ export async function openCreateDialog(sdk, root, onCreated) {
   });
 }
 
-async function loadModels(sdk) {
-  const all = await sdk.api.listVrmModels();
-  if (!all.length) return [];
+/**
+ * Character source 머지 — 프랜차이즈 우선, 그 다음 NVatar default VRM.
+ * 반환: 공통 character spec ({ id, kind, name, thumb, portrait, vrmUrl? })
+ */
+async function loadCharacters(sdk) {
+  const franchise = (sdk.brand?.characters || []);
+  const showDefault = sdk.brand?.showDefaultCharacters !== false;
 
-  // 1) uid 화이트리스트가 있으면 그 순서대로 노출 (선언된 uid 만)
-  if (FEATURED_MODEL_UIDS.length) {
-    const byUid = new Map(all.map(m => [m.uid, m]));
-    return FEATURED_MODEL_UIDS.map(uid => byUid.get(uid)).filter(Boolean);
+  let vrmDefaults = [];
+  if (showDefault) {
+    try {
+      const all = await sdk.api.listVrmModels();
+      const filtered = FEATURED_MODEL_UIDS.length
+        ? FEATURED_MODEL_UIDS.map(uid => all.find(m => m.uid === uid)).filter(Boolean)
+        : [...all.filter(m => m.thumbnail), ...all.filter(m => !m.thumbnail)];
+      vrmDefaults = filtered.map(m => ({
+        id: m.uid,
+        kind: 'vrm',
+        name: m.name || '',
+        thumb: m.thumbnail || null,
+        portrait: m.thumbnail || null,
+        vrmUrl: m.url,
+      }));
+    } catch (e) { /* res 서버 불가 — franchise only */ }
   }
 
-  // 2) 화이트리스트 없으면 전체 노출. thumbnail 있는 것 우선, 없는 것은 뒤로.
-  const withThumb = all.filter(m => m.thumbnail);
-  const withoutThumb = all.filter(m => !m.thumbnail);
-  return [...withThumb, ...withoutThumb];
+  // 프랜차이즈 우선 노출 (호스트가 자기 캐릭터 먼저 보이게).
+  return [...franchise, ...vrmDefaults];
+}
+
+/**
+ * 캐릭터 선택 시 preset 적용 — 페르소나/MBTI/어투 자동 채움 + readonly lock.
+ * preset 없으면 (NVatar default VRM 등) 입력 자유.
+ *
+ * Lock 의도: 프랜차이즈 캐릭터는 컨셉이 박힌 IP — 사용자가 페르소나 자유 편집하면
+ * 정체성이 흐려짐. 친구 이름만 사용자 자유.
+ */
+function applyPreset(overlay, character) {
+  const personaEl = overlay.querySelector('textarea[name=persona]');
+  const mbtiEl    = overlay.querySelector('select[name=mbti]');
+  const speechEl  = overlay.querySelector('select[name=speech_level]');
+  const noticeEl  = overlay.querySelector('.nv-preset-notice');
+  const preset    = character.preset;
+
+  if (preset) {
+    if (preset.persona) personaEl.value = preset.persona;
+    if (preset.mbti) {
+      mbtiEl.value = preset.mbti;
+      if (mbtiEl.value !== preset.mbti) {
+        // 옵션이 없으면 추가
+        const opt = document.createElement('option');
+        opt.value = preset.mbti; opt.textContent = preset.mbti;
+        mbtiEl.appendChild(opt);
+        mbtiEl.value = preset.mbti;
+      }
+    }
+    if (preset.speechLevel) speechEl.value = preset.speechLevel;
+    personaEl.setAttribute('readonly', 'readonly');
+    personaEl.classList.add('nv-locked');
+    mbtiEl.disabled = true;
+    speechEl.disabled = true;
+    if (noticeEl) {
+      noticeEl.style.display = 'block';
+      noticeEl.textContent = preset.role
+        ? `${character.name} · ${preset.role} — 페르소나/성향이 캐릭터에 박혀있어요.`
+        : `${character.name} 의 페르소나/성향이 박혀있어요.`;
+    }
+  } else {
+    personaEl.removeAttribute('readonly');
+    personaEl.classList.remove('nv-locked');
+    mbtiEl.disabled = false;
+    speechEl.disabled = false;
+    if (noticeEl) noticeEl.style.display = 'none';
+  }
 }
 
 // Lightweight MBTI → tone hint (백엔드 tone 필드 비어있으면 안 되므로 기본값 제공).
@@ -192,6 +256,7 @@ const TEMPLATE = `
     <div class="nv-field">
       <label><span class="nv-bar"></span>아바타 모델 선택</label>
       <div class="nv-models"></div>
+      <p class="nv-preset-notice" style="display:none;"></p>
     </div>
   </div>
   <footer class="nv-create-footer">
@@ -238,6 +303,10 @@ function ensureStyle() {
 .nv-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .nv-error { position: absolute; left: 20px; right: 20px; bottom: 76px; background: #fee2e2; color: #b91c1c; font-size: 13px; padding: 10px 14px; border-radius: 8px; transition: opacity 0.3s; pointer-events: none; }
+
+.nv-preset-notice { margin-top: 10px; padding: 8px 12px; background: #eff6ff; color: #1e40af; font-size: 11.5px; border-radius: 8px; line-height: 1.5; }
+textarea.nv-locked { background: #f9fafb; color: #6b7280; cursor: not-allowed; }
+.nv-field select:disabled { background: #f9fafb; color: #6b7280; cursor: not-allowed; }
 `;
   const s = document.createElement('style');
   s.id = STYLE_ID;

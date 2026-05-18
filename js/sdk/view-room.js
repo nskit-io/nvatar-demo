@@ -10,10 +10,11 @@
 //                       lookup_end | emotion_update | proactive | error
 //  - Whisper STT mic button.
 
-import { MiniPortrait } from './portrait-mini.js';
+import { createPortrait } from './portrait.js';
 import { openStatsDialog } from './view-stats.js';
 import { openSearchHistoryDialog } from './view-search-history.js';
 import { showDialog } from './view-list.js';
+import { findCharacter } from './brand.js';
 
 const STYLE_ID = 'nv-sdk-room-style';
 const BUBBLE_GAP_MS = 400;
@@ -29,6 +30,11 @@ export async function renderRoomView(sdk, ctx) {
   const avatarId = ctx.params.avatarId;
   const avatarName = ctx.params.avatarName || '아바타';
   root.innerHTML = renderTemplate(avatarName);
+  // Desktop / wide 모드에선 헤더 좌측 백버튼 숨김 (옆에 list pane 영구 노출).
+  if (sdk.isMobileMode && !sdk.isMobileMode()) {
+    const back = root.querySelector('.nv-back');
+    if (back) back.style.display = 'none';
+  }
 
   const els = {
     msgs: root.querySelector('.nv-msgs'),
@@ -132,23 +138,38 @@ export async function renderRoomView(sdk, ctx) {
     state.avatar = avatar;
     root.querySelector('.nv-title').textContent = `${avatar.name}와의 채팅`;
 
-    // 2) Portrait widget (created early so it can attach as soon as first bubble arrives)
-    state.portrait = new MiniPortrait({ size: 56 });
-    els.portraitSlot.appendChild(state.portrait.canvas);
-
-    // 3) Resolve + load VRM (best-effort). api.resolveVrm 이 이미 절대 URL 로 변환해줌.
-    if (avatar.vrm_uid) {
-      try {
-        const model = await sdk.api.resolveVrm(avatar.vrm_uid);
-        console.log('[NVatar] loading VRM:', model.url);
-        await state.portrait.loadVrm(model.url);
-        console.log('[NVatar] VRM loaded');
-      } catch (e) {
-        console.error('[NVatar] VRM load failed:', e);
-        addSystemMsg('아바타 모델 로딩에 실패했어요 (' + (e.message || e) + ')');
+    // 2) Portrait widget — character source 분기:
+    //    a) brand.characters 에 매칭 = 프랜차이즈 (kind 명시: vrm 또는 2d)
+    //    b) 아니면 res 서버 VRM 으로 resolve (legacy / NVatar default)
+    const franchiseChar = findCharacter(sdk.brand, avatar.vrm_uid);
+    if (franchiseChar) {
+      state.portrait = await createPortrait({
+        kind: franchiseChar.kind,
+        size: 56,
+        src: franchiseChar.portrait,
+        emotionVariants: franchiseChar.emotionVariants,
+      });
+      els.portraitSlot.appendChild(state.portrait.canvas);
+      if (franchiseChar.kind === 'vrm' && franchiseChar.vrmUrl) {
+        try { await state.portrait.loadVrm(franchiseChar.vrmUrl); }
+        catch (e) { console.error('[NVatar] franchise VRM load failed:', e); }
       }
     } else {
-      addSystemMsg('아바타에 모델이 연결되어 있지 않아요');
+      state.portrait = await createPortrait({ kind: 'vrm', size: 56 });
+      els.portraitSlot.appendChild(state.portrait.canvas);
+      if (avatar.vrm_uid) {
+        try {
+          const model = await sdk.api.resolveVrm(avatar.vrm_uid);
+          console.log('[NVatar] loading VRM:', model.url);
+          await state.portrait.loadVrm(model.url);
+          console.log('[NVatar] VRM loaded');
+        } catch (e) {
+          console.error('[NVatar] VRM load failed:', e);
+          addSystemMsg('아바타 모델 로딩에 실패했어요 (' + (e.message || e) + ')');
+        }
+      } else {
+        addSystemMsg('아바타에 모델이 연결되어 있지 않아요');
+      }
     }
 
     // 4) Restore message history (first page = newest 50).

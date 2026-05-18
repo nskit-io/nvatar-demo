@@ -23,6 +23,15 @@ export class Api {
     return d.response || [];
   }
 
+  // listAvatars 응답은 emotions/MBTI/os_state 미포함 — 슬롯/portrait 클릭 시
+  // stats 다이얼로그 채우려면 별도 단건 fetch 필요.
+  async getAvatar(avatarId) {
+    const r = await fetch(`${this.coreBase}/api/v1/avatars/${avatarId}`);
+    const d = await r.json();
+    if (d.code && d.code !== 200) throw new Error(d.message || 'get failed');
+    return d.response || null;
+  }
+
   async createAvatar(payload) {
     const body = { user_id: this.userId, ...payload };
     const r = await fetch(`${this.coreBase}/api/v1/avatars`, {

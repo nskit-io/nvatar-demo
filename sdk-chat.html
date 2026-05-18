@@ -11,7 +11,7 @@
 <link rel="icon" href="https://nvatar-res.nskit.io/res/favicon.ico" type="image/x-icon">
 <link rel="apple-touch-icon" href="https://nvatar-res.nskit.io/res/apple-touch-icon.png">
 <meta property="og:title" content="NVatar SDK Chat — Demo">
-<meta property="og:description" content="환경 요소 없는 경량 채팅 SDK 데모. 1:1 대화, MBTI/페르소나, VRM 포트레잇 표정 동기화.">
+<meta property="og:description" content="환경 요소 없는 경량 채팅 SDK 데모. 1:1 대화, MBTI/페르소나, VRM/2D 포트레잇.">
 <meta property="og:image" content="https://nvatar-res.nskit.io/res/og-image.png">
 <meta property="og:type" content="website">
 
@@ -34,23 +34,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Phone-frame shell: fills viewport on mobile, centered card on desktop */
+/* Full viewport host — SDK 가 mode 별 layout 빌드 */
 #sdk-host {
   position: fixed; inset: 0;
   width: 100vw; height: 100vh; height: 100dvh;
   background: #ffffff;
   overflow: hidden;
-}
-
-@media (min-width: 768px) {
-  body { display: flex; align-items: center; justify-content: center; padding: 24px; background: #0f172a; }
-  #sdk-host {
-    position: relative; inset: auto;
-    width: 100%; max-width: 420px; height: min(900px, 92vh);
-    border-radius: 32px;
-    box-shadow: 0 30px 80px rgba(0,0,0,0.4);
-    border: 1px solid #1f2937;
-  }
 }
 
 /* Loading splash (replaced on SDK ready) */
@@ -75,8 +64,8 @@ body {
 <script type="module">
 // Official endpoints. Override via query params for local dev (?api=, ?res=, ?whisper=).
 const params = new URLSearchParams(location.search);
-const CORE_BASE    = params.get('api')     || 'https://nvatar.nskit.io';      // chat / avatars / messages
-const RES_BASE     = params.get('res')     || 'https://nvatar-res.nskit.io';  // VRM models / thumbnails
+const CORE_BASE    = params.get('api')     || 'https://nvatar.nskit.io';
+const RES_BASE     = params.get('res')     || 'https://nvatar-res.nskit.io';
 const WHISPER_URL  = params.get('whisper') || 'https://whisper.nskit.io/api/v1/transcribe';
 
 import { NVatarChatSDK } from './js/sdk/index.js';
@@ -88,7 +77,24 @@ const sdk = new NVatarChatSDK({
   whisperUrl: WHISPER_URL,
   userId: getOrCreateUserId(),
   maxSlots: 2,
-  totalSlots: 3,  // 2 active + 1 locked (UI 안내용)
+  totalSlots: 3,
+  layout: 'auto',
+  brand: {
+    // 데모 페이지 default — NVatar 브랜드 그대로. 호스트(프랜차이즈) 가 던지면 override.
+  },
+  renderAux: (el, ctx) => {
+    // wide 모드 보조 영역 데모 hook. 호스트가 임의 콘텐츠 박을 수 있음.
+    const who = ctx?.avatarName ? `<b>${escapeHtml(ctx.avatarName)}</b>` : '친구 미선택';
+    el.innerHTML = `
+      <div style="padding:20px;">
+        <h3 style="font-size:13px;color:#6b7280;letter-spacing:0.3px;margin-bottom:10px;">보조 영역 (데모)</h3>
+        <p style="font-size:13px;color:#374151;line-height:1.7;">
+          현재 대화 상대: ${who}<br>
+          이 패널은 <code>renderAux</code> 콜백으로 호스트가 채웁니다.<br>
+          뷰포트가 좁아지면 자동으로 사라집니다.
+        </p>
+      </div>`;
+  },
 });
 
 sdk.start().catch(err => {
@@ -96,7 +102,11 @@ sdk.start().catch(err => {
     `<div class="sdk-splash"><div style="color:#ef4444;">시작 실패: ${err.message || err}</div></div>`;
 });
 
-window.sdk = sdk;  // dev console hook
+window.sdk = sdk;
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
 
 function getOrCreateUserId() {
   let uid = localStorage.getItem('nvatar.sdk.user_id');
