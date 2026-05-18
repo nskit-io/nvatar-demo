@@ -39,7 +39,8 @@ export async function renderListView(sdk, ctx) {
         sdk.api.listCharacters().catch(() => []),   // 전체 (franchise + NVatar)
       ]);
       avatarsCache = avatars;
-      // portrait (얼굴) 우선 — 2D 캐릭터의 face crop. fallback thumbnail (VRM 의 정사각 미리보기).
+      sdk.registerAvatars(avatars);   // SDK 내부 uid → id mapping (URL token 시스템의 single source)
+      // portrait (얼굴) 우선 — 2D 캐릭터의 face crop. fallback thumbnail.
       thumbByUid = new Map(
         vrmModels
           .filter(m => m.portrait || m.thumbnail)
@@ -88,7 +89,7 @@ export async function renderListView(sdk, ctx) {
         `;
         card.addEventListener('click', () => openCreateDialog(sdk, root, async (newAvatar) => {
           await refresh();
-          if (newAvatar) sdk.goToRoom(newAvatar.id, newAvatar.name);
+          if (newAvatar && newAvatar.uid) sdk.goToRoom(newAvatar.uid);
         }));
       }
       slotsEl.appendChild(card);
@@ -115,7 +116,7 @@ export async function renderListView(sdk, ctx) {
     avatars.forEach(a => {
       const item = document.createElement('div');
       item.className = 'nv-chat-row';
-      item.dataset.avatarId = a.id;
+      item.dataset.avatarUid = a.uid;
       const thumb = a.vrm_uid ? thumbByUid.get(a.vrm_uid) : null;
       item.innerHTML = `
         <div class="nv-chat-thumb ${thumb ? '' : 'nv-chat-thumb-empty'}"
@@ -131,7 +132,7 @@ export async function renderListView(sdk, ctx) {
       `;
       const body = item.querySelector('.nv-chat-body');
       const thumbEl = item.querySelector('.nv-chat-thumb');
-      const open = () => sdk.goToRoom(a.id, a.name);
+      const open = () => sdk.goToRoom(a.uid);
       body.addEventListener('click', open);
       thumbEl.addEventListener('click', open);
       item.querySelector('.nv-chat-del').addEventListener('click', (ev) => {

@@ -94,9 +94,9 @@ export class Router {
 
   _encodeHash(name, params) {
     if (name === 'list') return '#/list';
-    if (name === 'room') {
-      const q = params.avatarName ? `?name=${encodeURIComponent(params.avatarName)}` : '';
-      return `#/room/${params.avatarId}${q}`;
+    if (name === 'room' && params.avatarUid) {
+      // uid (8자 hex) 만 박음 — numeric id / 이름 모두 미박힘 (보안)
+      return `#/room/${params.avatarUid}`;
     }
     return '#/list';
   }

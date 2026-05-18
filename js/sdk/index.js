@@ -58,6 +58,10 @@ export class NVatarChatSDK {
     this._currentAvatarId = null;
     this._currentAvatarName = null;
     this._searchOverlay = null;
+    // uid (8자 hex opaque token) → avatar row. URL 에 친구 id/이름 박지 않음 —
+    // hash 잔재로 다른 사용자의 친구 진입 차단의 1차 가드 (+ server-side user_id 검증).
+    this._avatarsByUid = new Map();
+    this._avatarsById = new Map();
 
     this.mode = null;          // resolved mode ('mobile' | 'desktop' | 'wide')
     this.shellEl = null;       // wrapper inside container
@@ -112,22 +116,43 @@ export class NVatarChatSDK {
   // --- Navigation helpers (used by views) ---
 
   goToList() { this.router.go('list'); }
-  goToRoom(avatarId, avatarName) {
-    this._currentAvatarId = avatarId;
-    this._currentAvatarName = avatarName;
-    this.router.go('room', { avatarId, avatarName });
-    this._updateSearchBadge();
-    // wide 모드: aux 영역 갱신 (검색 기록 또는 호스트 콜백)
-    if (this.mode === 'wide' && this.panes.aux) {
-      this._renderAuxContent(this.panes.aux, avatarId);
+  /**
+   * @param {string} avatarUid - 8자 opaque uid (URL 에 박힘). avatar 의 numeric id 와 name 은
+   *                              SDK 내부 mapping 에서 lookup — 호스트/사용자가 URL 로 못 봄.
+   */
+  goToRoom(avatarUid) {
+    const avatar = this._avatarsByUid.get(avatarUid);
+    if (!avatar) {
+      console.warn('[NVatar] goToRoom: unknown uid', avatarUid);
+      return;
     }
-    // desktop/wide 에선 list pane 의 active highlight 갱신
+    this._currentAvatarId = avatar.id;
+    this._currentAvatarName = avatar.name;
+    this.router.go('room', { avatarUid });
+    this._updateSearchBadge();
+    if (this.mode === 'wide' && this.panes.aux) {
+      this._renderAuxContent(this.panes.aux, this._currentAvatarId);
+    }
     if (this.mode !== 'mobile' && this.panes.list) {
       this.panes.list.querySelectorAll('.nv-chat-row.is-active').forEach(r => r.classList.remove('is-active'));
-      const row = this.panes.list.querySelector(`.nv-chat-row[data-avatar-id="${avatarId}"]`);
+      const row = this.panes.list.querySelector(`.nv-chat-row[data-avatar-uid="${avatarUid}"]`);
       if (row) row.classList.add('is-active');
     }
   }
+
+  /** view-list 가 listAvatars 결과로 채움 — uid → numeric id mapping 의 single source. */
+  registerAvatars(avatars) {
+    this._avatarsByUid.clear();
+    this._avatarsById.clear();
+    for (const a of avatars) {
+      if (a.uid) this._avatarsByUid.set(a.uid, a);
+      this._avatarsById.set(a.id, a);
+    }
+  }
+
+  /** uid 가 자기 친구인지 검증 — hash 잔재 차단. */
+  isOwnedUid(uid) { return this._avatarsByUid.has(uid); }
+  getAvatarByUid(uid) { return this._avatarsByUid.get(uid) || null; }
 
   /** view-room 이 새 검색 결과 push 시 호출. aux/overlay/헤더 count 즉시 갱신. */
   notifySearchUpdated(avatarId) {
@@ -277,35 +302,28 @@ export class NVatarChatSDK {
 
   async _bootRoute() {
     const initial = this._parseHash();
-    // hash 잔재 가드 — `#/room/{id}` 의 id 가 현재 사용자의 friend 가 아니면 list 로 fallback.
-    // 다른 사용자 (게스트/이전 세션) 에서 만든 친구 id 가 URL 에 남아있어 그대로 room 에 진입되는
-    // 보안 자리 차단.
-    if (initial?.name === 'room' && initial.params?.avatarId) {
-      const ok = await this._isOwnedAvatar(initial.params.avatarId);
-      if (!ok) {
-        console.warn('[NVatar] hash room ignored — not owned by current user:', initial.params.avatarId);
+    // hash `#/room/{uid}` 잔재 가드 — 현재 사용자 친구 list 에 uid 박혀있어야 진입.
+    // SDK 내부 mapping 이 비어있으면 listAvatars 한 번 fetch + register.
+    if (initial?.name === 'room' && initial.params?.avatarUid) {
+      if (this._avatarsByUid.size === 0) {
+        try { this.registerAvatars(await this.api.listAvatars()); } catch (e) {}
+      }
+      if (!this.isOwnedUid(initial.params.avatarUid)) {
+        console.warn('[NVatar] hash room ignored — uid not owned:', initial.params.avatarUid);
         location.hash = '#/list';
-        if (this.mode === 'mobile') this.router.go('list');
-        else this.router.go('list');
+        this.router.go('list');
         return;
       }
     }
     if (this.mode === 'mobile') {
       this.router.go(initial?.name || 'list', initial?.params || {});
     } else {
-      if (initial?.name === 'room' && initial.params?.avatarId) {
-        this.goToRoom(initial.params.avatarId, initial.params.avatarName);
+      if (initial?.name === 'room' && initial.params?.avatarUid) {
+        this.goToRoom(initial.params.avatarUid);
       } else {
         this.router.go('list');
       }
     }
-  }
-
-  async _isOwnedAvatar(avatarId) {
-    try {
-      const avatars = await this.api.listAvatars();
-      return avatars.some(a => Number(a.id) === Number(avatarId));
-    } catch (e) { return false; }
   }
 
   _maybeRelayout() {
@@ -329,31 +347,33 @@ export class NVatarChatSDK {
   _onHashChange = async () => {
     const route = this._parseHash();
     if (!route) return;
-    // hash 가 room 이면 ownership 검증 — 다른 사용자/세션의 잔재 차단
-    if (route.name === 'room' && route.params?.avatarId) {
-      const ok = await this._isOwnedAvatar(route.params.avatarId);
-      if (!ok) {
-        console.warn('[NVatar] hashchange room ignored — not owned:', route.params.avatarId);
+    if (route.name === 'room' && route.params?.avatarUid) {
+      if (!this.isOwnedUid(route.params.avatarUid)) {
+        // mapping 비어있을 수도 — refresh 시도
+        try { this.registerAvatars(await this.api.listAvatars()); } catch (e) {}
+      }
+      if (!this.isOwnedUid(route.params.avatarUid)) {
+        console.warn('[NVatar] hashchange room ignored — uid not owned:', route.params.avatarUid);
         location.hash = '#/list';
         return;
       }
     }
     if (this.mode === 'mobile') {
       this.router.go(route.name, route.params, { fromHash: true });
-    } else if (route.name === 'room' && route.params?.avatarId) {
-      this.goToRoom(route.params.avatarId, route.params.avatarName);
+    } else if (route.name === 'room' && route.params?.avatarUid) {
+      this.goToRoom(route.params.avatarUid);
     }
   };
 
   _parseHash() {
     const h = location.hash.replace(/^#\/?/, '');
     if (!h) return null;
-    const [path, query] = h.split('?');
+    const [path] = h.split('?');
     const seg = path.split('/');
     if (seg[0] === 'list') return { name: 'list', params: {} };
-    if (seg[0] === 'room' && seg[1]) {
-      const params = new URLSearchParams(query || '');
-      return { name: 'room', params: { avatarId: Number(seg[1]), avatarName: params.get('name') || '' } };
+    // 8자 hex uid 만 허용 — 이름/숫자 id URL 박지 않음 (보안)
+    if (seg[0] === 'room' && /^[a-f0-9]{8}$/i.test(seg[1] || '')) {
+      return { name: 'room', params: { avatarUid: seg[1].toLowerCase() } };
     }
     return null;
   }

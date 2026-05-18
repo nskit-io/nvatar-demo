@@ -26,8 +26,17 @@ export async function renderRoomView(sdk, ctx) {
   ensureStyle();
 
   const root = ctx.root;
-  const avatarId = ctx.params.avatarId;
-  const avatarName = ctx.params.avatarName || '아바타';
+  // URL 은 uid 만 박힘. numeric id / name 은 SDK 내부 mapping 에서 lookup —
+  // 호스트/사용자가 URL 로 친구 id/이름 못 봄.
+  const avatarUid = ctx.params.avatarUid;
+  const lookup = sdk.getAvatarByUid(avatarUid);
+  if (!lookup) {
+    root.innerHTML = '<div style="padding:24px;text-align:center;color:#9ca3af;">친구를 찾을 수 없어요.</div>';
+    sdk.goToList();
+    return;
+  }
+  const avatarId = lookup.id;
+  const avatarName = lookup.name || '아바타';
   root.innerHTML = renderTemplate(avatarName);
   // Desktop / wide 모드에선 헤더 좌측 백버튼 숨김 (옆에 list pane 영구 노출).
   if (sdk.isMobileMode && !sdk.isMobileMode()) {
