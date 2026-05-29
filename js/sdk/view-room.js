@@ -821,10 +821,11 @@ function ensureStyle() {
 .nv-clear-btn:hover { color: #ef4444; background: #fef2f2; }
 .nv-clear-btn:active { background: #fee2e2; }
 
-.nv-msgs-area { flex: 1; position: relative; overflow: hidden; }
-/* padding-bottom: leaves breathing room between the last message and the
-   input bar even when scrolled fully down. */
-.nv-msgs { position: relative; height: 100%; overflow-y: auto; padding: 14px 14px 64px; display: flex; flex-direction: column; gap: 4px; }
+/* min-height: 0 is the critical bit — without it, the flex item's implicit
+   min-height: auto lets msgs-area grow to fit content, overflowing the room
+   shell and sliding the last bubble under the input bar. */
+.nv-msgs-area { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+.nv-msgs { position: relative; height: 100%; overflow-y: auto; padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 4px; }
 
 /* Bigger breathing room when speaker switches.
    Especially important when the assistant row owns a 56px portrait —

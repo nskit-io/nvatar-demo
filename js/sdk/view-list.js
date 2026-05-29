@@ -129,7 +129,7 @@ export async function renderListView(sdk, ctx) {
             <div class="nv-chat-name">${escapeHtml(a.name)}</div>
             <div class="nv-chat-time" data-time="${a.id}"></div>
           </div>
-          <div class="nv-chat-bubble" data-preview="${a.id}">…</div>
+          <div class="nv-chat-bubble"><span class="nv-chat-bubble-text" data-preview="${a.id}">…</span></div>
         </div>
         <button class="nv-chat-del" aria-label="삭제">×</button>
       `;
@@ -350,11 +350,6 @@ function ensureStyle() {
 .nv-chat-name { font-size: 15px; font-weight: 700; color: var(--nv-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nv-chat-time { font-size: 11px; color: var(--nv-text-faint); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .nv-chat-bubble {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
   padding: 8px 12px;
   background: var(--nv-surface);
   border-radius: 14px;
@@ -362,9 +357,24 @@ function ensureStyle() {
   font-size: 13px;
   color: var(--nv-text);
   line-height: 1.5;
-  word-break: break-word;
   align-self: flex-start;
   max-width: 100%;
+  /* Hard clip — line-clamp on the inner span sets text height; this prevents
+     any descender / next-line leak from the webkit-box ellipsis. */
+  overflow: hidden;
+}
+.nv-chat-bubble-text {
+  /* Clamp on a padding-free element — webkit-line-clamp + padding on the same
+     element is the classic source of the "ellipsis but text still peeks below"
+     bug. Splitting bubble (padding/bg) and text (clamp) makes it bulletproof. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  /* Explicit max-height belt+suspenders — 2 lines exactly. */
+  max-height: calc(1.5em * 2);
 }
 .nv-chat-bubble-empty { color: var(--nv-text-faint); }
 
