@@ -470,19 +470,25 @@ function ensureShellStyle() {
 /* Mobile — single column */
 .nv-shell-mobile .nv-pane-main { flex: 1; height: 100%; position: relative; overflow: hidden; }
 
+/* grid-template-rows: minmax(0, 1fr) — grid 의 row 를 명시적으로 shell 의 1fr 로 박음.
+   없으면 row 가 auto(content) 로 잡혀, pane 안의 height:100% 가 resolve 안 되고
+   결과적으로 room-screen 의 flex 자식 (msgs-area flex:1) 이 input bar 를 밀어내
+   채팅 트랙 위로 input 이 겹쳐 그려진다. minmax(0,...) 는 자식 콘텐츠가 부풀어도
+   row 가 부모 넘어 자라지 않도록 안전판. pane 의 min-height:0 도 같은 이유 (overflow 보장). */
+
 /* Desktop — list 4 / room 6 */
-.nv-shell-desktop { display: grid; grid-template-columns: 4fr 6fr; }
-.nv-shell-desktop .nv-pane-list { border-right: 1px solid var(--nv-border); overflow: hidden; position: relative; }
-.nv-shell-desktop .nv-pane-room { position: relative; overflow: hidden; }
+.nv-shell-desktop { display: grid; grid-template-columns: 4fr 6fr; grid-template-rows: minmax(0, 1fr); }
+.nv-shell-desktop .nv-pane-list { border-right: 1px solid var(--nv-border); overflow: hidden; position: relative; min-height: 0; }
+.nv-shell-desktop .nv-pane-room { position: relative; overflow: hidden; min-height: 0; }
 
 /* Wide — chat 영역 (list+room) 7 : aux 3.
    chat 영역 안 비율은 desktop 과 동일 (4:6).
    grid-template-columns: list(4) room(6) aux(좌측 합계의 30%≈4.28).
    단순화: 28 / 42 / 30 → 4fr / 6fr / ~4.28fr ≈ 7/3 outer + 4/6 inner */
-.nv-shell-wide { display: grid; grid-template-columns: 28fr 42fr 30fr; }
-.nv-shell-wide .nv-pane-list { border-right: 1px solid var(--nv-border); overflow: hidden; position: relative; }
-.nv-shell-wide .nv-pane-room { border-right: 1px solid var(--nv-border); position: relative; overflow: hidden; }
-.nv-shell-wide .nv-pane-aux { overflow-y: auto; background: var(--nv-surface-alt, var(--nv-surface)); }
+.nv-shell-wide { display: grid; grid-template-columns: 28fr 42fr 30fr; grid-template-rows: minmax(0, 1fr); }
+.nv-shell-wide .nv-pane-list { border-right: 1px solid var(--nv-border); overflow: hidden; position: relative; min-height: 0; }
+.nv-shell-wide .nv-pane-room { border-right: 1px solid var(--nv-border); position: relative; overflow: hidden; min-height: 0; }
+.nv-shell-wide .nv-pane-aux { overflow-y: auto; background: var(--nv-surface-alt, var(--nv-surface)); min-height: 0; }
 
 /* Empty room placeholder (desktop/wide, before a friend is selected) */
 .nv-room-empty {
