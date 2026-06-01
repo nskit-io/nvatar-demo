@@ -51,10 +51,15 @@ export class MiniPortrait {
     this.vrm = null;
     this.vrmRoot = null;
     this._measured = false;
+    this._autoFit = opts.autoFit !== false;   // false 시 외부에서 setCamera 만 control
     // Tuned to match avatar/portrait.js defaults — these work for standard VRM rigs.
     this._camDist = 1.1;
     this._camYOff = 0.25;
     this._lookYOff = 0.08;
+    // FOV 도 옵션 (기본 18). setCamera 로 런타임 변경 가능.
+    if (typeof opts.fov === 'number') this.camera.fov = opts.fov;
+    // 사용자 줌 (wheel + pinch). default off — chat 모드는 portrait travel 만 쓰므로.
+    this._zoom = null;   // { minDist, maxDist, sensitivity, target, cleanup }
 
     // Expression blending
     this._currentExpr = 'neutral';
@@ -124,8 +129,121 @@ export class MiniPortrait {
     this._blendProgress = 0;
   }
 
+  /**
+   * 카메라 파라미터 부분 update — 매 frame _updateCamera 가 _camDist/Y/lookY 를
+   * 그대로 읽으므로 setter 가 박은 값이 즉시 다음 프레임에 반영됨.
+   *   distance      카메라 ← head 거리 (작을수록 줌인)
+   *   yOffset       카메라 높이 오프셋
+   *   lookYOffset   lookAt target 높이 오프셋 (눈높이 미세조정)
+   *   fov           PerspectiveCamera FOV (각도). 변경 시 projection matrix 재계산.
+   */
+  setCamera({ distance, yOffset, lookYOffset, fov } = {}) {
+    if (typeof distance === 'number') this._camDist = distance;
+    if (typeof yOffset === 'number') this._camYOff = yOffset;
+    if (typeof lookYOffset === 'number') this._lookYOff = lookYOffset;
+    if (typeof fov === 'number') {
+      this.camera.fov = fov;
+      this.camera.updateProjectionMatrix();
+    }
+  }
+
+  /** 현재 카메라 파라미터 스냅샷 (UI 슬라이더 동기화용). */
+  getCamera() {
+    return {
+      distance: this._camDist,
+      yOffset: this._camYOff,
+      lookYOffset: this._lookYOff,
+      fov: this.camera.fov,
+    };
+  }
+
+  /** measured auto-fit 비활성. 외부가 setCamera 로 완전 제어. */
+  setAutoFit(enabled) {
+    this._autoFit = !!enabled;
+    if (!enabled) this._measured = true;   // 다음 _updateCamera 에서 measure 스킵
+  }
+
+  /** 캔버스 사이즈 변경 — devicePixelRatio 반영 + aspect 갱신. */
+  setSize(size) {
+    this.size = size;
+    const px = size * this.dpr;
+    this.canvas.width = px;
+    this.canvas.height = px;
+    this.renderer.setSize(size, size, false);
+    // aspect 는 정사각이라 그대로지만 명시.
+    this.camera.aspect = 1;
+    this.camera.updateProjectionMatrix();
+  }
+
+  /**
+   * 사용자 줌 활성화 — wheel + pinch 로 _camDist 조정.
+   *   minDistance / maxDistance: 줌 범위 clamp
+   *   sensitivity: wheel deltaY 1 당 distance 곱해지는 비율 (default 0.0015)
+   *   target: 이벤트 attach 대상 DOM (default canvas)
+   */
+  enableUserZoom(opts = {}) {
+    this.disableUserZoom();
+    const minDistance = opts.minDistance ?? 0.4;
+    const maxDistance = opts.maxDistance ?? 3.0;
+    const sensitivity = opts.sensitivity ?? 0.0015;
+    const target = opts.target || this.canvas;
+
+    const clamp = (d) => Math.min(maxDistance, Math.max(minDistance, d));
+
+    const onWheel = (e) => {
+      e.preventDefault();
+      // deltaY > 0 = 휠 아래(축소), * sensitivity → distance 증가 = 줌아웃
+      const factor = 1 + e.deltaY * sensitivity;
+      this._camDist = clamp(this._camDist * factor);
+    };
+
+    let pinchStartDist = 0;
+    let pinchStartCamDist = 0;
+    const touchDist = (touches) => {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.hypot(dx, dy);
+    };
+    const onTouchStart = (e) => {
+      if (e.touches.length !== 2) return;
+      pinchStartDist = touchDist(e.touches);
+      pinchStartCamDist = this._camDist;
+    };
+    const onTouchMove = (e) => {
+      if (e.touches.length !== 2 || !pinchStartDist) return;
+      e.preventDefault();
+      const cur = touchDist(e.touches);
+      // 두 손가락 벌어지면(cur ↑) → distance 줄어듦 = 줌인
+      const ratio = pinchStartDist / cur;
+      this._camDist = clamp(pinchStartCamDist * ratio);
+    };
+    const onTouchEnd = () => { pinchStartDist = 0; };
+
+    target.addEventListener('wheel', onWheel, { passive: false });
+    target.addEventListener('touchstart', onTouchStart, { passive: true });
+    target.addEventListener('touchmove', onTouchMove, { passive: false });
+    target.addEventListener('touchend', onTouchEnd);
+    target.addEventListener('touchcancel', onTouchEnd);
+
+    this._zoom = {
+      target,
+      cleanup: () => {
+        target.removeEventListener('wheel', onWheel);
+        target.removeEventListener('touchstart', onTouchStart);
+        target.removeEventListener('touchmove', onTouchMove);
+        target.removeEventListener('touchend', onTouchEnd);
+        target.removeEventListener('touchcancel', onTouchEnd);
+      },
+    };
+  }
+
+  disableUserZoom() {
+    if (this._zoom) { this._zoom.cleanup(); this._zoom = null; }
+  }
+
   destroy() {
     this._destroyed = true;
+    this.disableUserZoom();
     this.detach();
     if (this.vrmRoot) this.scene.remove(this.vrmRoot);
     this.renderer.dispose();
@@ -197,7 +315,7 @@ export class MiniPortrait {
     const headPos = new THREE.Vector3();
     headBone.getWorldPosition(headPos);
 
-    if (!this._measured) {
+    if (!this._measured && this._autoFit) {
       this._measured = true;
       const chestBone = this.vrm.humanoid.getNormalizedBoneNode('upperChest')
         || this.vrm.humanoid.getNormalizedBoneNode('chest');

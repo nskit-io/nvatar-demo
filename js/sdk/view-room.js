@@ -126,6 +126,29 @@ export async function renderRoomView(sdk, ctx) {
   // Back button → list
   root.querySelector('.nv-back').addEventListener('click', () => history.back());
 
+  // PIP minimize 버튼 — sdk.onPipMinimize 박혀있을 때만 노출. 호출 시 ekyss/host 가
+  // 현재 채팅창을 hide 하고 floating PortraitWidget 을 띄움. SDK 는 destroy 안 함 (WS 유지).
+  const pipBtn = root.querySelector('.nv-pip-btn');
+  if (sdk.onPipMinimize) {
+    pipBtn.style.display = '';
+    pipBtn.addEventListener('click', () => {
+      // 마지막 assistant bubble 텍스트 (있으면) — PIP 의 첫 표시용
+      const lastAsst = [...state.rows].reverse().find(r => r.role === 'assistant');
+      try {
+        sdk.onPipMinimize({
+          avatarId: state.avatar?.id,
+          avatarName: state.avatar?.name,
+          kind: state.modelInfo?.kind || 'vrm',
+          portraitUrl: state.modelInfo?.portrait || state.modelInfo?.thumbnail || null,
+          vrmUrl: state.modelInfo?.url || null,
+          lastAssistantMessage: lastAsst?.content || null,
+        });
+      } catch (e) { console.error('[NVatar] onPipMinimize threw:', e); }
+    });
+  } else {
+    pipBtn.style.display = 'none';
+  }
+
   // Boot: VRM resolve + load + open WS + restore history
   bootRoom().catch(err => addSystemMsg('초기화 실패: ' + (err.message || err)));
 
@@ -155,6 +178,8 @@ export async function renderRoomView(sdk, ctx) {
       catch (e) { console.error('[NVatar] character resolve failed:', e); }
     }
     const kind = (model && model.kind) || 'vrm';
+    // PIP minimize 시 ekyss 가 portrait URL / kind 알아야 함 — state 에 캐싱.
+    state.modelInfo = model ? { ...model, kind } : { kind };
     state.portrait = await createPortrait({
       kind,
       size: 56,
@@ -364,7 +389,7 @@ export async function renderRoomView(sdk, ctx) {
 
   // --- Message append + grouping + portrait travel ---
 
-  function appendMessage({ role, content, ts, name, lookup, proactive }) {
+  function appendMessage({ role, content, ts, name, lookup, proactive, fromHistory }) {
     const date = new Date(ts || Date.now());
     const dateLabel = formatDateLabel(date);
     const timeLabel = formatTime(date);
@@ -417,6 +442,21 @@ export async function renderRoomView(sdk, ctx) {
     }
 
     state.rows.push({ role, content, ts, timeLabel, isProactive: !!proactive, el: row });
+
+    // PIP/외부 hook — assistant 메시지가 새로 도착할 때만 호출 (history restore 시 skip).
+    // ekyss 의 PIP widget 이 떠있으면 그쪽이 받아 setMessage.
+    if (role === 'assistant' && !fromHistory && sdk.onAssistantMessage) {
+      try {
+        sdk.onAssistantMessage({
+          text: content,
+          avatarId: state.avatar?.id,
+          avatarName: state.avatar?.name,
+          proactive: !!proactive,
+          ts,
+        });
+      } catch (e) { console.error('[NVatar] onAssistantMessage threw:', e); }
+    }
+
     if (role === 'user') {
       // After the user types, the prior assistant row (often the
       // portrait-owning one) needs to lift cleanly. block:'end' anchors
@@ -780,6 +820,9 @@ function renderTemplate(name) {
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <span class="nv-search-count">0</span>
     </button>
+    <button class="nv-pip-btn" aria-label="PIP 축소" style="display:none;">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><rect x="12" y="11" width="7" height="5" rx="1" fill="currentColor"/></svg>
+    </button>
     <button class="nv-clear-btn" aria-label="대화 초기화">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
     </button>
@@ -820,6 +863,9 @@ function ensureStyle() {
 .nv-clear-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent; color: #6b7280; cursor: pointer; }
 .nv-clear-btn:hover { color: #ef4444; background: #fef2f2; }
 .nv-clear-btn:active { background: #fee2e2; }
+.nv-pip-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent; color: #6b7280; cursor: pointer; }
+.nv-pip-btn:hover { color: #4f46e5; background: #eef2ff; }
+.nv-pip-btn:active { background: #e0e7ff; }
 
 /* min-height: 0 is the critical bit — without it, the flex item's implicit
    min-height: auto lets msgs-area grow to fit content, overflowing the room

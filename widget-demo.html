@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>NVatar PortraitWidget — Demo</title>
+<link rel="icon" href="https://nvatar-res.nskit.io/res/favicon.ico" type="image/x-icon">
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { width: 100%; min-height: 100vh; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', 'Pretendard', sans-serif;
+  background: linear-gradient(180deg, #f3f4f6, #e5e7eb);
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+  padding: 24px;
+}
+
+.intro {
+  max-width: 720px;
+  margin: 0 auto 24px;
+}
+.intro h1 { font-size: 22px; margin-bottom: 8px; }
+.intro p { font-size: 14px; color: #4b5563; line-height: 1.7; }
+.intro code { background: #fff; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+
+.panel {
+  max-width: 720px;
+  margin: 0 auto;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+  display: grid;
+  gap: 16px;
+}
+.panel h2 { font-size: 13px; color: #6b7280; letter-spacing: 0.3px; text-transform: uppercase; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.row label { font-size: 12px; color: #6b7280; min-width: 90px; }
+.row input[type=text] {
+  flex: 1; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 13px;
+  min-width: 200px;
+}
+.row input[type=range] { flex: 1; min-width: 160px; }
+.row button {
+  padding: 8px 14px; border: 1px solid #d1d5db; border-radius: 8px;
+  background: #fff; color: #111827; cursor: pointer; font-size: 13px;
+}
+.row button.primary { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+.row button:hover { background: #f3f4f6; }
+.row button.primary:hover { background: #4338ca; }
+.val { font-variant-numeric: tabular-nums; color: #4f46e5; min-width: 50px; text-align: right; }
+
+.status {
+  margin-top: 16px; padding: 10px 14px;
+  background: #f9fafb; border-radius: 8px; font-size: 12px; color: #6b7280;
+  line-height: 1.6;
+}
+
+.dropzone {
+  margin-top: 24px;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+  height: 200px;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 13px;
+}
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>PortraitWidget 데모</h1>
+  <p>
+    채팅 SDK 없이 portrait 위젯만 띄움. 우하단에 떠있는 위젯을 <b>드래그</b>해서 옮길 수 있고,
+    portrait 위에서 <b>휠/핀치</b>로 줌인·줌아웃. <code>bubbleSide: 'auto'</code> 모드에선 위치에 따라
+    말풍선이 자동으로 좌/우 swap (hysteresis 적용).
+  </p>
+</div>
+
+<div class="panel">
+  <h2>메시지 / 말풍선</h2>
+  <div class="row">
+    <input type="text" id="msg" placeholder="말풍선 텍스트 입력" value="안녕! 드래그해서 옮겨보세요.">
+    <button class="primary" id="send">표시</button>
+    <button id="clear">지우기</button>
+  </div>
+  <div class="row">
+    <button id="burst">연속 발화 (5문장 × 1.2s 간격)</button>
+    <button id="long">긴 멀티라인 메시지</button>
+  </div>
+  <div class="row">
+    <label>말풍선 위치</label>
+    <button id="side-auto" class="primary">auto</button>
+    <button id="side-left">left</button>
+    <button id="side-right">right</button>
+  </div>
+
+  <h2>카메라 (VRM 모드만 적용)</h2>
+  <div class="row">
+    <label>거리 (zoom)</label>
+    <input type="range" id="cam-dist" min="0.4" max="3.0" step="0.01" value="1.1">
+    <span class="val" id="cam-dist-val">1.10</span>
+  </div>
+  <div class="row">
+    <label>Y 오프셋</label>
+    <input type="range" id="cam-y" min="-0.5" max="0.8" step="0.01" value="0.25">
+    <span class="val" id="cam-y-val">0.25</span>
+  </div>
+  <div class="row">
+    <label>LookAt Y</label>
+    <input type="range" id="cam-look" min="-0.3" max="0.5" step="0.01" value="0.08">
+    <span class="val" id="cam-look-val">0.08</span>
+  </div>
+  <div class="row">
+    <label>FOV</label>
+    <input type="range" id="cam-fov" min="10" max="50" step="1" value="18">
+    <span class="val" id="cam-fov-val">18</span>
+  </div>
+  <div class="row">
+    <button id="cam-reset">기본값으로 리셋</button>
+    <button id="autofit-off">Auto-fit 해제</button>
+  </div>
+
+  <h2>VRM</h2>
+  <div class="row">
+    <input type="text" id="vrm-url" placeholder="https://.../model.vrm (비우면 res 서버 첫 모델)">
+    <button id="vrm-load">로드</button>
+  </div>
+
+  <div class="status" id="status">초기화 중…</div>
+</div>
+
+<div class="dropzone">
+  본문 영역 — 위젯은 viewport 기준 fixed 라 스크롤해도 따라옴.
+</div>
+
+<script type="module">
+import { PortraitWidget, createPortrait } from './js/sdk/index.js';
+import { Api } from './js/sdk/api.js';
+
+const params = new URLSearchParams(location.search);
+const RES_BASE  = params.get('res')  || 'https://nvatar-res.nskit.io';
+const CORE_BASE = params.get('api')  || 'https://nvatar.nskit.io';
+const queryVrm  = params.get('vrm');
+
+const statusEl = document.getElementById('status');
+const log = (m) => { statusEl.textContent = m; console.log('[demo]', m); };
+
+// res 서버 첫 active VRM 자동 fetch (query 박힌 경우 우선).
+// listVrmModels 응답엔 url 필드 없음 → uid 만 받음 → resolveVrm 으로 실제 .vrm URL 얻음.
+async function pickVrmUrl() {
+  if (queryVrm) return queryVrm;
+  document.getElementById('vrm-url').placeholder = '로딩 중…';
+  const api = new Api({ coreBase: CORE_BASE, resBase: RES_BASE, userId: 'widget-demo' });
+  try {
+    const models = await api.listVrmModels();
+    const vrmKind = models.find(m => m.kind === 'vrm' && m.uid);
+    if (!vrmKind) throw new Error('VRM kind 모델 없음');
+    const resolved = await api.resolveVrm(vrmKind.uid);
+    if (!resolved?.url) throw new Error('resolve.url 없음');
+    return resolved.url;
+  } catch (e) {
+    log('VRM 자동 선택 실패: ' + (e.message || e) + ' — URL 입력 후 [로드].');
+    return null;
+  }
+}
+
+let widget = null;
+
+async function mount(vrmUrl) {
+  if (widget) widget.destroy();
+  log('VRM 로드 중… ' + (vrmUrl || '(2D)'));
+  widget = await PortraitWidget.create({
+    kind: vrmUrl ? 'vrm' : '2d',
+    vrmUrl,
+    portraitSize: 96,
+    bubbleSide: 'auto',
+    draggable: true,
+    zoomable: true,
+    initialPosition: {
+      x: window.innerWidth - 380,
+      y: window.innerHeight - 220,
+    },
+  });
+  widget.setMessage(document.getElementById('msg').value);
+  log('마운트 완료. 드래그/줌/말풍선 토글 시도 가능.');
+  // 슬라이더 → 현재 카메라 동기화
+  syncCameraSliders();
+}
+
+function syncCameraSliders() {
+  const c = widget?.getCamera?.();
+  if (!c) return;
+  setSlider('cam-dist', c.distance);
+  setSlider('cam-y', c.yOffset);
+  setSlider('cam-look', c.lookYOffset);
+  setSlider('cam-fov', c.fov);
+}
+function setSlider(id, val) {
+  const el = document.getElementById(id);
+  el.value = val;
+  document.getElementById(id + '-val').textContent = (+val).toFixed(id === 'cam-fov' ? 0 : 2);
+}
+
+// --- Init ---
+const initialVrm = await pickVrmUrl();
+if (initialVrm) document.getElementById('vrm-url').value = initialVrm;
+await mount(initialVrm);
+
+// 줌으로 distance 가 변하면 슬라이더에도 반영 — 1초마다 폴링 (event 안 박은 이유:
+// 줌은 wheel/pinch 처리 중 매 프레임 변경되므로 RAF 다른 곳에서 sync 하기 충분).
+setInterval(syncCameraSliders, 250);
+
+// --- Wires ---
+document.getElementById('send').addEventListener('click', () => {
+  widget.setMessage(document.getElementById('msg').value);
+});
+document.getElementById('msg').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') widget.setMessage(e.target.value);
+});
+document.getElementById('clear').addEventListener('click', () => widget.clearMessages());
+
+document.getElementById('burst').addEventListener('click', async () => {
+  const lines = [
+    '안녕! 반가워요.',
+    '오늘 날씨가 정말 좋네요.',
+    '커피 한 잔 어때요?',
+    '아, 그리고 어제 봤던 영화 추천할게요.',
+    '이제 마지막 메시지예요. 잘 보이나요?',
+  ];
+  for (const line of lines) {
+    widget.setMessage(line);
+    await new Promise(r => setTimeout(r, 1200));
+  }
+});
+
+document.getElementById('long').addEventListener('click', () => {
+  widget.setMessage(
+    '이건 여러 줄에 걸친 긴 메시지예요. 한글 어절은 유지되면서 너비에 맞춰 자동으로 줄바꿈됩니다. ' +
+    'https://example.com/very/long/url/that/should/not/overflow/the/bubble/width/even/though/it/has/no/breaks ' +
+    '같은 긴 URL도 안전하게 끊겨요.'
+  );
+});
+
+['auto', 'left', 'right'].forEach(side => {
+  document.getElementById('side-' + side).addEventListener('click', () => {
+    widget.setBubbleSide(side);
+    document.querySelectorAll('[id^=side-]').forEach(b => b.classList.remove('primary'));
+    document.getElementById('side-' + side).classList.add('primary');
+  });
+});
+
+function bindCam(id, key) {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    const v = +el.value;
+    document.getElementById(id + '-val').textContent = v.toFixed(id === 'cam-fov' ? 0 : 2);
+    widget.setCamera({ [key]: v });
+  });
+}
+bindCam('cam-dist', 'distance');
+bindCam('cam-y', 'yOffset');
+bindCam('cam-look', 'lookYOffset');
+bindCam('cam-fov', 'fov');
+
+document.getElementById('cam-reset').addEventListener('click', () => {
+  widget.setCamera({ distance: 1.1, yOffset: 0.25, lookYOffset: 0.08, fov: 18 });
+  syncCameraSliders();
+});
+document.getElementById('autofit-off').addEventListener('click', (e) => {
+  widget.portrait?.setAutoFit?.(false);
+  e.target.disabled = true;
+  e.target.textContent = 'Auto-fit 해제됨';
+});
+
+document.getElementById('vrm-load').addEventListener('click', async () => {
+  const url = document.getElementById('vrm-url').value.trim();
+  await mount(url || null);
+});
+
+window.widget = widget;
+</script>
+
+</body>
+</html>

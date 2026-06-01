@@ -56,6 +56,17 @@ export class Static2DPortrait {
     this._currentExpr = expr;
   }
 
+  // MiniPortrait 와 polymorphic — caller 가 backbone 분기 없이 호출 가능. 2D 는 perspective 없음 → noop.
+  setCamera() { /* noop */ }
+  getCamera() { return { distance: 1, yOffset: 0, lookYOffset: 0, fov: 0 }; }
+  setAutoFit() { /* noop */ }
+  setSize(size) {
+    this.size = size;
+    // canvas 는 inline-block 이라 부모 fill — 외부 wrapper 가 사이즈 정의함. noop OK.
+  }
+  enableUserZoom() { /* 2D 는 줌 X (정적 이미지). UI 에서 zoom 컨트롤 숨김. */ }
+  disableUserZoom() { /* noop */ }
+
   destroy() {
     this._destroyed = true;
     this.detach();

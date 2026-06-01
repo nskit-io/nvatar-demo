@@ -24,6 +24,10 @@ import { NoopActionProvider } from './action-provider.js';
 import { resolveBrand, applyBrandVars, toSyncPayload } from './brand.js';
 import { SearchHistoryStore, renderSearchHistoryPanel } from './search-history.js';
 
+// Standalone widget / portrait factory — 채팅 SDK 없이 호스트가 단독 사용 가능.
+export { PortraitWidget } from './portrait-widget.js';
+export { createPortrait } from './portrait.js';
+
 const BP_DESKTOP = 900;
 const BP_WIDE    = 1400;
 const SHELL_STYLE_ID = 'nv-sdk-shell-style';
@@ -50,6 +54,10 @@ export class NVatarChatSDK {
     this.layout = opts.layout || 'auto';   // 'auto' | 'mobile' | 'desktop' | 'wide'
     this.renderAux = typeof opts.renderAux === 'function' ? opts.renderAux : null;
     this.onClose = typeof opts.onClose === 'function' ? opts.onClose : null;
+    // PIP minimize 콜백 — 박혀있으면 채팅 헤더에 PIP 버튼 노출. 호출 시 host 가 채팅 hide + floating widget 띄움.
+    this.onPipMinimize = typeof opts.onPipMinimize === 'function' ? opts.onPipMinimize : null;
+    // 새 assistant 메시지 도착 시 호출 (history restore 는 skip). PIP widget setMessage 용.
+    this.onAssistantMessage = typeof opts.onAssistantMessage === 'function' ? opts.onAssistantMessage : null;
     // 검색 기록 영구화 — true 면 localStorage 백업. default 휘발성 (탭 닫으면 사라짐).
     this.searchHistory = new SearchHistoryStore({
       userId: this.userId,
