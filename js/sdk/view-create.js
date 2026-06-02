@@ -137,6 +137,7 @@ export async function openCreateDialog(sdk, root, onCreated) {
 
     try {
       const speechLevel = overlay.querySelector('select[name=speech_level]').value || 'polite';
+      const language = overlay.querySelector('select[name=language]').value || 'ko';
 
       // Step 1: create avatar (tone derived from MBTI dimensions for now)
       const created = await sdk.api.createAvatar({
@@ -146,6 +147,7 @@ export async function openCreateDialog(sdk, root, onCreated) {
         tone: deriveToneHint(mbti),
         speech_style: '',
         speech_level: speechLevel,
+        language,
         proactive_level: 3,
       });
 
@@ -205,6 +207,7 @@ function toCharSpec(m) {
       mbti: m.preset.mbti || null,
       speechLevel: m.preset.speech_level || 'polite',
       tone: m.preset.tone || null,
+      language: m.preset.language || null,
     } : null,
   };
 }
@@ -239,7 +242,11 @@ function applyPreset(overlay, character) {
       }
     }
     if (preset.speechLevel) speechEl.value = preset.speechLevel;
-    // MBTI / 어투만 lock — 캐릭터 정체성 보호.
+    if (preset.language) {
+      const langEl = overlay.querySelector('select[name=language]');
+      if (langEl) langEl.value = preset.language;
+    }
+    // MBTI / 어투만 lock — 캐릭터 정체성 보호. language 는 자유 (사용자 학습 목적).
     mbtiEl.disabled = true;
     speechEl.disabled = true;
     if (noticeEl) {
@@ -316,6 +323,20 @@ const TEMPLATE = `
         <option value="informal">하대 (~다, ~렴)</option>
       </select>
       <p class="nv-hint">생성 후에는 변경할 수 없어요. 신중히 골라주세요.</p>
+    </div>
+
+    <div class="nv-field">
+      <label><span class="nv-bar"></span>기본 언어</label>
+      <select name="language">
+        <option value="ko" selected>한국어</option>
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+        <option value="zh">中文</option>
+        <option value="es">Español</option>
+        <option value="fr">Français</option>
+        <option value="vi">Tiếng Việt</option>
+      </select>
+      <p class="nv-hint">아바타의 기본 응답 언어. 회화 연습 모드로 다른 언어 전환 가능.</p>
     </div>
 
     <div class="nv-field">
