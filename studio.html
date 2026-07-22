@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NVatar — Studio v1 (Scenario Runner)</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+.header { padding: 10px 16px; background: #1e293b; border-bottom: 1px solid #334155; }
+.header h1 { font-size: 15px; font-weight: 600; }
+.header h1 span { color: #6366f1; }
+.header p { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+.main { flex: 1; display: grid; grid-template-columns: 1fr 400px; overflow: hidden; }
+
+.stage {
+  position: relative; background: #020617; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 16px;
+}
+#stageCanvas {
+  width: 100%; max-width: 720px; aspect-ratio: 16 / 9;
+  background: #000; border-radius: 6px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5); display: block;
+}
+.scene-indicator {
+  font-size: 11px; color: #64748b; font-family: 'Menlo', 'Consolas', monospace; letter-spacing: 0.4px;
+}
+
+.controls { background: #1e293b; border-left: 1px solid #334155; padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.controls .section { padding-bottom: 10px; border-bottom: 1px solid #334155; }
+.controls .section:last-child { border-bottom: none; }
+.controls h3 { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.controls textarea, .controls input, .controls select { width: 100%; padding: 7px; border: 1px solid #334155; border-radius: 5px; background: #0f172a; color: #e2e8f0; font-size: 12px; font-family: inherit; }
+.controls textarea { min-height: 70px; resize: vertical; font-family: 'Menlo', 'Consolas', monospace; line-height: 1.4; }
+#scenarioJson { min-height: 200px; font-size: 11px; }
+.controls button { padding: 7px 12px; border: 1px solid #6366f1; border-radius: 5px; background: rgba(99,102,241,0.15); color: #e2e8f0; cursor: pointer; font-size: 12px; }
+.controls button:hover:not(:disabled) { background: rgba(99,102,241,0.3); }
+.controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+.controls button.danger { border-color: #ef4444; background: rgba(239,68,68,0.2); }
+.controls button.primary { border-color: #22c55e; background: rgba(34,197,94,0.18); }
+.row { display: flex; gap: 6px; margin-top: 6px; }
+.row > * { flex: 1; }
+.status { font-size: 11px; color: #94a3b8; padding: 7px; background: #0f172a; border-radius: 5px; min-height: 70px; max-height: 220px; overflow-y: auto; white-space: pre-wrap; font-family: 'Menlo', 'Consolas', monospace; line-height: 1.5; }
+.hint { font-size: 10px; color: #64748b; margin-top: 4px; line-height: 1.5; }
+.hint code { background: #0f172a; padding: 1px 4px; border-radius: 3px; color: #a5b4fc; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>NVatar</span> Studio v1 — Scenario Runner</h1>
+  <p>Stage 1280×720 (16:9) + portrait 코너 + caption/자막 + audio.onended 기반 자동 진행</p>
+</div>
+
+<div class="main">
+
+  <div class="stage">
+    <canvas id="stageCanvas"></canvas>
+    <div class="scene-indicator" id="sceneIndicator">stage 1280×720 · scene -/-</div>
+  </div>
+
+  <div class="controls">
+
+    <div class="section">
+      <h3>1. VRM</h3>
+      <input id="vrmUrl" value="victoria" placeholder="victoria · fem-vroid · uid · URL">
+      <div class="row">
+        <button onclick="window.studioLoadVRM()">로드</button>
+        <button onclick="window.studioPickRandomVRM()">🎲 랜덤</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>2. 보이스</h3>
+      <select id="voiceSelect"><option value="">로딩 중...</option></select>
+    </div>
+
+    <div class="section">
+      <h3>3. 시나리오 (JSON 배열)</h3>
+      <textarea id="scenarioJson" placeholder="자동 채워짐..."></textarea>
+      <div class="row">
+        <button class="primary" onclick="window.studioRunScenario()">▶ Run Scenario</button>
+        <button onclick="window.studioStopScenario()">⏹ Stop</button>
+        <button onclick="window.studioLoadDefaultScenario()" title="기본(EP-007) 다시 로드">↺</button>
+      </div>
+      <p class="hint">scene: <code>caption</code>(상단) · <code>visual</code> {kind: text/terminal/code/image, title, content/url} · <code>narration</code>(TTS).</p>
+    </div>
+
+    <div class="section">
+      <h3>4. 수동 발화</h3>
+      <textarea id="ttsText" style="min-height:50px;">테스트. 65건이 묵음.</textarea>
+      <div class="row">
+        <button onclick="window.studioSpeak()">▶ Speak</button>
+        <button onclick="window.studioStopTTS()">⏹</button>
+        <button onclick="window.studioTestMouth()" title="입 키 진단">👄</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>5. 녹화</h3>
+      <div class="row">
+        <button id="recBtn" onclick="window.studioToggleRecord()">⏺ Record</button>
+        <button id="dlBtn" disabled onclick="window.studioDownload()">⬇ Download</button>
+      </div>
+      <p class="hint">[Record] → [Run Scenario] → 끝 → [Stop Recording] → [Download]. 1280×720 webm.</p>
+    </div>
+
+    <div class="section">
+      <h3>Status</h3>
+      <div class="status" id="status">대기 중...</div>
+    </div>
+
+  </div>
+
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="js/studio/main.js?v=1.0"></script>
+
+</body>
+</html>

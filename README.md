@@ -24,7 +24,7 @@ Most AI chatbots are stateless text generators. NVatar is an **AI companion that
 
 ### Hybrid AI Architecture
 NVatar combines the best of **local** and **cloud** AI:
-- **Local LLM** (Gemma 26B MoE on Apple Silicon) — Personality, conversation, emotion. Fast, private, always available.
+- **Local LLM** (Gemma 4 26B MoE on Apple Silicon) — Personality, conversation, emotion. Fast, private, always available.
 - **Cloud Search** (Claude WebSearch) — Factual answers, real-time data. Only when needed, with user consent.
 
 This hybrid approach means your avatar can chat naturally about feelings (local) AND tell you today's exchange rate (cloud) — without sending your personal conversations to external servers.
@@ -60,7 +60,7 @@ NVatar's capabilities are extensible through a **pluggable behavior system**. Ea
 
 ### Autonomous Agency (Avatar OS)
 Your avatar is not a state machine — it has an **agency layer** that decides for itself.
-- **Distributed judgment**: A separate lightweight judge service handles classification; the heavy 26B core model only runs for actual conversation.
+- **Distributed judgment**: A lightweight model handles classification; the 26B model only runs for actual conversation.
 - **Activity Density (T1~T4)**: The more you talk to your avatar, the more alive it is. When you stop visiting, it gradually hibernates — long-idle tiers accrue one logic-based memory per day with **zero LLM cost**. Return anytime and it wakes up instantly.
 - **Rest = memory consolidation**: When an avatar rests (you permit it or it gets quiet), it compacts its own memory. A state field is an actual behavior trigger, not just a label.
 - **Source-agnostic state**: Whether a state change comes from your command, the avatar's own decision, or a UI event — one code path, three origins tracked separately.
@@ -100,7 +100,7 @@ For building custom integrations, see [NVatar SDK](https://github.com/nskit-io/n
 | Feature | Description |
 |---------|-------------|
 | **3D Virtual Room** | VRM avatars + 33 Mixamo animations (idle, walk, emotions, gestures, dance) |
-| **Natural Conversation** | Gemma 26B MoE with personality, memory, and emotion |
+| **Natural Conversation** | Gemma 4 26B MoE with personality, memory, and emotion |
 | **Voice Output** | ElevenLabs Voice Clone TTS — 32+ languages |
 | **Voice Input** | Whisper STT — automatic language detection |
 | **Web Search** | Real-time factual search with structured results |
@@ -161,7 +161,7 @@ room.html                        WebSocket + AI Pipeline
   → Room Manager                    → God Mode (message analysis & routing)
      · Central scheduler             → BehaviorPattern Registry
      · Speech queue (serial)           → NormalChat / CodeAssist / custom
-     · Sticky target                 → Gemma 26B (local)
+     · Sticky target                 → Gemma 4 26B (local)
      · Auto-cascade                  → ElevenLabs TTS (cloud)
   → Friend Panel                    → CSW WebSearch (cloud)
      · Invite your avatars          → Emotion Engine (9-dim)
