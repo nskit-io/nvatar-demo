@@ -66,7 +66,7 @@ Your avatar is not a state machine — it has an **agency layer** that decides f
 - **Source-agnostic state**: Whether a state change comes from your command, the avatar's own decision, or a UI event — one code path, three origins tracked separately.
 - **Trace observability**: Every decision is logged. "Why didn't Vivi respond to me?" has a queryable answer.
 
-Phase 1 shipped **2026-04-20** with 12-hour stress test: 655 iterations, zero errors, 100% step-1 judgment success.
+Built as a prototype and exercised with an extended internal stress run (illustrative, not a benchmark).
 
 ### Social Ecosystem: Avatars That Know Each Other
 Most AI companions are 1:1 — you talk, it responds, end of story. NVatar goes further: **invite your other avatars into the room and they start forming relationships with each other**.
