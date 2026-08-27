@@ -757,14 +757,18 @@ async function runScenario(scenes, opts = {}) {
   if (!scenarioCancelled) log(`✅ Scenario complete (${scenes.length} scenes${useFinalize ? ' + finalize' : ''})`);
 }
 
-window.studioRunScenario = function () {
+/**
+ * @param {{finalize?: boolean, slideLead?: number, silentDwell?: number}} [opts]
+ *   finalize:false 로 끝맺음 슬라이드(NVatar 태그라인)를 뺀다 — 채널마다 클로징이 다르다.
+ */
+window.studioRunScenario = function (opts) {
   if (scenarioRunning) { log('이미 진행 중'); return; }
   if (!portrait.vrm) { log('VRM 먼저 로드'); return; }
   const text = document.getElementById('scenarioJson')?.value || '';
   let scenes;
   try { scenes = JSON.parse(text); if (!Array.isArray(scenes)) throw new Error('not array'); }
   catch (e) { log(`scenario JSON parse failed: ${e?.message || e}`); return; }
-  runScenario(scenes).catch(e => log(`crashed: ${e?.message || e}`));
+  runScenario(scenes, opts || {}).catch(e => log(`crashed: ${e?.message || e}`));
 };
 
 /**
