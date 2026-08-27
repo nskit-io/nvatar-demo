@@ -19,7 +19,7 @@
 // `git show 03168c6`, `mysql -e ...` 결과) 로 교체 권장. 구조만 먼저 검증.
 
 import { MiniPortrait } from '../sdk/portrait-mini.js';
-import { synth, synthArrayBuffer, API_BASE } from './tts.js';
+import { synth, synthArrayBuffer, synthArrayBufferCached, prefetchNarrations, API_BASE } from './tts.js';
 import { Recorder } from './recorder.js';
 
 const RES_BASE = 'https://nvatar-res.nskit.io';
@@ -556,7 +556,7 @@ async function prepareSpeak(text) {
   log(`▷ ${processed.slice(0, 60)}${processed.length > 60 ? '…' : ''}`);
 
   let arrayBuf;
-  try { arrayBuf = await synthArrayBuffer(processed, { voiceId }); }
+  try { arrayBuf = await synthArrayBufferCached(processed, { voiceId }); }
   catch (e) { log(`  ❌ fetch failed: ${e?.message || e}`); throw e; }
 
   const { ctx, recDest } = ensureAudio();
@@ -649,9 +649,24 @@ let scenarioCancelled = false, scenarioRunning = false;
 
 async function preloadScenarioAssets(scenes) {
   const urls = scenes.map(s => s.visual?.url).filter(u => u);
-  if (!urls.length) return;
-  log(`이미지 ${urls.length}개 preload…`);
-  await Promise.all(urls.map(u => preloadImage(u).promise.catch(e => log(`preload fail: ${u}`))));
+  if (urls.length) {
+    log(`이미지 ${urls.length}개 preload…`);
+    await Promise.all(urls.map(u => preloadImage(u).promise.catch(e => log(`preload fail: ${u}`))));
+  }
+
+  // 나레이션 선합성 — 녹화 중 합성 대기가 화면에 박히지 않게 여기서 전부 받아 둔다.
+  // Voicebox 는 문장당 ~10초라 이 단계가 길다. 녹화 시작 전이므로 영상에는 안 들어간다.
+  const voiceId = document.getElementById('voiceSelect')?.value || null;
+  const texts = scenes.map(s => s.narration).filter(t => t && t.trim())
+                      .map(t => preprocessForKoreanTTS(t));
+  if (texts.length) {
+    log(`나레이션 ${texts.length}개 선합성… (문장당 ~10s, 시간이 걸립니다)`);
+    const t0 = Date.now();
+    await prefetchNarrations(texts, { voiceId }, (done, total, _t, err) => {
+      log(`  · TTS ${done}/${total}${err ? ` ❌ ${err.message}` : ''}`);
+    });
+    log(`나레이션 선합성 완료 · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  }
 }
 
 const FINALIZE_SCENE = {
@@ -750,6 +765,22 @@ window.studioRunScenario = function () {
   try { scenes = JSON.parse(text); if (!Array.isArray(scenes)) throw new Error('not array'); }
   catch (e) { log(`scenario JSON parse failed: ${e?.message || e}`); return; }
   runScenario(scenes).catch(e => log(`crashed: ${e?.message || e}`));
+};
+
+/**
+ * 시나리오 에셋(이미지 + 나레이션 TTS)만 미리 받아 둔다. **녹화 시작 전에** 호출한다.
+ * 녹화가 이미 돌고 있는 상태에서 합성하면 그 대기가 정지화면으로 영상에 박힌다.
+ * 결과는 캐시에 남으므로 runScenario 안의 같은 단계는 즉시 통과한다.
+ * @returns {Promise<{scenes:number, ok:boolean, message?:string}>}
+ */
+window.studioPrefetch = async function (scenes) {
+  if (!scenes) {
+    const text = document.getElementById('scenarioJson')?.value || '';
+    try { scenes = JSON.parse(text); if (!Array.isArray(scenes)) throw new Error('not array'); }
+    catch (e) { log(`prefetch: scenario JSON parse failed: ${e?.message || e}`); return { scenes: 0, ok: false, message: String(e?.message || e) }; }
+  }
+  try { await preloadScenarioAssets(scenes); return { scenes: scenes.length, ok: true }; }
+  catch (e) { log(`prefetch failed: ${e?.message || e}`); return { scenes: scenes.length, ok: false, message: String(e?.message || e) }; }
 };
 
 window.studioStopScenario = function () {
