@@ -23,7 +23,6 @@ import { synth, synthArrayBuffer, synthArrayBufferCached, prefetchNarrations, AP
 import { Recorder } from './recorder.js';
 
 const RES_BASE = 'https://nvatar-res.nskit.io';
-const DEFAULT_VOICE_INDEX = 4;
 
 const STAGE_W = 1280;
 const STAGE_H = 720;
@@ -383,16 +382,22 @@ window.studioLoadDefaultScenario = function () {
     const voices = d.voices || [];
     const sel = document.getElementById('voiceSelect');
     sel.innerHTML = '';
+    // 🔥 기본은 **서버 기본값**(백엔드 .env 의 VOICEBOX_VOICE_UUID)이다.
+    //    예전엔 DEFAULT_VOICE_INDEX 로 목록의 특정 항목을 골라 보내서, 서버에서 채널
+    //    목소리를 바꿔도 스튜디오가 덮어써 버렸다(실측: .env 를 바꿨는데 영상은 그대로).
+    //    채널 목소리는 한 곳에서만 정해야 한다. 고르고 싶으면 ?voice=<uuid> 로 명시.
+    const dflt = document.createElement('option');
+    dflt.value = ''; dflt.textContent = '0. (서버 기본값)';
+    sel.appendChild(dflt);
     voices.forEach((v, i) => {
       const opt = document.createElement('option');
       opt.value = v.voice_id;
       opt.textContent = `${i + 1}. ${v.display_name}`;
       sel.appendChild(opt);
     });
-    if (voices[DEFAULT_VOICE_INDEX]) {
-      sel.value = voices[DEFAULT_VOICE_INDEX].voice_id;
-      log(`Voices ${voices.length}개, default = ${DEFAULT_VOICE_INDEX + 1}. ${voices[DEFAULT_VOICE_INDEX].display_name}`);
-    }
+    const want = new URLSearchParams(location.search).get('voice') || '';
+    sel.value = voices.some(v => v.voice_id === want) ? want : '';
+    log(`Voices ${voices.length}개, 선택 = ${sel.value ? sel.options[sel.selectedIndex].textContent : '(서버 기본값)'}`);
   } catch (e) {
     log(`Voices 로드 실패: ${e?.message || e}`);
   }
