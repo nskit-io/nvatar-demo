@@ -484,7 +484,13 @@ function preprocessForKoreanTTS(text) {
   // 1) 영어 단어 사전 치환
   text = applyReadingDict(text);
   // 2) 숫자 → Sino-Korean
-  return text.replace(/\d+(?:\.\d+)?/g, (m) => {
+  //
+  // ⚠️ 2026-08-29: 백엔드(/api/v1/tts)도 같은 변환을 한다 — **중복이고 여기가 먼저 이긴다.**
+  //    그런데 여기 규칙은 단위 명사를 모른다: "2건" → "이건", "6건" → "육건".
+  //    한국어가 아니라 더듬는 것처럼 들린다(올바른 읽기는 "두 건", "여섯 건").
+  //    백엔드는 수관형사를 쓰고 날짜도 보호하므로, 숫자는 백엔드에 맡긴다.
+  //    ⛔ 단위 명사가 붙은 숫자는 건드리지 않는다.
+  return text.replace(/\d+(?:\.\d+)?(?![\s]*(?:건|명|개|번|차|살|마리|권|대|장|편))/g, (m) => {
     if (/\./.test(m)) {
       const [int, frac] = m.split('.');
       if (int.length > 7) return m;
