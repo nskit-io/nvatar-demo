@@ -36,7 +36,13 @@ export class Recorder {
     ];
     const mimeType = candidates.find(t => MediaRecorder.isTypeSupported(t)) || '';
 
-    this.recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    // 🔥 비트레이트를 지정하지 않으면 MediaRecorder 가 캔버스 캡처에 아주 낮은 값을 고른다.
+    //    실측: 지정 없이 720p 를 녹화했더니 **217 kbps** 로 나와 슬라이드 글자가 뭉개졌다.
+    //    이 콘텐츠는 정지 슬라이드+텍스트라 프레임레이트보다 비트레이트가 화질을 지배한다.
+    const opts = mimeType ? { mimeType } : {};
+    opts.videoBitsPerSecond = 6_000_000;   // 720p 텍스트에 넉넉
+    opts.audioBitsPerSecond = 128_000;
+    this.recorder = new MediaRecorder(stream, opts);
     this.recorder.ondataavailable = (e) => {
       if (e.data && e.data.size > 0) this.chunks.push(e.data);
     };
