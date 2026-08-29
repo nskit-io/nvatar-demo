@@ -66,20 +66,29 @@ function updateSceneIndicator() {
 }
 
 // ---------- 텍스트 wrap (Korean char-by-char) ----------
+// 🔥 한국어는 어절(공백 단위)을 지켜야 읽힌다 — CSS 의 word-break:keep-all 과 같은 규칙.
+//    글자 단위로 감싸면 "맞았/고 결과" 처럼 어절 한가운데서 끊긴다.
+//    공백에서 먼저 끊고, 한 어절이 통째로 안 들어갈 때만 글자 단위로 쪼갠다.
 function wrapText(ctx, text, maxWidth) {
   if (!text) return [];
   const lines = [];
-  let cur = '';
-  for (const ch of text) {
-    if (ch === '\n') { lines.push(cur); cur = ''; continue; }
-    const test = cur + ch;
-    if (ctx.measureText(test).width > maxWidth && cur) {
-      lines.push(cur); cur = ch;
-    } else {
-      cur = test;
+  for (const para of String(text).split('\n')) {
+    let cur = '';
+    for (const word of para.split(' ')) {
+      const test = cur ? cur + ' ' + word : word;
+      if (ctx.measureText(test).width <= maxWidth) { cur = test; continue; }
+      if (cur) { lines.push(cur); cur = ''; }
+      if (ctx.measureText(word).width <= maxWidth) { cur = word; continue; }
+      // 한 어절이 줄보다 길다(URL·긴 고유명사) — 이때만 글자 단위로 쪼갠다.
+      let piece = '';
+      for (const ch of word) {
+        if (ctx.measureText(piece + ch).width > maxWidth && piece) { lines.push(piece); piece = ch; }
+        else piece += ch;
+      }
+      cur = piece;
     }
+    lines.push(cur);
   }
-  if (cur) lines.push(cur);
   return lines;
 }
 
