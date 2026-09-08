@@ -45,7 +45,10 @@ export function changeVoice(voiceId) {
 
 export async function loadVoices() {
   try {
-    const res = await fetch(S.API_BASE + '/api/v1/tts/voices');
+    // ⚠️ lang 을 안 넘기면 서버가 한국어 목록만 준다 —
+    //    영어 아바타가 한국어 음성으로 읽던 원인.
+    const _lang = new URLSearchParams(location.search).get('lang') || 'ko';
+    const res = await fetch(`${S.API_BASE}/api/v1/tts/voices?lang=${encodeURIComponent(_lang)}`);
     const data = await res.json();
     if (data.code !== 200 || !data.voices) return;
     const sel = document.getElementById('voiceSelect');
@@ -114,7 +117,9 @@ async function processQueue() {
   const { text, voiceId } = ttsQueue.shift();
   const useVoice = voiceId || TTS_CONFIG.voiceId;
   try {
-    let ttsUrl = `${S.API_BASE}/api/v1/tts?text=${encodeURIComponent(text)}`;
+    // voice_id 가 없을 때 서버가 아바타 언어의 기본 음성을 고르도록 lang 을 함께 보낸다.
+    const _lang = new URLSearchParams(location.search).get('lang') || 'ko';
+    let ttsUrl = `${S.API_BASE}/api/v1/tts?text=${encodeURIComponent(text)}` + `&lang=${encodeURIComponent(_lang)}`;
     if (useVoice) ttsUrl += `&voice_id=${encodeURIComponent(useVoice)}`;
     const res = await _ttsWithFallback(ttsUrl);
     if (!res.ok) { processQueue(); return; }
