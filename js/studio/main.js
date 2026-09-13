@@ -31,6 +31,22 @@ const PORTRAIT_MARGIN = 28;
 const PORTRAIT_X = STAGE_W - PORTRAIT_SIZE - PORTRAIT_MARGIN;
 const PORTRAIT_Y = STAGE_H - PORTRAIT_SIZE - PORTRAIT_MARGIN;
 
+// ── 앵커 2인 (2026-09-01) ────────────────────────────────────────────────
+// 보도처럼 두 사람이 번갈아 읽는다. **남 왼쪽 · 여 오른쪽**, 말하는 쪽만 입이 움직인다.
+// MiniPortrait 는 자체 씬·카메라·캔버스를 갖는 독립 인스턴스라 둘을 띄울 수 있다.
+const ANCHOR_SLOTS = {
+  m: { x: PORTRAIT_MARGIN,                                y: PORTRAIT_Y },
+  f: { x: STAGE_W - PORTRAIT_SIZE - PORTRAIT_MARGIN,      y: PORTRAIT_Y },
+};
+
+// 🔥 앵커 아래 대역의 **안전 영역** — 두 사람 사이만 쓴다.
+//   앵커가 하나였을 땐 왼쪽 x=64 부터 그려도 됐지만, 이제 그 자리는 남성 앵커 아래다
+//   (실측 2026-09-01: 슬라이드 하단 멘트가 남성 앵커에 가림).
+//   ⚠️ 앵커와 겹치는 높이(PORTRAIT_Y 아래)의 텍스트는 반드시 이 좌표를 쓴다.
+const ANCHOR_GAP = 24;
+const SAFE_X = PORTRAIT_MARGIN + PORTRAIT_SIZE + ANCHOR_GAP;
+const SAFE_W = STAGE_W - 2 * (PORTRAIT_MARGIN + PORTRAIT_SIZE + ANCHOR_GAP);
+
 // ---------- 로깅 (밀리초 timestamp 포함, recorder log 에서 timing 분석용) ----------
 const _t0 = performance.now();
 const statusEl = document.getElementById('status');
@@ -45,14 +61,30 @@ function log(msg) {
 }
 
 // ---------- portrait ----------
-const portrait = new MiniPortrait({ size: PORTRAIT_SIZE });
+const portrait = new MiniPortrait({ size: PORTRAIT_SIZE });   // 기본(=여) — 기존 코드 호환
 window.portrait = portrait;
+const portraitM = new MiniPortrait({ size: PORTRAIT_SIZE });  // 남
+window.portraitM = portraitM;
+// 현재 발화자. 'm' | 'f'. 립싱크와 밝기 강조가 이 값을 따른다.
+let activeSpeaker = 'f';
+const anchorOf = (who) => (who === 'm' ? portraitM : portrait);
 
 // ---------- stage canvas ----------
 const stageCanvas = document.getElementById('stageCanvas');
-stageCanvas.width = STAGE_W;
-stageCanvas.height = STAGE_H;
+
+// 큰 모니터에서 뿌옇게 보이던 원인 - 캔버스가 720p 였다 (실측 2026-09-10).
+//   좌표계는 1280x720 그대로 두고 **백킹 스토어만** 키운다. 레이아웃 상수(여백 60,
+//   자막 y=STAGE_H-160, SAFE_X/SAFE_W 등)가 전부 이 좌표계의 절대 픽셀이라
+//   STAGE_W 를 늘리면 글자가 상대적으로 작아지고 배치가 어긋난다.
+//   배율은 devicePixelRatio 가 정한다 -> 레코더가 deviceScaleFactor 로 조절하고,
+//   MiniPortrait 도 같은 값을 보므로 아바타까지 함께 선명해진다.
+//   dpr=1 이면 값이 1 이라 기존 동작과 완전히 같다(회귀 없음).
+const STAGE_SCALE = Math.min(window.devicePixelRatio || 1, 2);
+stageCanvas.width = Math.round(STAGE_W * STAGE_SCALE);
+stageCanvas.height = Math.round(STAGE_H * STAGE_SCALE);
 const stageCtx = stageCanvas.getContext('2d');
+// 이후 모든 그리기는 1280x720 좌표로 한다. save/restore 는 이 기본 변환을 보존한다.
+stageCtx.scale(STAGE_SCALE, STAGE_SCALE);
 window.stageCanvas = stageCanvas;
 
 let currentScene = { caption: '', narration: '', visual: null };
@@ -255,7 +287,7 @@ function _trackRenderedSceneChange() {
       stageCtx.font = '26px -apple-system, "Apple SD Gothic Neo", sans-serif';
       stageCtx.textAlign = 'left';
       stageCtx.textBaseline = 'top';
-      drawWrappedLeft(stageCtx, currentScene.narration, 60, 510, STAGE_W - 280, 38);
+      drawWrappedLeft(stageCtx, currentScene.narration, SAFE_X, 510, SAFE_W, 38);
     }
   } else {
     // visual 없을 때: 큰 caption 중앙 + 작은 narration 하단
@@ -271,25 +303,34 @@ function _trackRenderedSceneChange() {
       stageCtx.font = '30px -apple-system, "Apple SD Gothic Neo", sans-serif';
       stageCtx.textAlign = 'left';
       stageCtx.textBaseline = 'top';
-      drawWrappedLeft(stageCtx, currentScene.narration, 64, STAGE_H - 160, STAGE_W - 280, 42);
+      drawWrappedLeft(stageCtx, currentScene.narration, SAFE_X, STAGE_H - 160, SAFE_W, 42);
     }
   }
 
-  // portrait
-  stageCtx.save();
-  stageCtx.beginPath();
-  stageCtx.arc(PORTRAIT_X + PORTRAIT_SIZE / 2, PORTRAIT_Y + PORTRAIT_SIZE / 2, PORTRAIT_SIZE / 2, 0, Math.PI * 2);
-  stageCtx.clip();
-  stageCtx.fillStyle = '#1e293b';
-  stageCtx.fillRect(PORTRAIT_X, PORTRAIT_Y, PORTRAIT_SIZE, PORTRAIT_SIZE);
-  stageCtx.drawImage(portrait.canvas, PORTRAIT_X, PORTRAIT_Y, PORTRAIT_SIZE, PORTRAIT_SIZE);
-  stageCtx.restore();
+  // 앵커 2인 — 말하는 쪽을 밝게, 쉬는 쪽은 눌러서 시선을 유도한다.
+  for (const who of ['m', 'f']) {
+    const p = anchorOf(who);
+    if (!p.vrm) continue;                       // 아직 안 실린 쪽은 건너뛴다
+    const { x, y } = ANCHOR_SLOTS[who];
+    const live = (who === activeSpeaker);
+    const cx = x + PORTRAIT_SIZE / 2, cy = y + PORTRAIT_SIZE / 2;
 
-  stageCtx.strokeStyle = 'rgba(99,102,241,0.6)';
-  stageCtx.lineWidth = 3;
-  stageCtx.beginPath();
-  stageCtx.arc(PORTRAIT_X + PORTRAIT_SIZE / 2, PORTRAIT_Y + PORTRAIT_SIZE / 2, PORTRAIT_SIZE / 2, 0, Math.PI * 2);
-  stageCtx.stroke();
+    stageCtx.save();
+    stageCtx.beginPath();
+    stageCtx.arc(cx, cy, PORTRAIT_SIZE / 2, 0, Math.PI * 2);
+    stageCtx.clip();
+    stageCtx.fillStyle = '#1e293b';
+    stageCtx.fillRect(x, y, PORTRAIT_SIZE, PORTRAIT_SIZE);
+    stageCtx.globalAlpha = live ? 1 : 0.55;     // 쉬는 쪽을 눌러 누가 말하는지 보이게
+    stageCtx.drawImage(p.canvas, x, y, PORTRAIT_SIZE, PORTRAIT_SIZE);
+    stageCtx.restore();
+
+    stageCtx.strokeStyle = live ? 'rgba(99,102,241,0.9)' : 'rgba(99,102,241,0.25)';
+    stageCtx.lineWidth = live ? 4 : 2;
+    stageCtx.beginPath();
+    stageCtx.arc(cx, cy, PORTRAIT_SIZE / 2, 0, Math.PI * 2);
+    stageCtx.stroke();
+  }
 
   requestAnimationFrame(composeStageLoop);
 })();
@@ -415,6 +456,20 @@ async function resolveVrmUrl(uidOrCharCode) {
 
 const MOUTH_KEYS = ['aa', 'A', 'a', 'oh', 'O'];
 
+/**
+ * 앵커 2인을 한 번에 싣는다. **남 왼쪽 · 여 오른쪽.**
+ *   두 URL 은 로컬(assets/vrm/…)을 권장한다 — 원격 리졸브는 렌더를 죽인 적이 있다.
+ * @param {{m:string, f:string}} urls
+ */
+window.studioLoadAnchors = async function (urls) {
+  const jobs = [];
+  if (urls?.m) jobs.push(portraitM.loadVrm(urls.m).then(() => log(`앵커(남) loaded ✓`)));
+  if (urls?.f) jobs.push(portrait.loadVrm(urls.f).then(() => log(`앵커(여) loaded ✓`)));
+  await Promise.all(jobs);
+  activeSpeaker = urls?.first === 'm' ? 'm' : 'f';
+  return { m: !!portraitM.vrm, f: !!portrait.vrm };
+};
+
 window.studioLoadVRM = async function () {
   const raw = (document.getElementById('vrmUrl')?.value || '').trim();
   if (!raw) { log('VRM uid/url 입력 필요'); return; }
@@ -504,14 +559,23 @@ function preprocessForKoreanTTS(text) {
   //    한국어가 아니라 더듬는 것처럼 들린다(올바른 읽기는 "두 건", "여섯 건").
   //    백엔드는 수관형사를 쓰고 날짜도 보호하므로, 숫자는 백엔드에 맡긴다.
   //    ⛔ 단위 명사가 붙은 숫자는 건드리지 않는다.
-  return text.replace(/\d+(?:\.\d+)?(?![\s]*(?:건|명|개|번|차|살|마리|권|대|장|편))/g, (m) => {
-    if (/\./.test(m)) {
-      const [int, frac] = m.split('.');
+  // 🔥 부정선행(?!…)으로 단위를 피하려 하면 **끝자리만 남는다**(2026-09-02 실측):
+  //      16개월 → "일6개월" · 63건 → "육3건" · 30대 → "삼0대" · 298건 → "이십구8건"
+  //    \d+ 가 그리디로 먹다가 마지막 한 자리를 뱉어 단위 앞을 비우면 매칭이 성립하기 때문이다.
+  //    → 단위를 **매칭에 포함**시켜 통째로 집고, 단위가 있으면 원문 그대로 돌려준다.
+  const UNIT = '개월|년|일|월|시간|시|분|초|건|명|개|번|차|살|마리|권|대|장|편|원|%';
+  return text.replace(new RegExp(`\\d+(?:\\.\\d+)?\\s*(?:${UNIT})?`, 'g'), (m) => {
+    const mm = m.match(new RegExp(`^(\\d+(?:\\.\\d+)?)\\s*(${UNIT})?$`));
+    if (!mm) return m;
+    const [, num, unit] = mm;
+    if (unit) return m;                    // 단위가 붙으면 백엔드가 수관형사·날짜까지 맞춰 읽는다
+    if (/\./.test(num)) {
+      const [int, frac] = num.split('.');
       if (int.length > 7) return m;
       return toSinoKorean(parseInt(int, 10)) + ' 점 ' + [...frac].map(d => _SINO_DIGITS[+d] || '영').join(' ');
     }
-    if (m.length > 7) return m;
-    return toSinoKorean(parseInt(m, 10));
+    if (num.length > 7) return m;
+    return toSinoKorean(parseInt(num, 10));
   });
 }
 window.preprocessForKoreanTTS = preprocessForKoreanTTS;
@@ -569,9 +633,10 @@ const SLIDE_LEAD_MS = 1000;
 // speakAndAwait (start + onended + tail). 시각이 leading, 음성이 따라옴.
 let currentSrcNode = null;
 
-async function prepareSpeak(text) {
-  if (!portrait.vrm) throw new Error('VRM not loaded');
-  const voiceId = document.getElementById('voiceSelect')?.value || null;
+async function prepareSpeak(text, voiceOverride) {
+  // 발화자별 음성. 씬이 voice 를 주면 그것을, 없으면 드롭다운(=채널 기본)을 쓴다.
+  if (!portrait.vrm && !portraitM.vrm) throw new Error('VRM not loaded');
+  const voiceId = voiceOverride || document.getElementById('voiceSelect')?.value || null;
   const processed = preprocessForKoreanTTS(text);
   log(`▷ ${processed.slice(0, 60)}${processed.length > 60 ? '…' : ''}`);
 
@@ -605,7 +670,7 @@ async function speakAndAwait(prep) {
     const done = (reason) => {
       if (settled) return;
       settled = true;
-      stopLipsync(portrait.vrm);
+      stopLipsync(anchorOf(activeSpeaker).vrm);
       try { srcNode.disconnect(); } catch {}
       try { analyser.disconnect(); } catch {}
       currentSrcNode = null;
@@ -623,7 +688,7 @@ async function speakAndAwait(prep) {
     try {
       srcNode.start();
       log(`  · start()`);
-      startLipsync(analyser, portrait.vrm);
+      startLipsync(analyser, anchorOf(activeSpeaker).vrm);
     } catch (e) {
       log(`  ❌ start failed: ${e?.message || e}`);
       done('start failed');
@@ -676,15 +741,25 @@ async function preloadScenarioAssets(scenes) {
 
   // 나레이션 선합성 — 녹화 중 합성 대기가 화면에 박히지 않게 여기서 전부 받아 둔다.
   // Voicebox 는 문장당 ~10초라 이 단계가 길다. 녹화 시작 전이므로 영상에는 안 들어간다.
-  const voiceId = document.getElementById('voiceSelect')?.value || null;
-  const texts = scenes.map(s => s.narration).filter(t => t && t.trim())
-                      .map(t => preprocessForKoreanTTS(t));
-  if (texts.length) {
-    log(`나레이션 ${texts.length}개 선합성… (문장당 ~10s, 시간이 걸립니다)`);
+  const dfltVoice = document.getElementById('voiceSelect')?.value || null;
+  // 씬마다 발화자가 다르므로 **음성별로 묶어** 미리 받는다.
+  //   합성 캐시 키가 (voiceId, text) 라 여기서 받아 둔 것이 본 실행에서 그대로 히트한다.
+  const byVoice = new Map();
+  for (const sc of scenes) {
+    if (!sc.narration || !sc.narration.trim()) continue;
+    const v = sc.voice || dfltVoice || '';
+    if (!byVoice.has(v)) byVoice.set(v, []);
+    byVoice.get(v).push(preprocessForKoreanTTS(sc.narration));
+  }
+  const total = [...byVoice.values()].reduce((a, b) => a + b.length, 0);
+  if (total) {
+    log(`나레이션 ${total}개 선합성 (음성 ${byVoice.size}종)…`);
     const t0 = Date.now();
-    await prefetchNarrations(texts, { voiceId }, (done, total, _t, err) => {
-      log(`  · TTS ${done}/${total}${err ? ` ❌ ${err.message}` : ''}`);
-    });
+    for (const [v, texts] of byVoice) {
+      await prefetchNarrations(texts, { voiceId: v || null }, (done, tot, _t, err) => {
+        log(`  · TTS[${v || '기본'}] ${done}/${tot}${err ? ` ❌ ${err.message}` : ''}`);
+      });
+    }
     log(`나레이션 선합성 완료 · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   }
 }
@@ -726,10 +801,14 @@ async function runScenario(scenes, opts = {}) {
     };
     log(`▶ Scene ${sceneIndex}/${sceneTotal}: ${(sceneData.caption || '').slice(0, 32)}`);
 
+    // 발화자 전환 — 슬라이드가 바뀌기 전에 정해 둔다(립싱크·강조가 이 값을 본다).
+    //   씬이 speaker 를 안 주면 직전 발화자를 유지한다.
+    if (sc.speaker === 'm' || sc.speaker === 'f') activeSpeaker = sc.speaker;
+
     if (sceneData.narration) {
       // 1) Prepare audio (이전 슬라이드 유지)
       let prep;
-      try { prep = await prepareSpeak(sceneData.narration); }
+      try { prep = await prepareSpeak(sceneData.narration, sc.voice || null); }
       catch (e) {
         log(`Scene ${sceneIndex} prep error: ${e?.message || e}`);
         currentScene = sceneData; updateSceneIndicator();

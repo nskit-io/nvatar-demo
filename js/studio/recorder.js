@@ -40,7 +40,9 @@ export class Recorder {
     //    실측: 지정 없이 720p 를 녹화했더니 **217 kbps** 로 나와 슬라이드 글자가 뭉개졌다.
     //    이 콘텐츠는 정지 슬라이드+텍스트라 프레임레이트보다 비트레이트가 화질을 지배한다.
     const opts = mimeType ? { mimeType } : {};
-    opts.videoBitsPerSecond = 6_000_000;   // 720p 텍스트에 넉넉
+    //    2026-09-10: 캔버스를 1080p 로 올리면서 픽셀이 2.25배가 됐다 -> 같이 올린다.
+    //    안 올리면 해상도만 커지고 글자가 오히려 더 뭉개진다.
+    opts.videoBitsPerSecond = 14_000_000;  // 1080p 텍스트 기준
     opts.audioBitsPerSecond = 128_000;
     this.recorder = new MediaRecorder(stream, opts);
     this.recorder.ondataavailable = (e) => {
