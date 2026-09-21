@@ -4,3 +4,4 @@
 assets/
 *.bak
 *.bak-*
+.DS_Store
