@@ -379,6 +379,9 @@ async function createAndEnter() {
       speech_style: '',
       speech_level: document.getElementById('inSpeechLevel').value,
       proactive_level: 3,
+      // 아바타의 기본 언어 = 지금 보고 있는 UI 언어. 안 보내면 서버 기본 'ko' 로 생성되고,
+      // 영어 방문자의 첫 문장이 "영어 연습 모드" 진입으로 읽혀 감정·성격 학습이 통째로 꺼진다(실측 2026-09-18).
+      language: curLang,
     })
   });
   const d = await r.json();
@@ -401,7 +404,7 @@ function enterRoom(avatarUid, vrmUid) {
     alert('VRM model not selected');
     return;
   }
-  window.location.href = `room.html?avatar=${avatarUid}&vrm=${uid}`;
+  window.location.href = `room.html?avatar=${avatarUid}&vrm=${uid}&lang=${curLang}`;
 }
 
 // --- 3D Preview ---
@@ -649,6 +652,11 @@ const i18n = {
     loading: 'Loading...', serverFail: 'Server connection failed', fillRequired: 'Please fill name, personality, and tone', selectVRM: 'Please select an appearance' },
 };
 let curLang = 'ko';
+// 첫 UI 언어 = 브라우저 언어(지원 3종만). 버튼으로 바꾸면 curLang 이 따라간다.
+(function () {
+  const nav = (navigator.language || '').toLowerCase().slice(0, 2);
+  if (nav === 'ja' || nav === 'en') curLang = nav;
+})();
 
 window.setLang = function(lang) {
   curLang = lang;
@@ -675,6 +683,7 @@ window.setLang = function(lang) {
 };
 
 // Init
+if (curLang !== 'ko') setLang(curLang);
 loadAvatars();
 loadVRMModels();
 </script>
