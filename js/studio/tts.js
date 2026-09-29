@@ -7,6 +7,34 @@ const params = new URLSearchParams(location.search);
 export const API_BASE = params.get('api') || 'https://nvatar.nskit.io';
 
 /**
+ * NSKit 백엔드는 **오류도 HTTP 200 으로** 준다 — 판정은 body 의 `code` 다.
+ *
+ * 🔴 그래서 `res.ok` 만 보면 오류 JSON 이 오디오로 흘러가 `decodeAudioData` 에서 터진다.
+ *    실측 2026-09-30: Azure 구독이 죽어 `{"code":401,"message":"Azure error: "}` 가
+ *    HTTP 200 으로 왔고, 로그에는 8개 씬 전부 `Unable to decode audio data` 만 남았다.
+ *    **무엇이 고장났는지 로그가 말해 주지 않아** 원인까지 가는 데 시간이 걸렸고,
+ *    그날 녹화는 0.0 KB 로 나와 발행이 통째로 실패했다.
+ * 🔑 성공 응답은 오디오다 — `Content-Type` 이 audio/* 가 아니면 그건 오류다.
+ */
+async function _ensureAudio(res) {
+  if (!res.ok) {
+    let msg = `TTS ${res.status}`;
+    try { const j = await res.json(); if (j?.message) msg += ` — ${j.message}`; } catch {}
+    throw new Error(msg);
+  }
+  const ct = res.headers.get('content-type') || '';
+  if (!ct.startsWith('audio/')) {
+    let msg = `TTS 실패 (content-type=${ct || '없음'})`;
+    try {
+      const j = await res.clone().json();
+      if (j?.code || j?.message) msg = `TTS ${j.code ?? '?'} — ${j.message ?? ''}`.trim();
+    } catch {}
+    throw new Error(msg);
+  }
+  return res;
+}
+
+/**
  * Synthesize speech, return ArrayBuffer (for AudioContext.decodeAudioData).
  * 권장 — `<audio>` element 의 silent-playback quirk 회피.
  */
@@ -15,12 +43,7 @@ export async function synthArrayBuffer(text, opts = {}) {
   let url = `${API_BASE}/api/v1/tts?text=${encodeURIComponent(text)}`;
   if (opts.voiceId) url += `&voice_id=${encodeURIComponent(opts.voiceId)}`;
   if (opts.speed != null) url += `&speed=${opts.speed}`;
-  const res = await fetch(url, { method: 'POST' });
-  if (!res.ok) {
-    let msg = `TTS ${res.status}`;
-    try { const j = await res.json(); if (j?.message) msg += ` — ${j.message}`; } catch {}
-    throw new Error(msg);
-  }
+  const res = await _ensureAudio(await fetch(url, { method: 'POST' }));
   return res.arrayBuffer();
 }
 
@@ -37,12 +60,7 @@ export async function synth(text, opts = {}) {
   if (opts.voiceId) url += `&voice_id=${encodeURIComponent(opts.voiceId)}`;
   if (opts.speed != null) url += `&speed=${opts.speed}`;
 
-  const res = await fetch(url, { method: 'POST' });
-  if (!res.ok) {
-    let msg = `TTS ${res.status}`;
-    try { const j = await res.json(); if (j?.message) msg += ` — ${j.message}`; } catch {}
-    throw new Error(msg);
-  }
+  const res = await _ensureAudio(await fetch(url, { method: 'POST' }));
   const blob = await res.blob();
   const blobUrl = URL.createObjectURL(blob);
   const audio = new Audio(blobUrl);
