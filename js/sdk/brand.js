@@ -59,7 +59,7 @@ const DEFAULT_BRAND = {
     textMuted:  '#6b7280',
     textFaint:  '#9ca3af',
     // Portrait (스컬 크롭 둥근 자리) — 슬롯/chat row 의 아바타 자산 frame.
-    // 자산 없을 때 색 bg + border 톤. 이카이스 K 테마 시안: '#0ba5ec' / '#7cd4fd'
+    // 자산 없을 때 색 bg + border 톤. 예: host 테마 '#0ba5ec' / '#7cd4fd'
     portraitBorder: '#d1d5db',
     portraitBg:     '#f3f4f6',
   },
@@ -69,7 +69,7 @@ const DEFAULT_BRAND = {
     empty:      '아직 만들어진 아바타가 없어요.\n아래에서 첫 아바타를 만들어보세요.',
     slotsLockedTitle: '슬롯이 가득 찼어요',
     slotsLockedBody:  '추가 슬롯은 구매 후 진행 가능합니다.\n슬롯 구매는 서비스 준비중입니다.',
-    charactersSection:    '캐릭터',        // 프랜차이즈 캐릭터 섹션 헤더 (이카이스 = "He & She 캐릭터")
+    charactersSection:    '캐릭터',        // 프랜차이즈 캐릭터 섹션 헤더 (host 가 override)
     nvatarCharactersSection: 'NVatar 캐릭터',  // NVatar default VRM 섹션 헤더
   },
   font: 'inherit',

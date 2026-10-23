@@ -2,9 +2,11 @@
 
 [한국어](README.ko.md) | [日本語](README.ja.md) | [中文](README.zh.md)
 
-> A living AI companion in a 3D virtual room — with voice cloning, emotion tracking, personality evolution, and multilingual conversation.
+> A living AI companion in a 3D virtual room — with voice output, emotion tracking, personality evolution, and multilingual conversation.
 
-**[Try Live Demo](https://nskit-io.github.io/nvatar-demo/)**
+**[Live Demo](https://nskit-io.github.io/nvatar-demo/)** (temporarily offline)
+
+> **Note:** Live demo is temporarily offline while the demo server is under maintenance. You can still run it from source.
 
 ### Screenshots
 
@@ -20,7 +22,7 @@
 
 ## What Makes NVatar Different?
 
-Most AI chatbots are stateless text generators. NVatar is an **AI companion that lives in a 3D room** — it remembers your conversations, develops its personality over time, tracks emotions across 9 dimensions, and speaks with a cloned human voice in 32+ languages.
+Most AI chatbots are stateless text generators. NVatar is an **AI companion that lives in a 3D room** — it remembers your conversations, develops its personality over time, tracks emotions across 9 dimensions, and speaks aloud through cloud TTS in the avatar's language.
 
 ### Hybrid AI Architecture
 NVatar combines the best of **local** and **cloud** AI:
@@ -49,8 +51,10 @@ Your avatar starts with a base personality (Friendly, Calm, Tsundere, etc.) + ra
 ### Identity Preservation
 When your avatar works as a code assistant or language tutor, it gains domain knowledge without changing its core personality. This is achieved through a **3-track memory architecture** — core memories (personality), user profile (behavioral patterns), and franchise memories (domain-specific) are kept strictly separate. A tutor session makes your avatar smarter about the subject, not a different person.
 
-### Voice Cloning TTS
-Not a generic robot voice — a **cloned human voice** that speaks 32+ languages with natural intonation:
+### Voice Output (TTS)
+> **Current status:** The design calls for a *cloned* voice unique to each avatar. The external cloning service this depended on lapsed, and the replacement is a cloud TTS provider with prebuilt voices, so today an avatar **selects** a voice rather than **owning** one. Per-avatar cloned voices are not currently shipped.
+
+The voice list and default voice follow the avatar's language:
 - Language-aware speed (KO: 0.85x, JA: 0.65x)
 - Text preprocessing (emoji removal, pronunciation guide stripping)
 - Queue-based playback with interrupt-on-input
@@ -60,7 +64,7 @@ NVatar's capabilities are extensible through a **pluggable behavior system**. Ea
 
 ### Autonomous Agency (Avatar OS)
 Your avatar is not a state machine — it has an **agency layer** that decides for itself.
-- **Distributed judgment**: A lightweight model handles classification; the 26B model only runs for actual conversation.
+- **Lightweight classification (prototype)**: Classification is delegated to a small model; the 26B model only runs for actual conversation.
 - **Activity Density (T1~T4)**: The more you talk to your avatar, the more alive it is. When you stop visiting, it gradually hibernates — long-idle tiers accrue one logic-based memory per day with **zero LLM cost**. Return anytime and it wakes up instantly.
 - **Rest = memory consolidation**: When an avatar rests (you permit it or it gets quiet), it compacts its own memory. A state field is an actual behavior trigger, not just a label.
 - **Source-agnostic state**: Whether a state change comes from your command, the avatar's own decision, or a UI event — one code path, three origins tracked separately.
@@ -101,7 +105,7 @@ For building custom integrations, see [NVatar SDK](https://github.com/nskit-io/n
 |---------|-------------|
 | **3D Virtual Room** | VRM avatars + 33 Mixamo animations (idle, walk, emotions, gestures, dance) |
 | **Natural Conversation** | Gemma 4 26B MoE with personality, memory, and emotion |
-| **Voice Output** | ElevenLabs Voice Clone TTS — 32+ languages |
+| **Voice Output** | Cloud TTS — prebuilt voices, per-language |
 | **Voice Input** | Whisper STT — automatic language detection |
 | **Web Search** | Real-time factual search with structured results |
 | **Multi-language** | KO, JA, EN, ZH — UI and conversation |
@@ -112,13 +116,13 @@ For building custom integrations, see [NVatar SDK](https://github.com/nskit-io/n
 | **Social Ecosystem** | Invite other avatars — they form relationships with each other (intimacy-tracked, personality-isolated) |
 | **Room Manager** | Central orchestrator for multi-avatar conversations: dialogue queue, sticky target, auto-cascade |
 | **Room Authoring** | Edit mode: multi-select meshes in the scene → group/name them → save as room config to DB |
-| **Avatar OS** | Autonomous agency layer: distributed judgment (judge + core), source-agnostic state, Activity Density 4-tier, rest-triggered compaction, trace observability |
+| **Avatar OS** | Autonomous agency layer (prototype): classification delegated to a small model, source-agnostic state, Activity Density 4-tier, rest-triggered compaction, trace observability |
 
 ---
 
 ## Quick Start
 
-1. Open **[Live Demo](https://nskit-io.github.io/nvatar-demo/)**
+1. Open the **[Live Demo](https://nskit-io.github.io/nvatar-demo/)** (temporarily offline — or run it from source)
 2. Choose a **Character Model** from the VRM grid
 3. Enter a **Name** for your avatar
 4. Select **Personality** and **Language**
@@ -162,7 +166,7 @@ room.html                        WebSocket + AI Pipeline
      · Central scheduler             → BehaviorPattern Registry
      · Speech queue (serial)           → NormalChat / CodeAssist / custom
      · Sticky target                 → Gemma 4 26B (local)
-     · Auto-cascade                  → ElevenLabs TTS (cloud)
+     · Auto-cascade                  → Cloud TTS
   → Friend Panel                    → CSW WebSearch (cloud)
      · Invite your avatars          → Emotion Engine (9-dim)
   → Chat / TTS / STT                → Relationship-scoped Memory
@@ -182,13 +186,13 @@ avatar-lab.html                  Static Assets + DB
 | Layer | Technology |
 |-------|-----------|
 | **AI Model** | Gemma 4 26B MoE (4-bit quantized, MLX on Apple Silicon) |
-| **TTS** | ElevenLabs Voice Clone (turbo v2.5, 0.85x speed) |
+| **TTS** | Cloud TTS (prebuilt voices, per-language) |
 | **STT** | Whisper large-v3 (MLX, ~500ms latency) |
 | **3D** | Three.js 0.160 + @pixiv/three-vrm 3.3.3 + Mixamo FBX |
 | **Search** | CSW — Claude WebSearch hybrid (Sonnet) |
 | **Backend** | Python FastAPI + WebSocket + uvicorn |
 | **Database** | MySQL (NCP Managed DB) |
-| **Hosting** | GitHub Pages (demo) + NCP Cloud (server) |
+| **Hosting** | GitHub Pages (demo client) + NVatar server (demo server temporarily offline) |
 
 ---
 
@@ -200,7 +204,7 @@ NVatar is part of the **NSKit** framework — an AI-native development platform.
 |---------|-------------|
 | **NVatar** | AI Avatar Chat (this project) |
 | **[NVatar SDK](https://github.com/nskit-io/nvatar-sdk)** | Build custom behavior patterns and integrations |
-| **NSKit Whisper** | Local STT/TTS API server on Apple Silicon |
+| **NSKit Whisper** | STT service (Whisper) |
 | **CSW** | Claude Subscription Worker — AI processing pipeline |
 | **NSKit Frontend** | Self-contained UI framework (jQuery-based, AI-optimized) |
 
@@ -208,7 +212,7 @@ NVatar is part of the **NSKit** framework — an AI-native development platform.
 
 ## Self-Hosting
 
-This demo connects to our hosted server. To run your own NVatar instance, [contact us](https://github.com/nskit-io).
+This demo client talks to an NVatar server; the public demo server is temporarily offline (maintenance). The server APIs it calls have no built-in authentication — if you run your own instance, put authentication in front of it and do not expose it directly to the public internet. Speech input needs your own STT endpoint (e.g. `?whisper=https://your-stt.example.com/api/v1/transcribe` on `sdk-chat.html`, or `window.NVATAR_WHISPER_URL` in the room). To run your own NVatar instance, [contact us](https://github.com/nskit-io).
 
 ## License
 

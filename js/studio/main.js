@@ -524,7 +524,7 @@ function toSinoKorean(n) {
   }
   return parts.join('');
 }
-// 영어 단어 → 한국어 standard reading 사전 (ElevenLabs 가 phonetic 으로만 읽어 어색한 경우)
+// 영어 단어 → 한국어 standard reading 사전 (TTS 엔진이 phonetic 으로만 읽어 어색한 경우)
 const READING_DICT = {
   'Python': '파이썬', 'python': '파이썬',
   'JavaScript': '자바스크립트', 'javascript': '자바스크립트',

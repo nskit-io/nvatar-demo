@@ -126,7 +126,7 @@ export async function renderRoomView(sdk, ctx) {
   // Back button → list
   root.querySelector('.nv-back').addEventListener('click', () => history.back());
 
-  // PIP minimize 버튼 — sdk.onPipMinimize 박혀있을 때만 노출. 호출 시 ekyss/host 가
+  // PIP minimize 버튼 — sdk.onPipMinimize 박혀있을 때만 노출. 호출 시 host 가
   // 현재 채팅창을 hide 하고 floating PortraitWidget 을 띄움. SDK 는 destroy 안 함 (WS 유지).
   const pipBtn = root.querySelector('.nv-pip-btn');
   if (sdk.onPipMinimize) {
@@ -178,7 +178,7 @@ export async function renderRoomView(sdk, ctx) {
       catch (e) { console.error('[NVatar] character resolve failed:', e); }
     }
     const kind = (model && model.kind) || 'vrm';
-    // PIP minimize 시 ekyss 가 portrait URL / kind 알아야 함 — state 에 캐싱.
+    // PIP minimize 시 host 가 portrait URL / kind 알아야 함 — state 에 캐싱.
     state.modelInfo = model ? { ...model, kind } : { kind };
     state.portrait = await createPortrait({
       kind,
@@ -444,7 +444,7 @@ export async function renderRoomView(sdk, ctx) {
     state.rows.push({ role, content, ts, timeLabel, isProactive: !!proactive, el: row });
 
     // PIP/외부 hook — assistant 메시지가 새로 도착할 때만 호출 (history restore 시 skip).
-    // ekyss 의 PIP widget 이 떠있으면 그쪽이 받아 setMessage.
+    // host 의 PIP widget 이 떠있으면 그쪽이 받아 setMessage.
     if (role === 'assistant' && !fromHistory && sdk.onAssistantMessage) {
       try {
         sdk.onAssistantMessage({

@@ -2,7 +2,9 @@
 import { t } from './i18n.js';
 import { addChatMsg, sendChat } from './chat.js';
 
-const WHISPER_URL = window.NVATAR_WHISPER_URL || 'https://whisper.nskit.io/api/v1/transcribe';
+// Required config: set window.NVATAR_WHISPER_URL to your own STT endpoint
+// (e.g. 'https://your-stt.example.com/api/v1/transcribe'). No default; mic input is disabled without it.
+const WHISPER_URL = window.NVATAR_WHISPER_URL || '';
 const MAX_RECORD_SEC = 20;
 let micRecorder = null;
 let micChunks = [];
@@ -15,6 +17,10 @@ export function toggleMic() {
 }
 
 async function startMic() {
+  if (!WHISPER_URL) {
+    addChatMsg('system', t('micServerFail') + ' (window.NVATAR_WHISPER_URL not set)');
+    return;
+  }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     micChunks = [];

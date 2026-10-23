@@ -6,10 +6,8 @@
 // API_BASE: core server (chat, avatar, memory, tts, channel)
 // RES_BASE: resource server (static files, VRM, room, assets, layout)
 //
-// Local dev:  API_BASE='' (same-origin :54445 → but chat goes to :54444)
-//             RES_BASE='' (same-origin :54445)
-// GitHub Pages: API→nvatar.nskit.io, RES→nvatar-res.nskit.io
-// Production:  same as GitHub Pages
+// Local dev:  API_BASE = local core server, RES_BASE = same-origin
+// GitHub Pages: demo core/resource servers (currently offline)
 
 // Environment-based server URLs — no query-param override (prevents external redirection
 // attacks and avoids leaking server addresses in shareable URLs).

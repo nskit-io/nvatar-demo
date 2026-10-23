@@ -2,9 +2,11 @@
 
 [English](README.md) | [日本語](README.ja.md) | [中文](README.zh.md)
 
-> 3D 가상 룸에 사는 AI 친구 — 음성 클로닝, 감정 추적, 성격 진화, 다국어 대화를 제공합니다.
+> 3D 가상 룸에 사는 AI 친구 — 음성 출력, 감정 추적, 성격 진화, 다국어 대화를 제공합니다.
 
-**[라이브 데모 체험하기](https://nskit-io.github.io/nvatar-demo/)**
+**[라이브 데모](https://nskit-io.github.io/nvatar-demo/)** (일시 중단)
+
+> **안내:** 데모 서버 점검으로 라이브 데모가 일시 중단되었습니다. 소스에서 직접 실행할 수는 있습니다.
 
 ### 스크린샷
 
@@ -20,7 +22,7 @@
 
 ## NVatar가 다른 점
 
-대부분의 AI 챗봇은 상태 없는 텍스트 생성기입니다. NVatar는 **3D 룸에 사는 AI 친구** — 대화를 기억하고, 시간이 지나면서 성격이 발전하고, 9차원 감정을 추적하며, 복제된 사람 목소리로 32개 이상의 언어를 말합니다.
+대부분의 AI 챗봇은 상태 없는 텍스트 생성기입니다. NVatar는 **3D 룸에 사는 AI 친구** — 대화를 기억하고, 시간이 지나면서 성격이 발전하고, 9차원 감정을 추적하며, 아바타의 언어로 클라우드 TTS 음성을 통해 말합니다.
 
 ### 하이브리드 AI 아키텍처
 **로컬**과 **클라우드** AI의 장점을 결합:
@@ -46,15 +48,17 @@
 ### 성격 진화
 기본 성격(다정, 차분, 츤데레 등) + 랜덤 MBTI로 시작. 대화가 쌓이면 8개 성격 특성 + MBTI 4차원이 `pending_delta → decay → commit` 사이클로 변화합니다. 아바타가 말 그대로 함께 성장합니다.
 
-### 음성 클로닝 TTS
-로봇 목소리가 아닌 **복제된 사람 목소리**로 32개 이상의 언어를 자연스럽게:
+### 음성 출력 (TTS)
+> **현재 상태:** 설계상으로는 아바타마다 고유한 *클론* 음성을 갖습니다. 이 기능이 의존하던 외부 클로닝 서비스 구독이 만료됐고, 대체 엔진이 프리빌트 음성을 쓰는 클라우드 TTS 라 현재는 아바타가 음성을 **소유**하는 것이 아니라 **선택**합니다. 아바타별 클론 음성은 현재 제공되지 않습니다.
+
+음성 목록과 기본 음성은 아바타 언어를 따릅니다:
 - 언어별 속도 자동 조절 (한국어: 0.85x, 일본어: 0.65x)
 - 텍스트 전처리 (이모지 제거, 발음 가이드 스트리핑)
 - 큐 기반 순차 재생 + 사용자 입력 시 즉시 중단
 
 ### 자율 주체성 (Avatar OS)
 아바타는 상태 기계가 아니라 — **스스로 판단하는 주체성 레이어** 를 가집니다.
-- **분산 판단**: 경량 모델이 분류 작업을 담당; 26B 모델은 실제 대화 생성에만 사용.
+- **경량 분류 (프로토타입)**: 분류 작업은 소형 모델에 위임; 26B 모델은 실제 대화 생성에만 사용.
 - **Activity Density (T1~T4)**: 아바타와 많이 대화할수록 더 살아있고, 방문을 멈추면 점차 휴면 — 장기 유휴 단계는 매일 로직 기반 기억 1건을 축적하며 **LLM 비용 0**. 언제 돌아와도 즉시 깨어남.
 - **Rest = 기억 정리**: 아바타가 쉬는 상태 (마스터 허락 또는 자동 idle) 진입 시 스스로 기억을 압축. 상태 필드가 단순 라벨이 아닌 실제 행동 트리거.
 - **Source-agnostic 상태**: 마스터 명령, 자율 결정, UI 이벤트 어디서 오든 — 단일 코드 경로, 세 출처를 별도 추적.
@@ -82,7 +86,7 @@
 |------|------|
 | **3D 가상 룸** | VRM 아바타 + Mixamo 33종 애니메이션 |
 | **자연스러운 대화** | Gemma 4 26B MoE + 성격/기억/감정 |
-| **음성 출력** | ElevenLabs Voice Clone — 32개+ 언어 |
+| **음성 출력** | 클라우드 TTS — 프리빌트 음성, 언어별 |
 | **음성 입력** | Whisper STT — 자동 언어 감지 |
 | **웹 검색** | 실시간 팩트 검색 + 구조화된 결과 |
 | **다국어** | KO, JA, EN, ZH — UI 및 대화 |
@@ -93,13 +97,13 @@
 | **소셜 생태계** | 내 아바타들을 서로 만나게 — 쌍별 친밀도 추적, 인격 격리 |
 | **Room Manager** | 다중 아바타 대화 중앙 조율 — 큐 / sticky / auto-cascade |
 | **Room Authoring** | Edit 모드로 씬의 메쉬를 다중 선택 → 그룹 생성 → DB 저장 |
-| **Avatar OS** | 자율 주체성 레이어: 분산 판단 (judge + core), source-agnostic 상태, Activity Density 4-tier, rest 자동 compaction, trace 관측 |
+| **Avatar OS** | 자율 주체성 레이어 (프로토타입): 소형 모델에 위임한 분류, source-agnostic 상태, Activity Density 4-tier, rest 자동 compaction, trace 관측 |
 
 ---
 
 ## 시작하기
 
-1. **[라이브 데모](https://nskit-io.github.io/nvatar-demo/)** 열기
+1. **[라이브 데모](https://nskit-io.github.io/nvatar-demo/)** 열기 (일시 중단 — 소스에서 직접 실행 가능)
 2. **캐릭터 모델** 선택 → **이름** 입력 → **성격/언어** 선택
 3. **Create Avatar** → 룸 입장!
 
@@ -125,7 +129,7 @@
 | 레이어 | 기술 |
 |--------|------|
 | **AI 모델** | Gemma 4 26B MoE (4-bit, Apple Silicon MLX) |
-| **TTS** | ElevenLabs Voice Clone (turbo v2.5) |
+| **TTS** | 클라우드 TTS (프리빌트 음성, 언어별) |
 | **STT** | Whisper large-v3 (MLX, ~500ms) |
 | **3D** | Three.js + @pixiv/three-vrm + Mixamo FBX |
 | **검색** | CSW — Claude WebSearch 하이브리드 |
@@ -142,7 +146,7 @@ NVatar는 **NSKit** 프레임워크의 일부입니다 — AI 네이티브 개�
 | **NVatar** | AI 아바타 채팅 (이 프로젝트) |
 | [**NVatar SDK**](https://github.com/nskit-io/nvatar-sdk) | BehaviorPattern 확장 SDK — 커스텀 패턴 개발 |
 | [**NVatar Code Assist**](https://github.com/nskit-io/nvatar-code-assist) | Claude Code 연동 코드 비서 |
-| **NSKit Whisper** | 로컬 STT/TTS API 서버 |
+| **NSKit Whisper** | STT 서비스 (Whisper) |
 | **CSW** | Claude Subscription Worker — AI 처리 파이프라인 |
 | **NSKit Frontend** | Self-contained UI 프레임워크 |
 

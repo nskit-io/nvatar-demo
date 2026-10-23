@@ -2,9 +2,11 @@
 
 [English](README.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
-> 住在3D虚拟房间里的AI伙伴 — 提供语音克隆、情感追踪、人格进化、多语言对话。
+> 住在3D虚拟房间里的AI伙伴 — 提供语音输出、情感追踪、人格进化、多语言对话。
 
-**[试用在线 Demo](https://nskit-io.github.io/nvatar-demo/)**
+**[在线 Demo](https://nskit-io.github.io/nvatar-demo/)**（暂时下线）
+
+> **说明:** 演示服务器维护中,在线演示暂时下线。仍可从源码运行。
 
 ### 截图
 
@@ -20,7 +22,7 @@
 
 ## NVatar 有什么不同?
 
-大多数AI聊天机器人都是无状态的文本生成器。NVatar 是一个**住在3D房间里的AI伙伴** — 它记住你的对话,随时间发展自己的人格,在9个维度追踪情感,并用克隆的人类声音说32+种语言。
+大多数AI聊天机器人都是无状态的文本生成器。NVatar 是一个**住在3D房间里的AI伙伴** — 它记住你的对话,随时间发展自己的人格,在9个维度追踪情感,并通过云端TTS用虚拟形象的语言说话。
 
 ### 混合AI架构
 NVatar 结合了**本地**与**云端**AI的优势:
@@ -49,8 +51,10 @@ NVatar 结合了**本地**与**云端**AI的优势:
 ### 身份保留
 当你的虚拟形象作为编程助手或语言老师工作时,它获得领域知识而不改变核心人格。通过**3轨记忆架构** — 核心记忆(人格)、用户画像(行为模式)、加盟记忆(领域专用) — 严格分离来实现。辅导会让你的虚拟形象在该学科上更聪明,而非变成另一个人。
 
-### 语音克隆TTS
-不是普通的机器人声音 — 而是**克隆的人类声音**,用自然语调说32+种语言:
+### 语音输出 (TTS)
+> **当前状态:** 设计上每个虚拟形象拥有独有的*克隆*语音。所依赖的外部克隆服务已到期,替代引擎是使用预置语音的云端TTS,因此目前虚拟形象是**选择**语音而非**拥有**语音。暂不提供每个虚拟形象专属的克隆语音。
+
+语音列表和默认语音跟随虚拟形象的语言:
 - 语言感知速度 (韩语: 0.85x, 日语: 0.65x)
 - 文本预处理 (表情符号移除、发音指南清理)
 - 基于队列的播放 + 用户输入时中断
@@ -60,7 +64,7 @@ NVatar 的能力通过**可插拔的行为系统**扩展。每个行为 — Norm
 
 ### 自主能动性 (Avatar OS)
 虚拟形象不是状态机 — 它有一个**自主决定的能动性层**。
-- **分布式判断**: 轻量级模型处理分类; 26B 模型仅用于实际对话生成。
+- **轻量分类 (原型)**: 分类委托给小型模型; 26B 模型仅用于实际对话生成。
 - **Activity Density (T1~T4)**: 与虚拟形象聊得越多,它越鲜活。停止访问时,它会逐渐休眠 — 长期空闲层每天累积 1 条逻辑驱动的记忆,**LLM 成本为零**。随时返回,它立即苏醒。
 - **Rest = 记忆整理**: 虚拟形象进入休息状态时 (主人许可或自动 idle),它会自行压缩记忆。状态字段是实际行为触发器,而非单纯的标签。
 - **Source-agnostic 状态**: 无论状态变更来自主人命令、虚拟形象自主决定还是 UI 事件 — 一条代码路径,三种来源分别追踪。
@@ -101,7 +105,7 @@ NVatarSDK.onLookupResult = (data) => {
 |------|------|
 | **3D虚拟房间** | VRM虚拟形象 + Mixamo 33种动画(待机、行走、情感、手势、舞蹈) |
 | **自然对话** | Gemma 4 26B MoE + 人格、记忆、情感 |
-| **语音输出** | ElevenLabs Voice Clone TTS — 32+ 种语言 |
+| **语音输出** | 云端TTS — 预置语音,按语言 |
 | **语音输入** | Whisper STT — 自动语言检测 |
 | **网页搜索** | 实时事实搜索 + 结构化结果 |
 | **多语言** | KO、JA、EN、ZH — UI 与对话 |
@@ -112,13 +116,13 @@ NVatarSDK.onLookupResult = (data) => {
 | **社交生态** | 邀请其他虚拟形象 — 彼此建立关系(亲密度追踪、人格隔离) |
 | **Room Manager** | 多虚拟形象对话中央编排: 对话队列、粘性目标、自动级联 |
 | **Room Authoring** | Edit 模式: 多选场景中的网格 → 命名分组 → 保存为房间配置到DB |
-| **Avatar OS** | 自主能动性层: 分布式判断 (judge + core)、source-agnostic 状态、Activity Density 4-tier、rest 触发压缩、trace 可观测性 |
+| **Avatar OS** | 自主能动性层 (原型): 委托小型模型的分类、source-agnostic 状态、Activity Density 4-tier、rest 触发压缩、trace 可观测性 |
 
 ---
 
 ## 快速上手
 
-1. 打开 **[在线 Demo](https://nskit-io.github.io/nvatar-demo/)**
+1. 打开 **[在线 Demo](https://nskit-io.github.io/nvatar-demo/)**（暂时下线 — 可从源码运行）
 2. 从 VRM 网格中选择**角色模型**
 3. 为虚拟形象输入**名字**
 4. 选择**人格**和**语言**
@@ -162,7 +166,7 @@ room.html                        WebSocket + AI 流水线
      · 中央调度器                    → BehaviorPattern Registry
      · 语音队列 (串行)                 → NormalChat / CodeAssist / 自定义
      · 粘性目标                      → Gemma 4 26B (本地)
-     · 自动级联                      → ElevenLabs TTS (云端)
+     · 自动级联                      → 云端 TTS
   → Friend Panel                    → CSW WebSearch (云端)
      · 邀请你的虚拟形象              → 情感引擎 (9维)
   → Chat / TTS / STT                → 关系限定记忆
@@ -182,13 +186,13 @@ avatar-lab.html                  静态资源 + DB
 | 层级 | 技术 |
 |------|------|
 | **AI 模型** | Gemma 4 26B MoE (4-bit 量化, Apple Silicon 上的 MLX) |
-| **TTS** | ElevenLabs Voice Clone (turbo v2.5, 0.85x 速度) |
+| **TTS** | 云端TTS (预置语音,按语言) |
 | **STT** | Whisper large-v3 (MLX, ~500ms 延迟) |
 | **3D** | Three.js 0.160 + @pixiv/three-vrm 3.3.3 + Mixamo FBX |
 | **搜索** | CSW — Claude WebSearch 混合 (Sonnet) |
 | **后端** | Python FastAPI + WebSocket + uvicorn |
 | **数据库** | MySQL (NCP Managed DB) |
-| **托管** | GitHub Pages (demo) + NCP Cloud (服务器) |
+| **托管** | GitHub Pages (演示客户端) + NVatar 服务器 (演示服务器暂时下线) |
 
 ---
 
@@ -200,7 +204,7 @@ NVatar 是 **NSKit** 框架的一部分 — 一个 AI-native 开发平台。
 |------|------|
 | **NVatar** | AI 虚拟形象聊天 (本项目) |
 | **[NVatar SDK](https://github.com/nskit-io/nvatar-sdk)** | 构建自定义行为模式与集成 |
-| **NSKit Whisper** | Apple Silicon 上的本地 STT/TTS API 服务器 |
+| **NSKit Whisper** | STT 服务 (Whisper) |
 | **CSW** | Claude Subscription Worker — AI 处理流水线 |
 | **NSKit Frontend** | 自包含的 UI 框架 (jQuery 基础, AI 优化) |
 
@@ -208,7 +212,7 @@ NVatar 是 **NSKit** 框架的一部分 — 一个 AI-native 开发平台。
 
 ## 自托管
 
-此 Demo 连接到我们托管的服务器。要运行你自己的 NVatar 实例,请[联系我们](https://github.com/nskit-io)。
+此 Demo 客户端连接 NVatar 服务器;公共演示服务器维护中,暂时下线。客户端调用的服务器API本身没有认证层 — 如自行运行实例,请在前端加上认证,且不要直接暴露在公网上。语音输入需要自备STT端点(例如在 `sdk-chat.html` 上使用 `?whisper=https://your-stt.example.com/api/v1/transcribe`,或在房间中设置 `window.NVATAR_WHISPER_URL`)。要运行你自己的 NVatar 实例,请[联系我们](https://github.com/nskit-io)。
 
 ## 许可证
 

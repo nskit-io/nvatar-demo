@@ -62,11 +62,12 @@ body {
 </div>
 
 <script type="module">
-// Official endpoints. Override via query params for local dev (?api=, ?res=, ?whisper=).
+// Demo endpoints (demo server temporarily offline). Override via query params (?api=, ?res=, ?whisper=).
+// STT has no default: pass ?whisper=https://your-stt.example.com/api/v1/transcribe to enable the mic.
 const params = new URLSearchParams(location.search);
 const CORE_BASE    = params.get('api')     || 'https://nvatar.nskit.io';
 const RES_BASE     = params.get('res')     || 'https://nvatar-res.nskit.io';
-const WHISPER_URL  = params.get('whisper') || 'https://whisper.nskit.io/api/v1/transcribe';
+const WHISPER_URL  = params.get('whisper') || '';
 
 import { NVatarChatSDK } from './js/sdk/index.js';
 

@@ -1,9 +1,8 @@
 // NVatar Studio — Minimal TTS client
-// /api/v1/tts (Voicebox 음성 클론 프록시 on NVatar backend) → ArrayBuffer / Audio element
+// /api/v1/tts (TTS proxy on the NVatar backend) → ArrayBuffer / Audio element
 
 const params = new URLSearchParams(location.search);
-// nvatar backend 는 항상 nvatar.nskit.io (Mac Studio 프록시). 로컬 정적 서버에서도 동일.
-// 로컬 NVatar 띄울 때만 ?api=http://localhost:54444 로 override.
+// 기본은 데모 백엔드(현재 중단). 다른 NVatar 서버를 쓸 때는 ?api=<서버 URL> 로 override.
 export const API_BASE = params.get('api') || 'https://nvatar.nskit.io';
 
 /**
@@ -74,7 +73,7 @@ export async function synth(text, opts = {}) {
 
 
 // ── 합성 캐시 + 선합성 ────────────────────────────────────────────────────────
-// Voicebox 는 자기회귀 추론이라 **문장당 ~10초** 걸린다(ElevenLabs 는 1~2초였다).
+// TTS 엔진에 따라 **문장당 수 초 이상** 걸릴 수 있다.
 // 재생 중에 합성하면 그 대기가 이전 슬라이드의 정지화면으로 **녹화에 그대로 박힌다.**
 // → 시나리오 실행 전에 전 장면 나레이션을 미리 합성해 둔다.
 const _ttsCache = new Map();

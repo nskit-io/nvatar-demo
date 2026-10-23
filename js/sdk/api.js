@@ -3,13 +3,13 @@
 // Two backend domains:
 //   coreBase  — chat WS, avatars CRUD, messages       (e.g. https://nvatar.nskit.io)
 //   resBase   — VRM model registry, thumbnails, /vrm/ (e.g. https://nvatar-res.nskit.io)
-//   whisperUrl— STT endpoint                          (e.g. https://whisper.nskit.io/api/v1/transcribe)
+//   whisperUrl— STT endpoint, required for mic input  (e.g. https://your-stt.example.com/api/v1/transcribe)
 
 export class Api {
   constructor({ coreBase, resBase, whisperUrl, userId }) {
     this.coreBase = coreBase.replace(/\/$/, '');
     this.resBase = resBase.replace(/\/$/, '');
-    this.whisperUrl = whisperUrl || 'https://whisper.nskit.io/api/v1/transcribe';
+    this.whisperUrl = whisperUrl || '';
     this.userId = userId;
     this.wsBase = this.coreBase.replace(/^http/, 'ws');
   }
@@ -179,6 +179,7 @@ export class Api {
   // --- Whisper STT ---
 
   async transcribe(audioBlob, opts = {}) {
+    if (!this.whisperUrl) throw new Error('STT not configured (whisperUrl)');
     const formData = new FormData();
     formData.append('file', audioBlob, opts.filename || 'voice.webm');
     const r = await fetch(this.whisperUrl, { method: 'POST', body: formData });
