@@ -218,6 +218,8 @@ This demo client talks to an NVatar server; the public demo server is temporaril
 
 MIT — Demo client code. VRM models have individual licenses. Mixamo animations served via API.
 
+> This repository publishes the design pattern and reference material under the MIT License. The NSKit framework itself (runtime, scaffolding, checkers and operating standards) is proprietary to Neoulsoft Inc. and available under a separate commercial license.
+
 ## Support & Investment
 
 NVatar is an independent R&D project. If you find it valuable:

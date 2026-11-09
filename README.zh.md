@@ -218,6 +218,8 @@ NVatar 是 **NSKit** 框架的一部分 — 一个 AI-native 开发平台。
 
 MIT — Demo 客户端代码。VRM 模型有各自的许可证。Mixamo 动画通过 API 提供。
 
+> 本仓库以 MIT 许可证公开设计模式与参考资料。NSKit 框架本体（运行时、脚手架、检查器与运维标准）为 Neoulsoft Inc. 的非公开资产，另行以商业许可提供。
+
 ## 支持与投资
 
 NVatar 是一个独立的 R&D 项目。如果你觉得它有价值:

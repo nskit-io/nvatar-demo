@@ -172,6 +172,8 @@ NVatar는 독립적인 R&D 프로젝트입니다. 가치 있다고 생각하시�
 
 MIT — 데모 클라이언트 코드. VRM 모델은 개별 라이선스. Mixamo 애니메이션은 API 제공.
 
+> 이 리포는 설계 패턴과 레퍼런스를 MIT 라이선스로 공개한 것입니다. NSKit 프레임워크 본체(런타임·스캐폴딩·검사기·운영 표준)는 Neoulsoft Inc. 의 비공개 자산이며 별도 상용 라이선스로 제공됩니다.
+
 ## 연락처
 
 - GitHub: [@nskit-io](https://github.com/nskit-io)
