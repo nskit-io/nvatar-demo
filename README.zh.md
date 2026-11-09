@@ -35,9 +35,9 @@ NVatar 结合了**本地**与**云端**AI的优势:
 你的虚拟形象不仅仅是回应 — 它会**记住**:
 - **L1 (原始)** — 完整对话历史
 - **L2 (摘要)** — 关键时刻压缩为带相关性评分的摘要
-- **L3 (关键词)** — 永久保留的长期人格关键词
+- **L3 (关键词)** — 长期记忆碎片: 相关性降低的记忆逐渐淡化为关键词,虚拟形象会带着不确定感回想("我记不太清了,不过……")
 
-当对话超过100条消息时,L1自动压缩为L2/L3 — 就像人类记住大意而非每一个字。
+当对话超过100条消息时,L1自动压缩为L2,相关性降低的L2事件之后会转入L3 — 就像人类记住大意而非每一个字。(详见 [chat-like-human-memory](https://github.com/nskit-io/chat-like-human-memory))
 
 ### 9维情感追踪
 每条消息都会更新虚拟形象的情感状态,涵盖9个维度:
@@ -145,7 +145,7 @@ NVatarSDK.onLookupResult = (data) => {
 
 ### 小提示
 
-- 虚拟形象**记住一切**并随时间发展人格
+- 虚拟形象**记得你们的对话**(较早的细节会淡化为关键词碎片),并随时间发展人格
 - 问事实性问题("汇率是多少?") — 它会为你搜索
 - 对话中途切换语言 — 虚拟形象会自然适应
 - 每个用户最多**3个虚拟形象** — 删除旧的以创建新的
@@ -212,7 +212,7 @@ NVatar 是 **NSKit** 框架的一部分 — 一个 AI-native 开发平台。
 
 ## 自托管
 
-此 Demo 客户端连接 NVatar 服务器;公共演示服务器维护中,暂时下线。客户端调用的服务器API本身没有认证层 — 如自行运行实例,请在前端加上认证,且不要直接暴露在公网上。语音输入需要自备STT端点(例如在 `sdk-chat.html` 上使用 `?whisper=https://your-stt.example.com/api/v1/transcribe`,或在房间中设置 `window.NVATAR_WHISPER_URL`)。要运行你自己的 NVatar 实例,请[联系我们](https://github.com/nskit-io)。
+此 Demo 客户端连接 NVatar 服务器;公共演示服务器维护中,暂时下线。客户端调用的服务器API本身没有认证层 — 如自行运行实例,请在前端加上认证,且不要直接暴露在公网上。公共演示服务器仅用于演示,不是生产端点;集成方还必须在服务器端校验调用者确实拥有其指定的虚拟形象,CORS 只允许你自己的 origin(不要用 `*`)。语音输入需要自备STT端点(例如在 `sdk-chat.html` 上使用 `?whisper=https://your-stt.example.com/api/v1/transcribe`,或在房间中设置 `window.NVATAR_WHISPER_URL`)。要运行你自己的 NVatar 实例,请[联系我们](https://github.com/nskit-io)。
 
 ## 许可证
 
@@ -233,4 +233,4 @@ NVatar 是一个独立的 R&D 项目。如果你觉得它有价值:
 ## 联系方式
 
 - GitHub: [@nskit-io](https://github.com/nskit-io)
-- 由 [Neoulsoft](https://neoulsoft.com) 打造
+- 由 [Neoulsoft Inc.](https://neoulsoft.com) 打造

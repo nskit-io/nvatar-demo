@@ -35,9 +35,9 @@ This hybrid approach means your avatar can chat naturally about feelings (local)
 Your avatar doesn't just respond — it **remembers**:
 - **L1 (Raw)** — Full conversation history
 - **L2 (Summary)** — Key moments compressed into summaries with relevance scoring
-- **L3 (Keywords)** — Long-term personality keywords that persist forever
+- **L3 (Keywords)** — Long-term fragments: low-relevance memories fade into keywords, which the avatar recalls with some uncertainty ("I can't quite remember, but...")
 
-When conversations exceed 100 messages, L1 automatically compacts into L2/L3 — like how humans remember the gist, not every word.
+When conversations exceed 100 messages, L1 automatically compacts into L2, and low-relevance L2 events later move to L3 — like how humans remember the gist, not every word. (Details: [chat-like-human-memory](https://github.com/nskit-io/chat-like-human-memory).)
 
 ### 9-Dimensional Emotion Tracking
 Every message updates the avatar's emotional state across 9 dimensions:
@@ -122,7 +122,7 @@ For building custom integrations, see [NVatar SDK](https://github.com/nskit-io/n
 
 ## Quick Start
 
-1. Open the **[Live Demo](https://nskit-io.github.io/nvatar-demo/)** (temporarily offline — or run it from source)
+1. Open the **[Live Demo](https://nskit-io.github.io/nvatar-demo/)** (temporarily offline — you can still run it from source)
 2. Choose a **Character Model** from the VRM grid
 3. Enter a **Name** for your avatar
 4. Select **Personality** and **Language**
@@ -145,7 +145,7 @@ For building custom integrations, see [NVatar SDK](https://github.com/nskit-io/n
 
 ### Tips
 
-- The avatar **remembers everything** and develops personality over time
+- The avatar **remembers your conversations** (older details fade into keyword fragments) and develops personality over time
 - Ask factual questions ("What's the exchange rate?") — it will search for you
 - Switch languages mid-conversation — the avatar adapts naturally
 - Maximum **3 avatars** per user — delete old ones to create new
@@ -212,7 +212,7 @@ NVatar is part of the **NSKit** framework — an AI-native development platform.
 
 ## Self-Hosting
 
-This demo client talks to an NVatar server; the public demo server is temporarily offline (maintenance). The server APIs it calls have no built-in authentication — if you run your own instance, put authentication in front of it and do not expose it directly to the public internet. Speech input needs your own STT endpoint (e.g. `?whisper=https://your-stt.example.com/api/v1/transcribe` on `sdk-chat.html`, or `window.NVATAR_WHISPER_URL` in the room). To run your own NVatar instance, [contact us](https://github.com/nskit-io).
+This demo client talks to an NVatar server; the public demo server is temporarily offline (maintenance). The server APIs it calls have no built-in authentication — if you run your own instance, put authentication in front of it and do not expose it directly to the public internet. The public demo server is a demo only, not a production endpoint; integrators must also check on the server that the caller owns the avatar it addresses, and any CORS setting should allow only your own origins (no `*`). Speech input needs your own STT endpoint (e.g. `?whisper=https://your-stt.example.com/api/v1/transcribe` on `sdk-chat.html`, or `window.NVATAR_WHISPER_URL` in the room). To run your own NVatar instance, [contact us](https://github.com/nskit-io).
 
 ## License
 
@@ -233,4 +233,4 @@ For business inquiries, investment opportunities, or self-hosting licenses:
 ## Contact
 
 - GitHub: [@nskit-io](https://github.com/nskit-io)
-- Built by [Neoulsoft](https://neoulsoft.com)
+- Built by [Neoulsoft Inc.](https://neoulsoft.com)
